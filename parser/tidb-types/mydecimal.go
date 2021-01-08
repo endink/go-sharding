@@ -804,7 +804,7 @@ func (d *MyDecimal) Round(to *MyDecimal, frac int, roundMode RoundMode) (err err
 	if frac == wordsFracTo*digitsPerWord {
 		doInc := false
 		switch roundDigit {
-		// Notice: No support for ceiling mode now.
+		// Infof: No support for ceiling mode now.
 		case 0:
 			// If any word after scale is not zero, do increment.
 			// e.g ceiling 3.0001 to scale 1, gets 3.1

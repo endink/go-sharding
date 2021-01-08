@@ -16,6 +16,7 @@ package types
 import (
 	"bytes"
 	"fmt"
+	"github.com/XiaoMi/Gaea/logging"
 	"math"
 	"regexp"
 	"strconv"
@@ -25,7 +26,6 @@ import (
 
 	"github.com/pingcap/errors"
 
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/parser/stmtctx"
 	"github.com/XiaoMi/Gaea/parser/terror"
@@ -263,7 +263,7 @@ func (t Time) ToNumber() *MyDecimal {
 
 	s, err := t.DateFormat(tfStr)
 	if err != nil {
-		log.Warn("Fatal: never happen because we've control the format!")
+		logging.DefaultLogger.Warnf("Fatalf: never happen because we've control the format!")
 	}
 
 	if t.Fsp > 0 {

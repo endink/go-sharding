@@ -17,11 +17,11 @@ package models
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/XiaoMi/Gaea/logging"
 	"path/filepath"
 	"strings"
 	"time"
 
-	"github.com/XiaoMi/Gaea/log"
 	etcdclient "github.com/XiaoMi/Gaea/models/etcd"
 	fileclient "github.com/XiaoMi/Gaea/models/file"
 )
@@ -56,7 +56,7 @@ func NewClient(configType, addr, username, password, root string) Client {
 	case ConfigFile:
 		c, err := fileclient.New(root)
 		if err != nil {
-			log.Warn("create fileclient failed, %s", addr)
+			logging.DefaultLogger.Warnf("create fileclient failed, %s", addr)
 			return nil
 		}
 		return c
@@ -64,12 +64,12 @@ func NewClient(configType, addr, username, password, root string) Client {
 		// etcd
 		c, err := etcdclient.New(addr, time.Minute, username, password, root)
 		if err != nil {
-			log.Fatal("create etcdclient to %s failed, %v", addr, err)
+			logging.DefaultLogger.Fatalf("create etcdclient to %s failed, %v", addr, err)
 			return nil
 		}
 		return c
 	}
-	log.Fatal("unknown config type")
+	logging.DefaultLogger.Fatalf("unknown config type")
 	return nil
 }
 

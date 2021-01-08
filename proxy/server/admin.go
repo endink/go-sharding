@@ -16,6 +16,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/logging"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -24,12 +25,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/models"
 	"github.com/XiaoMi/Gaea/util"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 )
+
+var log = logging.GetLogger("sharding-admin")
 
 const (
 	selfDefinedInternalError = 800
@@ -107,7 +109,7 @@ func NewAdminServer(proxy *Server, cfg *models.Proxy) (*AdminServer, error) {
 		return nil, err
 	}
 
-	log.Notice("[server] NewAdminServer, Api Server running, netProto: http, addr: %s", cfg.AdminAddr)
+	log.Infof("[server] NewAdminServer, Api Server running, netProto: http, addr: %s", cfg.AdminAddr)
 	return s, nil
 }
 
@@ -125,9 +127,9 @@ func (s *AdminServer) Run() {
 
 	select {
 	case <-s.exit.C:
-		log.Warn("[%p] admin shutdown", s)
+		log.Warnf("[%p] admin shutdown", s)
 	case err := <-eh:
-		log.Fatal("[%p] admin exit on error:%v", s, err)
+		log.Fatalf("[%p] admin exit on error:%v", s, err)
 	}
 }
 
@@ -135,7 +137,7 @@ func (s *AdminServer) Run() {
 func (s *AdminServer) Close() error {
 	close(s.exit.C)
 	if err := s.unregisterProxy(); err != nil {
-		log.Fatal("unregister proxy failed, %v", err)
+		log.Fatalf("unregister proxy failed, %v", err)
 		return err
 	}
 	return nil
@@ -164,7 +166,7 @@ func (s *AdminServer) registerURL() {
 func (s *AdminServer) registerMetric() {
 	metricGroup := s.engine.Group("/api/metric", gin.BasicAuth(gin.Accounts{s.adminUser: s.adminPassword}))
 	for path, handler := range s.proxy.manager.GetStatisticManager().GetHandlers() {
-		log.Debug("[server] AdminServer got metric handler, path: %s", path)
+		log.Debugf("[server] AdminServer got metric handler, path: %s", path)
 		metricGroup.GET(path, gin.WrapH(handler))
 	}
 }
@@ -268,7 +270,7 @@ func (s *AdminServer) prepareConfig(c *gin.Context) {
 	defer client.Close()
 	err := s.proxy.ReloadNamespacePrepare(name, client)
 	if err != nil {
-		log.Warn("prepare config of namespace: %s failed, err: %v", name, err)
+		log.Warnf("prepare config of namespace: %s failed, err: %v", name, err)
 		c.JSON(selfDefinedInternalError, err.Error())
 		return
 	}

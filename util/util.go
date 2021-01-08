@@ -16,7 +16,9 @@ package util
 
 import (
 	"fmt"
+	"runtime"
 	"strconv"
+	"strings"
 	"sync/atomic"
 	"time"
 )
@@ -66,4 +68,11 @@ func Int2TimeDuration(t int) (time.Duration, error) {
 
 	}
 	return idleTimeout, nil
+}
+
+func IsWindows() bool {
+	sysType := runtime.GOOS
+
+	return strings.ToLower(sysType) == "windows"
+
 }

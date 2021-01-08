@@ -19,13 +19,15 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/XiaoMi/Gaea/logging"
 	"net"
 	"strings"
 
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/util/sync2"
 )
+
+var log = logging.GetLogger("direct-connection")
 
 // DirectConnection means connection to backend mysql
 type DirectConnection struct {
@@ -474,17 +476,17 @@ func (dc *DirectConnection) SetCharset(charset string, collation mysql.Collation
 // ResetConnection reset connection stattus, include transaction、autocommit、charset、sql_mode .etc
 func (dc *DirectConnection) ResetConnection() error {
 	if dc.IsInTransaction() {
-		log.Debug("get transaction connection from pool, addr: %s, user: %s, db: %s, status: %d", dc.addr, dc.user, dc.db, dc.status)
+		log.Debugf("get transaction connection from pool, addr: %s, user: %s, db: %s, status: %d", dc.addr, dc.user, dc.db, dc.status)
 		if err := dc.Rollback(); err != nil {
-			log.Warn("rollback in reset connection error, addr: %s, user: %s, db: %s, status: %d, err: %v", dc.addr, dc.user, dc.db, dc.status, err)
+			log.Warnf("rollback in reset connection error, addr: %s, user: %s, db: %s, status: %d, err: %v", dc.addr, dc.user, dc.db, dc.status, err)
 			return err
 		}
 	}
 
 	if !dc.IsAutoCommit() {
-		log.Debug("get autocommit = 0 connection from pool, addr: %s, user: %s, db: %s, status: %d", dc.addr, dc.user, dc.db, dc.status)
+		log.Debugf("get autocommit = 0 connection from pool, addr: %s, user: %s, db: %s, status: %d", dc.addr, dc.user, dc.db, dc.status)
 		if err := dc.SetAutoCommit(1); err != nil {
-			log.Warn("set autocommit = 1 in reset connection error, addr: %s, user: %s, db: %s, status: %d, err: %v", dc.addr, dc.user, dc.db, dc.status, err)
+			log.Warnf("set autocommit = 1 in reset connection error, addr: %s, user: %s, db: %s, status: %d, err: %v", dc.addr, dc.user, dc.db, dc.status, err)
 			return err
 		}
 	}

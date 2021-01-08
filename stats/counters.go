@@ -21,8 +21,6 @@ import (
 	"fmt"
 	"sync"
 	"sync/atomic"
-
-	"github.com/XiaoMi/Gaea/log"
 )
 
 // counters is similar to expvar.Map, except that it doesn't allow floats.
@@ -168,7 +166,7 @@ func (c *CountersWithSingleLabel) Label() string {
 // Add adds a value to a named counter.
 func (c *CountersWithSingleLabel) Add(name string, value int64) {
 	if value < 0 {
-		log.Warn("[stats] Adding a negative value to a counter, %v should be a gauge instead", c)
+		counterLogger.Warnf("[stats] Adding a negative value to a counter, %v should be a gauge instead", c)
 	}
 	a := c.getValueAddr(name)
 	atomic.AddInt64(a, value)
@@ -210,7 +208,7 @@ func (mc *CountersWithMultiLabels) Add(names []string, value int64) {
 		panic("CountersWithMultiLabels: wrong number of values in Add")
 	}
 	if value < 0 {
-		log.Warn("[stats] Adding a negative value to a counter, %v should be a gauge instead", mc)
+		counterLogger.Warnf("[stats] Adding a negative value to a counter, %v should be a gauge instead", mc)
 	}
 
 	mc.counters.Add(safeJoinLabels(names), value)

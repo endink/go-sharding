@@ -16,6 +16,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/logging"
 	"strconv"
 	"strings"
 	"sync"
@@ -24,7 +25,6 @@ import (
 
 	"github.com/XiaoMi/Gaea/backend"
 	"github.com/XiaoMi/Gaea/core/errors"
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/parser"
 	"github.com/XiaoMi/Gaea/parser/ast"
@@ -33,6 +33,8 @@ import (
 	"github.com/XiaoMi/Gaea/util"
 	"github.com/XiaoMi/Gaea/util/hack"
 )
+
+var exeLogger = logging.GetLogger("executor")
 
 const (
 	// master comments
@@ -333,7 +335,7 @@ func (se *SessionExecutor) ExecuteCommand(cmd byte, data []byte) Response {
 		return CreateEOFResponse(se.status)
 	default:
 		msg := fmt.Sprintf("command %d not supported now", cmd)
-		log.Warn("dispatch command failed, error: %s", msg)
+		exeLogger.Warnf("dispatch command failed, error: %s", msg)
 		return CreateErrorResponse(se.status, mysql.NewError(mysql.ErrUnknown, msg))
 	}
 }
@@ -464,7 +466,7 @@ func (se *SessionExecutor) executeInMultiSlices(reqCtx *util.RequestContext, pcs
 	sqls map[string]map[string][]string) ([]*mysql.Result, error) {
 
 	if len(pcs) != len(sqls) {
-		log.Warn("Session executeInMultiSlices error, conns: %v, sqls: %v, error: %s", pcs, sqls, errors.ErrConnNotEqual.Error())
+		exeLogger.Warnf("Session executeInMultiSlices error, conns: %v, sqls: %v, error: %s", pcs, sqls, errors.ErrConnNotEqual.Error())
 		return nil, errors.ErrConnNotEqual
 	}
 
@@ -737,7 +739,7 @@ func (se *SessionExecutor) ExecuteSQL(reqCtx *util.RequestContext, slice, db, sq
 
 	if len(rs) == 0 {
 		msg := fmt.Sprintf("result is empty")
-		log.Warn("[server] Session handle Unsupport: %s, sql: %s", msg, sql)
+		exeLogger.Warnf("[server] Session handle Unsupport: %s, sql: %s", msg, sql)
 		return nil, mysql.NewError(mysql.ErrUnknown, msg)
 	}
 	return rs[0], nil
@@ -752,13 +754,13 @@ func (se *SessionExecutor) ExecuteSQLs(reqCtx *util.RequestContext, sqls map[str
 	pcs, err := se.getBackendConns(sqls, getFromSlave(reqCtx))
 	defer se.recycleBackendConns(pcs, false)
 	if err != nil {
-		log.Warn("getShardConns failed: %v", err)
+		exeLogger.Warnf("getShardConns failed: %v", err)
 		return nil, err
 	}
 
 	rs, err := se.executeInMultiSlices(reqCtx, pcs, sqls)
 	if err != nil {
-		log.Warn("executeInMultiSlices error: %v", err)
+		exeLogger.Warnf("executeInMultiSlices error: %v", err)
 		return nil, err
 	}
 	return rs, nil

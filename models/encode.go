@@ -16,8 +16,7 @@ package models
 
 import (
 	"encoding/json"
-
-	"github.com/XiaoMi/Gaea/log"
+	"github.com/XiaoMi/Gaea/logging"
 )
 
 // JSONEncode return json encoding of v
@@ -25,7 +24,7 @@ func JSONEncode(v interface{}) []byte {
 	b, err := json.MarshalIndent(v, "", "    ")
 	if err != nil {
 		//TODO panic
-		log.Fatal("encode to json failed, %v", err)
+		logging.DefaultLogger.Fatalf("encode to json failed, %v", err)
 		return nil
 	}
 	return b

@@ -17,11 +17,13 @@ limitations under the License.
 package stats
 
 import (
+	"github.com/XiaoMi/Gaea/logging"
 	"strconv"
 
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/util/sync2"
 )
+
+var counterLogger = logging.GetLogger("stats-counter")
 
 // Counter tracks a cumulative count of a metric.
 // For a one-dimensional or multi-dimensional counter, please use
@@ -43,7 +45,7 @@ func NewCounter(name string, help string) *Counter {
 // Add adds the provided value to the Counter.
 func (v *Counter) Add(delta int64) {
 	if delta < 0 {
-		log.Warn("[stats] Adding a negative value to a counter, %v should be a gauge instead", v)
+		counterLogger.Warnf("[stats] Adding a negative value to a counter, %v should be a gauge instead", v)
 	}
 	v.i.Add(delta)
 }

@@ -165,7 +165,7 @@ func BenchmarkMultiCounters(b *testing.B) {
 
 func BenchmarkCountersTailLatency(b *testing.B) {
 	// For this one, ignore the time reported by 'go test'.
-	// The 99th Percentile log line is all that matters.
+	// The 99th Percentile counterLogger line is all that matters.
 	// (Cmd: go test -bench=BenchmarkCountersTailLatency -benchtime=30s -cpu=10)
 	clear()
 	benchCounter.Add("c1", 1)

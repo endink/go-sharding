@@ -16,10 +16,12 @@ package server
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/logging"
 
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/mysql"
 )
+
+var connLogger = logging.GetLogger("client-conn")
 
 // ClientConn session client connection
 type ClientConn struct {
@@ -204,7 +206,7 @@ func (cc *ClientConn) readHandshakeResponse() (HandshakeResponseInfo, error) {
 func (cc *ClientConn) writeOK(status uint16) error {
 	err := cc.WriteOKPacket(0, 0, status, 0)
 	if err != nil {
-		log.Warn("write ok packet failed, %v", err)
+		connLogger.Warnf("write ok packet failed, %v", err)
 		return err
 	}
 	return nil
@@ -220,7 +222,7 @@ func (cc *ClientConn) writeOKResult(status uint16, r *mysql.Result) error {
 func (cc *ClientConn) writeEOFPacket(status uint16) error {
 	err := cc.WriteEOFPacket(status, 0)
 	if err != nil {
-		log.Warn("write eof packet failed, %v", err)
+		connLogger.Warnf("write eof packet failed, %v", err)
 		return err
 	}
 	return nil
@@ -229,7 +231,7 @@ func (cc *ClientConn) writeEOFPacket(status uint16) error {
 func (cc *ClientConn) writeErrorPacket(err error) error {
 	e := cc.WriteErrorPacketFromError(err)
 	if e != nil {
-		log.Warn("write error packet failed, %v", err)
+		connLogger.Warnf("write error packet failed, %v", err)
 		return e
 	}
 	return nil

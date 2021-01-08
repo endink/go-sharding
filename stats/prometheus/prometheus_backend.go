@@ -2,14 +2,16 @@ package prometheus
 
 import (
 	"expvar"
+	"github.com/XiaoMi/Gaea/logging"
 	"net/http"
 	"strings"
 
+	"github.com/XiaoMi/Gaea/stats"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/XiaoMi/Gaea/log"
-	"github.com/XiaoMi/Gaea/stats"
 )
+
+var log = logging.GetLogger("prometheus")
 
 // PromBackend implements PullBackend using Prometheus as the backing metrics storage.
 type PromBackend struct {
@@ -71,7 +73,7 @@ func (be PromBackend) publishPrometheusMetric(name string, v expvar.Var) {
 	case *stats.Histogram:
 		newHistogramCollector(st, be.buildPromName(name))
 	default:
-		log.Warn("[prometheus] Not exporting to Prometheus an unsupported metric type of %T: %s", st, name)
+		log.Warnf("[prometheus] Not exporting to Prometheus an unsupported metric type of %T: %s", st, name)
 	}
 }
 
