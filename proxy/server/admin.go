@@ -207,7 +207,12 @@ func NewProxyInfo(cfg *models.Proxy, addr string) (*models.ProxyInfo, error) {
 	proxyInfo.IP = tmp[0]
 	proxyInfo.Pid = os.Getpid()
 	proxyInfo.Pwd, _ = os.Getwd()
-	o, err := exec.Command("uname", "-a").Output()
+	var o []byte
+	if util.IsWindows() {
+		o = []byte("Windows")
+	} else {
+		o, err = exec.Command("uname", "-a").Output()
+	}
 	if err != nil {
 		return nil, err
 	}

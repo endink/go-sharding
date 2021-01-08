@@ -16,6 +16,7 @@ package util
 
 import (
 	"fmt"
+	"os"
 	"runtime"
 	"strconv"
 	"strings"
@@ -75,4 +76,13 @@ func IsWindows() bool {
 
 	return strings.ToLower(sysType) == "windows"
 
+}
+
+func FileExists(name string) bool {
+	if _, err := os.Stat(name); err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return true
 }

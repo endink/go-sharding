@@ -119,11 +119,11 @@ func (s *Server) onConn(c net.Conn, server *myserver.Server) {
 		cc.Close()
 	}()
 
-	//conn, err := myserver.NewCustomizedConn(c, server, cc, myserver.EmptyHandler{})
-	//if err != nil {
-	//	cc.c.writeErrorPacket(err)
-	//	return
-	//}
+	_, err := myserver.NewCustomizedConn(c, server, cc.CreateCredentialProvider(), myserver.EmptyHandler{})
+	if err != nil {
+		cc.c.writeErrorPacket(err)
+		return
+	}
 
 	if err := cc.Handshake(); err != nil {
 		logging.DefaultLogger.Warnf("[server] onConn error: %s", err.Error())
