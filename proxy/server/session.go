@@ -16,13 +16,13 @@ package server
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/logging"
 	"net"
 	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
 
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/util"
 )
@@ -84,7 +84,7 @@ func (cc *Session) IsAllowConnect() bool {
 	ns := cc.getNamespace() // maybe nil, and panic!
 	clientHost, _, err := net.SplitHostPort(cc.c.RemoteAddr().String())
 	if err != nil {
-		log.Warn("[server] Session parse host error: %v", err)
+		logging.DefaultLogger.Warnf("[server] Session parse host error: %v", err)
 	}
 	clientIP := net.ParseIP(clientHost)
 
@@ -100,7 +100,7 @@ func (cc *Session) Handshake() error {
 	if err := cc.c.writeInitialHandshakeV10(); err != nil {
 		clientHost, _, innerErr := net.SplitHostPort(cc.c.RemoteAddr().String())
 		if innerErr != nil {
-			log.Warn("[server] Session parse host error: %v", innerErr)
+			logging.DefaultLogger.Warnf("[server] Session parse host error: %v", innerErr)
 		}
 		// filter lvs detect liveness
 		hostname, _ := util.HostName(clientHost)
@@ -108,7 +108,7 @@ func (cc *Session) Handshake() error {
 			return err
 		}
 
-		log.Warn("[server] Session writeInitialHandshake error, connId: %d, ip: %s, msg: %s, error: %s",
+		logging.DefaultLogger.Warnf("[server] Session writeInitialHandshake error, connId: %d, ip: %s, msg: %s, error: %s",
 			cc.c.GetConnectionID(), clientHost, " send initial handshake error", err.Error())
 		return err
 	}
@@ -117,7 +117,7 @@ func (cc *Session) Handshake() error {
 	if err != nil {
 		clientHost, _, innerErr := net.SplitHostPort(cc.c.RemoteAddr().String())
 		if innerErr != nil {
-			log.Warn("[server] Session parse host error: %v", innerErr)
+			logging.DefaultLogger.Warnf("[server] Session parse host error: %v", innerErr)
 		}
 		// filter lvs detect liveness
 		hostname, _ := util.HostName(clientHost)
@@ -125,18 +125,18 @@ func (cc *Session) Handshake() error {
 			return err
 		}
 
-		log.Warn("[server] Session readHandshakeResponse error, connId: %d, ip: %s, msg: %s, error: %s",
+		logging.DefaultLogger.Warnf("[server] Session readHandshakeResponse error, connId: %d, ip: %s, msg: %s, error: %s",
 			cc.c.GetConnectionID(), clientHost, "read Handshake Response error", err.Error())
 		return err
 	}
 
 	if err := cc.handleHandshakeResponse(info); err != nil {
-		log.Warn("handleHandshakeResponse error, connId: %d, err: %v", cc.c.GetConnectionID(), err)
+		logging.DefaultLogger.Warnf("handleHandshakeResponse error, connId: %d, err: %v", cc.c.GetConnectionID(), err)
 		return err
 	}
 
 	if err := cc.c.writeOK(cc.executor.GetStatus()); err != nil {
-		log.Warn("[server] Session readHandshakeResponse error, connId %d, msg: %s, error: %s",
+		logging.DefaultLogger.Warnf("[server] Session readHandshakeResponse error, connId %d, msg: %s, error: %s",
 			cc.c.GetConnectionID(), "write ok fail", err.Error())
 		return err
 	}
@@ -189,10 +189,10 @@ func (cc *Session) Close() {
 	}
 	cc.closed.Store(true)
 	if err := cc.executor.rollback(); err != nil {
-		log.Warn("executor rollback error when Session close: %v", err)
+		logging.DefaultLogger.Warnf("executor rollback error when Session close: %v", err)
 	}
 	cc.c.Close()
-	log.Debug("client closed, %d", cc.c.GetConnectionID())
+	logging.DefaultLogger.Debugf("client closed, %d", cc.c.GetConnectionID())
 
 	return
 }
@@ -211,7 +211,7 @@ func (cc *Session) Run() {
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]
 
-			log.Warn("[server] Session Run panic error, error: %s, stack: %s", err.Error(), string(buf))
+			logging.DefaultLogger.Warnf("[server] Session Run panic error, error: %s, stack: %s", err.Error(), string(buf))
 		}
 		cc.Close()
 		cc.proxy.tw.Remove(cc)
@@ -236,7 +236,7 @@ func (cc *Session) Run() {
 		cc.c.RecycleReadPacket()
 
 		if err = cc.writeResponse(rs); err != nil {
-			log.Warn("Session write response error, connId: %d, err: %v", cc.c.GetConnectionID(), err)
+			logging.DefaultLogger.Warnf("Session write response error, connId: %d, err: %v", cc.c.GetConnectionID(), err)
 			cc.Close()
 			return
 		}
@@ -288,7 +288,7 @@ func (cc *Session) writeResponse(r Response) error {
 		return nil
 	default:
 		err := fmt.Errorf("invalid response type: %T", r)
-		log.Fatal(err.Error())
+		logging.DefaultLogger.Fatalf(err.Error())
 		return cc.c.writeErrorPacket(err)
 	}
 }

@@ -18,6 +18,8 @@ import (
 	"bytes"
 	"crypto/md5"
 	"fmt"
+	"github.com/XiaoMi/Gaea/logging"
+	"go.uber.org/zap"
 	"net/http"
 	"sort"
 	"strconv"
@@ -26,8 +28,6 @@ import (
 	"time"
 
 	"github.com/XiaoMi/Gaea/core/errors"
-	"github.com/XiaoMi/Gaea/log"
-	"github.com/XiaoMi/Gaea/log/xlog"
 	"github.com/XiaoMi/Gaea/models"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/parser"
@@ -41,14 +41,14 @@ import (
 func LoadAndCreateManager(cfg *models.Proxy) (*Manager, error) {
 	namespaceConfigs, err := loadAllNamespace(cfg)
 	if err != nil {
-		log.Warn("init namespace manager failed, %v", err)
+		logging.DefaultLogger.Warnf("init namespace manager failed, %v", err)
 		return nil, err
 
 	}
 
 	mgr, err := CreateManager(cfg, namespaceConfigs)
 	if err != nil {
-		log.Warn("create manager error: %v", err)
+		logging.DefaultLogger.Warnf("create manager error: %v", err)
 		return nil, err
 	}
 	//globalManager = mgr
@@ -69,7 +69,7 @@ func loadAllNamespace(cfg *models.Proxy) (map[string]*models.Namespace, error) {
 	var names []string
 	names, err = store.ListNamespace()
 	if err != nil {
-		log.Warn("list namespace failed, err: %v", err)
+		log.Warnf("list namespace failed, err: %v", err)
 		return nil, err
 	}
 
@@ -87,7 +87,7 @@ func loadAllNamespace(cfg *models.Proxy) (map[string]*models.Namespace, error) {
 			for name := range nameC {
 				namespace, e := store.LoadNamespace(cfg.EncryptKey, name)
 				if e != nil {
-					log.Warn("load namespace %s failed, err: %v", name, err)
+					log.Warnf("load namespace %s failed, err: %v", name, err)
 					// assign extent err out of this scope
 					err = e
 					return
@@ -95,7 +95,7 @@ func loadAllNamespace(cfg *models.Proxy) (map[string]*models.Namespace, error) {
 				// verify namespace config
 				e = namespace.Verify()
 				if e != nil {
-					log.Warn("verify namespace %s failed, err: %v", name, e)
+					log.Warnf("verify namespace %s failed, err: %v", name, e)
 					err = e
 					return
 				}
@@ -120,7 +120,7 @@ func loadAllNamespace(cfg *models.Proxy) (map[string]*models.Namespace, error) {
 		namespaceModels[namespace.Name] = namespace
 	}
 	if err != nil {
-		log.Warn("get namespace failed, err:%v", err)
+		log.Warnf("get namespace failed, err:%v", err)
 		return nil, err
 	}
 
@@ -148,7 +148,7 @@ func CreateManager(cfg *models.Proxy, namespaceConfigs map[string]*models.Namesp
 	// init statistics
 	statisticManager, err := CreateStatisticManager(cfg, m)
 	if err != nil {
-		log.Warn("init stats manager failed, %v", err)
+		log.Warnf("init stats manager failed, %v", err)
 		return nil, err
 	}
 	m.statistics = statisticManager
@@ -190,7 +190,7 @@ func (m *Manager) ReloadNamespacePrepare(namespaceConfig *models.Namespace) erro
 	currentNamespaceManager := m.namespaces[current]
 	newNamespaceManager := ShallowCopyNamespaceManager(currentNamespaceManager)
 	if err := newNamespaceManager.RebuildNamespace(namespaceConfig); err != nil {
-		log.Warn("prepare config of namespace: %s failed, err: %v", name, err)
+		log.Warnf("prepare config of namespace: %s failed, err: %v", name, err)
 		return err
 	}
 	m.namespaces[other] = newNamespaceManager
@@ -209,7 +209,7 @@ func (m *Manager) ReloadNamespacePrepare(namespaceConfig *models.Namespace) erro
 func (m *Manager) ReloadNamespaceCommit(name string) error {
 	if !m.reloadPrepared.CompareAndSwap(true, false) {
 		err := errors.ErrNamespaceNotPrepared
-		log.Warn("commit namespace error, namespace: %s, err: %v", name, err)
+		log.Warnf("commit namespace error, namespace: %s, err: %v", name, err)
 		return err
 	}
 
@@ -297,7 +297,7 @@ func (m *Manager) RecordSessionSQLMetrics(reqCtx *util.RequestContext, se *Sessi
 	namespace := se.namespace
 	ns := m.GetNamespace(namespace)
 	if ns == nil {
-		log.Warn("record session SQL metrics error, namespace: %s, sql: %s, err: %s", namespace, trimmedSql, "namespace not found")
+		log.Warnf("record session SQL metrics error, namespace: %s, sql: %s, err: %s", namespace, trimmedSql, "namespace not found")
 		return
 	}
 
@@ -315,7 +315,7 @@ func (m *Manager) RecordSessionSQLMetrics(reqCtx *util.RequestContext, se *Sessi
 	// record slow sql
 	duration := time.Since(startTime).Nanoseconds() / int64(time.Millisecond)
 	if duration > ns.getSessionSlowSQLTime() || ns.getSessionSlowSQLTime() == 0 {
-		log.Warn("session slow SQL, namespace: %s, sql: %s, cost: %d ms", namespace, trimmedSql, duration)
+		logging.DefaultLogger.Warnf("session slow SQL, namespace: %s, sql: %s, cost: %d ms", namespace, trimmedSql, duration)
 		fingerprint := mysql.GetFingerprint(sql)
 		md5 := mysql.GetMd5(fingerprint)
 		ns.SetSlowSQLFingerprint(md5, fingerprint)
@@ -324,7 +324,7 @@ func (m *Manager) RecordSessionSQLMetrics(reqCtx *util.RequestContext, se *Sessi
 
 	// record error sql
 	if err != nil {
-		log.Warn("session error SQL, namespace: %s, sql: %s, cost: %d ms, err: %v", namespace, trimmedSql, duration, err)
+		logging.DefaultLogger.Warnf("session error SQL, namespace: %s, sql: %s, cost: %d ms, err: %v", namespace, trimmedSql, duration, err)
 		fingerprint := mysql.GetFingerprint(sql)
 		md5 := mysql.GetMd5(fingerprint)
 		ns.SetErrorSQLFingerprint(md5, fingerprint)
@@ -332,7 +332,7 @@ func (m *Manager) RecordSessionSQLMetrics(reqCtx *util.RequestContext, se *Sessi
 	}
 
 	if OpenProcessGeneralQueryLog() && ns.openGeneralLog {
-		m.statistics.generalLogger.Notice("client: %s, namespace: %s, db: %s, user: %s, cmd: %s, sql: %s, cost: %d ms, succ: %t",
+		m.statistics.generalLogger.Infof("client: %s, namespace: %s, db: %s, user: %s, cmd: %s, sql: %s, cost: %d ms, succ: %t",
 			se.clientAddr, namespace, se.db, se.user, operation, trimmedSql, duration, err == nil)
 	}
 }
@@ -342,7 +342,7 @@ func (m *Manager) RecordBackendSQLMetrics(reqCtx *util.RequestContext, namespace
 	trimmedSql := strings.ReplaceAll(sql, "\n", " ")
 	ns := m.GetNamespace(namespace)
 	if ns == nil {
-		log.Warn("record backend SQL metrics error, namespace: %s, backend addr: %s, sql: %s, err: %s", namespace, backendAddr, trimmedSql, "namespace not found")
+		logging.DefaultLogger.Warnf("record backend SQL metrics error, namespace: %s, backend addr: %s, sql: %s, err: %s", namespace, backendAddr, trimmedSql, "namespace not found")
 		return
 	}
 
@@ -360,7 +360,7 @@ func (m *Manager) RecordBackendSQLMetrics(reqCtx *util.RequestContext, namespace
 	// record slow sql
 	duration := time.Since(startTime).Nanoseconds() / int64(time.Millisecond)
 	if m.statistics.isBackendSlowSQL(startTime) {
-		log.Warn("backend slow SQL, namespace: %s, addr: %s, sql: %s, cost: %d ms", namespace, backendAddr, trimmedSql, duration)
+		logging.DefaultLogger.Warnf("backend slow SQL, namespace: %s, addr: %s, sql: %s, cost: %d ms", namespace, backendAddr, trimmedSql, duration)
 		fingerprint := mysql.GetFingerprint(sql)
 		md5 := mysql.GetMd5(fingerprint)
 		ns.SetBackendSlowSQLFingerprint(md5, fingerprint)
@@ -369,7 +369,7 @@ func (m *Manager) RecordBackendSQLMetrics(reqCtx *util.RequestContext, namespace
 
 	// record error sql
 	if err != nil {
-		log.Warn("backend error SQL, namespace: %s, addr: %s, sql: %s, cost %d ms, err: %v", namespace, backendAddr, trimmedSql, duration, err)
+		logging.DefaultLogger.Warnf("backend error SQL, namespace: %s, addr: %s, sql: %s, cost %d ms, err: %v", namespace, backendAddr, trimmedSql, duration, err)
 		fingerprint := mysql.GetFingerprint(sql)
 		md5 := mysql.GetMd5(fingerprint)
 		ns.SetBackendErrorSQLFingerprint(md5, fingerprint)
@@ -401,7 +401,7 @@ func (m *Manager) startConnectPoolMetricsTask(interval int) {
 func (m *Manager) recordBackendConnectPoolMetrics(namespace string) {
 	ns := m.GetNamespace(namespace)
 	if ns == nil {
-		log.Warn("record backend connect pool metrics err, namespace: %s", namespace)
+		logging.DefaultLogger.Warnf("record backend connect pool metrics err, namespace: %s", namespace)
 		return
 	}
 
@@ -440,7 +440,7 @@ func CreateNamespaceManager(namespaceConfigs map[string]*models.Namespace) *Name
 	for _, config := range namespaceConfigs {
 		namespace, err := NewNamespace(config)
 		if err != nil {
-			log.Warn("create namespace %s failed, err: %v", config.Name, err)
+			logging.DefaultLogger.Warnf("create namespace %s failed, err: %v", config.Name, err)
 			continue
 		}
 		nsMgr.namespaces[namespace.name] = namespace
@@ -461,7 +461,7 @@ func ShallowCopyNamespaceManager(nsMgr *NamespaceManager) *NamespaceManager {
 func (n *NamespaceManager) RebuildNamespace(config *models.Namespace) error {
 	namespace, err := NewNamespace(config)
 	if err != nil {
-		log.Warn("create namespace %s failed, err: %v", config.Name, err)
+		logging.DefaultLogger.Warnf("create namespace %s failed, err: %v", config.Name, err)
 		return err
 	}
 	n.namespaces[config.Name] = namespace
@@ -626,7 +626,7 @@ type StatisticManager struct {
 
 	statsType     string // 监控后端类型
 	handlers      map[string]http.Handler
-	generalLogger log.Logger
+	generalLogger *zap.SugaredLogger
 
 	sqlTimings                *stats.MultiTimings            // SQL耗时统计
 	sqlFingerprintSlowCounts  *stats.CountersWithMultiLabels // 慢SQL指纹数量统计
@@ -663,25 +663,13 @@ func CreateStatisticManager(cfg *models.Proxy, manager *Manager) (*StatisticMana
 	if err = mgr.Init(cfg); err != nil {
 		return nil, err
 	}
-	if mgr.generalLogger, err = initGeneralLogger(cfg); err != nil {
-		return nil, err
-	}
+	mgr.generalLogger = logging.GetLogger("manager")
 	return mgr, nil
 }
 
 type proxyStatsConfig struct {
 	Service      string
 	StatsEnabled bool
-}
-
-func initGeneralLogger(cfg *models.Proxy) (log.Logger, error) {
-	c := make(map[string]string, 5)
-	c["path"] = cfg.LogPath
-	c["filename"] = cfg.LogFileName + "_sql"
-	c["level"] = cfg.LogLevel
-	c["service"] = cfg.Service
-	c["runtime"] = "false"
-	return xlog.CreateLogManager(cfg.LogOutput, c)
 }
 
 func parseProxyStatsConfig(cfg *models.Proxy) (*proxyStatsConfig, error) {

@@ -74,7 +74,7 @@ func main() {
 	// 构造服务实例
 	s, err := cc.NewServer(ccConfig.Addr, ccConfig)
 	if err != nil {
-		log.Fatal("create server failed, %v", err)
+		log.Fatalf("create server failed, %v", err)
 		return
 	}
 
@@ -87,11 +87,11 @@ func main() {
 		for {
 			sig := <-c
 			if sig == syscall.SIGINT || sig == syscall.SIGTERM || sig == syscall.SIGQUIT {
-				log.Notice("got signal %d, quit", sig)
+				log.Infof("got signal %d, quit", sig)
 				s.Close()
 				return
 			}
-			log.Notice("ignore signal %d", sig)
+			log.Infof("ignore signal %d", sig)
 		}
 	}()
 

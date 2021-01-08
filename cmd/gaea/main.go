@@ -17,22 +17,26 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/XiaoMi/Gaea/logging"
+	"github.com/XiaoMi/Gaea/util"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
 	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/log"
-	"github.com/XiaoMi/Gaea/log/xlog"
 	"github.com/XiaoMi/Gaea/models"
 	"github.com/XiaoMi/Gaea/proxy/server"
 )
 
-var configFile = flag.String("config", "etc/gaea.ini", "gaea config file")
-var info = flag.Bool("info", false, "show info of gaea")
-
 func main() {
+	var defaultConfigFilePath = "etc/gaea.ini"
+	if util.IsWindows() {
+		defaultConfigFilePath = "gaea.ini"
+	}
+
+	var configFile = flag.String("config", defaultConfigFilePath, "gaea config file")
+	var info = flag.Bool("info", false, "show info of gaea")
 	flag.Parse()
 	if *info {
 		fmt.Printf("Build Version Information:%s\n", core.Info.LongForm())
@@ -48,22 +52,16 @@ func main() {
 		return
 	}
 
-	if err = initXLog(cfg.LogOutput, cfg.LogPath, cfg.LogFileName, cfg.LogLevel, cfg.Service); err != nil {
-		fmt.Printf("init xlog error: %v\n", err.Error())
-		return
-	}
-	defer log.Close()
-
 	// init manager
 	mgr, err := server.LoadAndCreateManager(cfg)
 	if err != nil {
-		log.Fatal("init manager failed, error: %v", err)
+		logging.DefaultLogger.Fatalf("init manager failed, error: %v", err)
 		return
 	}
 
 	svr, err := server.NewServer(cfg, mgr)
 	if err != nil {
-		log.Fatal("NewServer error, quit. error: %s", err.Error())
+		logging.DefaultLogger.Fatalf("NewServer error, quit. error: %s", err.Error())
 		return
 	}
 
@@ -73,7 +71,7 @@ func main() {
 		syscall.SIGTERM,
 		syscall.SIGQUIT,
 		syscall.SIGPIPE,
-		syscall.SIGUSR1,
+		//syscall.SIGUSR1,
 	)
 
 	var wg sync.WaitGroup
@@ -83,33 +81,17 @@ func main() {
 		for {
 			sig := <-sc
 			if sig == syscall.SIGINT || sig == syscall.SIGTERM || sig == syscall.SIGQUIT {
-				log.Notice("Got signal %d, quit", sig)
-				svr.Close()
+				logging.DefaultLogger.Infof("Got signal %d, quit", sig)
+				_ = svr.Close()
 				break
 			} else if sig == syscall.SIGPIPE {
-				log.Notice("Ignore broken pipe signal")
-			} else if sig == syscall.SIGUSR1 {
-				log.Notice("Got update config signal")
+				logging.DefaultLogger.Infof("Ignore broken pipe signal")
 			}
+			//} else if sig == syscall.SIGUSR1 {
+			//	log.Infof("Got update config signal")
+			//}
 		}
 	}()
-	svr.Run()
+	_ = svr.Run()
 	wg.Wait()
-}
-
-func initXLog(output, path, filename, level, service string) error {
-	cfg := make(map[string]string)
-	cfg["path"] = path
-	cfg["filename"] = filename
-	cfg["level"] = level
-	cfg["service"] = service
-	cfg["skip"] = "5" // 设置xlog打印方法堆栈需要跳过的层数, 5目前为调用log.Debug()等方法的方法名, 比xlog默认值多一层.
-
-	logger, err := xlog.CreateLogManager(output, cfg)
-	if err != nil {
-		return err
-	}
-
-	log.SetGlobalLogger(logger)
-	return nil
 }

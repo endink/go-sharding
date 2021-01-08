@@ -15,6 +15,7 @@
 package server
 
 import (
+	"github.com/XiaoMi/Gaea/logging"
 	"net"
 	"runtime"
 	"strconv"
@@ -22,7 +23,6 @@ import (
 
 	"fmt"
 
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/models"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/util"
@@ -89,12 +89,12 @@ func NewServer(cfg *models.Proxy, manager *Manager) (*Server, error) {
 	// create AdminServer
 	adminServer, err := NewAdminServer(s, cfg)
 	if err != nil {
-		log.Fatal(fmt.Sprintf("NewAdminServer error, quit. error: %s", err.Error()))
+		logging.DefaultLogger.Fatalf(fmt.Sprintf("NewAdminServer error, quit. error: %s", err.Error()))
 		return nil, err
 	}
 	s.adminServer = adminServer
 
-	log.Notice("server start succ, netProtoType: %s, addr: %s", cfg.ProtoType, cfg.ProxyAddr)
+	logging.DefaultLogger.Infof("server start succ, netProtoType: %s, addr: %s", cfg.ProtoType, cfg.ProxyAddr)
 	return s, nil
 }
 
@@ -111,7 +111,7 @@ func (s *Server) onConn(c net.Conn) {
 			const size = 4096
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)] //获得当前goroutine的stacktrace
-			log.Warn("[server] onConn panic error, remoteAddr: %s, stack: %s", c.RemoteAddr().String(), string(buf))
+			logging.DefaultLogger.Warnf("[server] onConn panic error, remoteAddr: %s, stack: %s", c.RemoteAddr().String(), string(buf))
 		}
 
 		// close session finally
@@ -119,7 +119,7 @@ func (s *Server) onConn(c net.Conn) {
 	}()
 
 	if err := cc.Handshake(); err != nil {
-		log.Warn("[server] onConn error: %s", err.Error())
+		logging.DefaultLogger.Warnf("[server] onConn error: %s", err.Error())
 		if err != mysql.ErrBadConn {
 			cc.c.writeErrorPacket(err)
 		}
@@ -149,7 +149,7 @@ func (s *Server) Run() error {
 	for s.closed.Get() != true {
 		conn, err := s.listener.Accept()
 		if err != nil {
-			log.Warn("[server] listener accept error: %s", err.Error())
+			logging.DefaultLogger.Warnf("[server] listener accept error: %s", err.Error())
 			continue
 		}
 
@@ -180,7 +180,7 @@ func (s *Server) Close() error {
 // ReloadNamespacePrepare config change prepare phase
 func (s *Server) ReloadNamespacePrepare(name string, client models.Client) error {
 	// get namespace conf from etcd
-	log.Notice("prepare config of namespace: %s begin", name)
+	logging.DefaultLogger.Infof("prepare config of namespace: %s begin", name)
 	store := models.NewStore(client)
 	namespaceConfig, err := store.LoadNamespace(s.EncryptKey, name)
 	if err != nil {
@@ -188,37 +188,37 @@ func (s *Server) ReloadNamespacePrepare(name string, client models.Client) error
 	}
 
 	if err = s.manager.ReloadNamespacePrepare(namespaceConfig); err != nil {
-		log.Warn("Manager ReloadNamespacePrepare error: %v", err)
+		logging.DefaultLogger.Warnf("Manager ReloadNamespacePrepare error: %v", err)
 		return err
 	}
 
-	log.Notice("prepare config of namespace: %s end", name)
+	logging.DefaultLogger.Infof("prepare config of namespace: %s end", name)
 	return nil
 }
 
 // ReloadNamespaceCommit config change commit phase
 // commit namespace does not need lock
 func (s *Server) ReloadNamespaceCommit(name string) error {
-	log.Notice("commit config of namespace: %s begin", name)
+	logging.DefaultLogger.Infof("commit config of namespace: %s begin", name)
 
 	if err := s.manager.ReloadNamespaceCommit(name); err != nil {
-		log.Warn("Manager ReloadNamespaceCommit error: %v", err)
+		logging.DefaultLogger.Warnf("Manager ReloadNamespaceCommit error: %v", err)
 		return err
 	}
 
-	log.Notice("commit config of namespace: %s end", name)
+	logging.DefaultLogger.Infof("commit config of namespace: %s end", name)
 	return nil
 }
 
 // DeleteNamespace delete namespace in namespace manager
 func (s *Server) DeleteNamespace(name string) error {
-	log.Notice("delete namespace begin: %s", name)
+	logging.DefaultLogger.Infof("delete namespace begin: %s", name)
 
 	if err := s.manager.DeleteNamespace(name); err != nil {
-		log.Warn("Manager DeleteNamespace error: %v", err)
+		logging.DefaultLogger.Warnf("Manager DeleteNamespace error: %v", err)
 		return err
 	}
 
-	log.Notice("delete namespace end: %s", name)
+	logging.DefaultLogger.Infof("delete namespace end: %s", name)
 	return nil
 }

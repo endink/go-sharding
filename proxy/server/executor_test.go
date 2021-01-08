@@ -166,7 +166,7 @@ service_name=gaea_proxy
 cluster_name=gaea
 ;log config
 log_path=./logs
-log_level=Notice
+log_level=Infof
 log_filename=gaea
 log_output=file
 
@@ -282,7 +282,7 @@ encrypt_key=1234abcd5678efg*
 	// init statistics
 	statisticManager, err := CreateStatisticManager(proxy, m)
 	if err != nil {
-		log.Warn("init stats manager failed, %v", err)
+		log.Warnf("init stats manager failed, %v", err)
 		return nil, err
 	}
 	m.statistics = statisticManager

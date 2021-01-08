@@ -16,18 +16,18 @@ package terror
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/XiaoMi/Gaea/logging"
 	"strconv"
 
-	"github.com/pingcap/errors"
-
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/mysql"
+	"github.com/pingcap/errors"
 )
 
 // Global error instances.
 var (
 	ErrCritical           = ClassGlobal.New(CodeExecResultIsEmpty, "critical error %v")
 	ErrResultUndetermined = ClassGlobal.New(CodeResultUndetermined, "execution result undetermined")
+	log                   = logging.GetLogger("terror")
 )
 
 // ErrCode represents a specific error type in a error class.
@@ -273,12 +273,12 @@ var defaultMySQLErrorCode uint16
 func (e *Error) getMySQLErrorCode() uint16 {
 	codeMap, ok := ErrClassToMySQLCodes[e.class]
 	if !ok {
-		log.Warn("Unknown error class: %v", e.class)
+		log.Warnf("Unknown error class: %v", e.class)
 		return defaultMySQLErrorCode
 	}
 	code, ok := codeMap[e.code]
 	if !ok {
-		log.Warn("Unknown error class: %v code: %v", e.class, e.code)
+		log.Warnf("Unknown error class: %v code: %v", e.class, e.code)
 		return defaultMySQLErrorCode
 	}
 	return code
@@ -327,7 +327,7 @@ func MustNil(err error, closeFuns ...func()) {
 		for _, f := range closeFuns {
 			f()
 		}
-		log.Fatal(errors.ErrorStack(err))
+		log.Fatalf(errors.ErrorStack(err))
 	}
 }
 
@@ -335,13 +335,13 @@ func MustNil(err error, closeFuns ...func()) {
 func Call(fn func() error) {
 	err := fn()
 	if err != nil {
-		log.Warn(errors.ErrorStack(err))
+		log.Warnf(errors.ErrorStack(err))
 	}
 }
 
 // Log logs the error if it is not nil.
 func Log(err error) {
 	if err != nil {
-		log.Warn(errors.ErrorStack(err))
+		log.Warnf(errors.ErrorStack(err))
 	}
 }

@@ -16,13 +16,14 @@ package file
 
 import (
 	"errors"
+	"github.com/XiaoMi/Gaea/logging"
 	"io/ioutil"
 	"os"
 	"strings"
 	"time"
-
-	"github.com/XiaoMi/Gaea/log"
 )
+
+var log = logging.GetLogger("config-file")
 
 const (
 	defaultFilePath = "./etc/file"
@@ -39,7 +40,7 @@ func New(path string) (*Client, error) {
 		path = defaultFilePath
 	}
 	if err := checkDir(path); err != nil {
-		log.Warn("check file config directory failed, %v", err)
+		log.Warnf("check file config directory failed, %v", err)
 		return nil, err
 	}
 	return &Client{Prefix: path}, nil

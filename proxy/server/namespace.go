@@ -23,7 +23,6 @@ import (
 	"time"
 
 	"github.com/XiaoMi/Gaea/backend"
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/models"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/proxy/plan"
@@ -425,7 +424,7 @@ func (n *Namespace) Close(delay bool) {
 	for k := range n.slices {
 		err = n.slices[k].Close()
 		if err != nil {
-			log.Warn("delay close slice: %s failed, err: %v", k, err)
+			log.Warnf("delay close slice: %s failed, err: %v", k, err)
 			continue
 		}
 	}

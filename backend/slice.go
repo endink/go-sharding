@@ -30,12 +30,12 @@ package backend
 
 import (
 	"context"
+	"github.com/XiaoMi/Gaea/logging"
 	"strconv"
 	"strings"
 	"sync"
 
 	"github.com/XiaoMi/Gaea/core/errors"
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/models"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/util"
@@ -85,7 +85,7 @@ func (s *Slice) GetConn(fromSlave bool, userType int) (pc PooledConnect, err err
 		} else {
 			pc, err = s.GetSlaveConn()
 			if err != nil {
-				log.Warn("get connection from slave failed, try to get from master, error: %s", err.Error())
+				logging.DefaultLogger.Warnf("get connection from slave failed, try to get from master, error: %s", err.Error())
 				pc, err = s.GetMasterConn()
 			}
 		}
@@ -93,7 +93,7 @@ func (s *Slice) GetConn(fromSlave bool, userType int) (pc PooledConnect, err err
 		pc, err = s.GetMasterConn()
 	}
 	if err != nil {
-		log.Warn("get connection from backend failed, error: %s", err.Error())
+		logging.DefaultLogger.Warnf("get connection from backend failed, error: %s", err.Error())
 		return
 	}
 	return

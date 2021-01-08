@@ -47,7 +47,7 @@ func init() {
 	tr.Dial = func(network, addr string) (net.Conn, error) {
 		c, err := net.DialTimeout(network, addr, time.Second*10)
 		if err == nil {
-			log.Debug("rpc: dial new connection to %s， dials: %d", addr, atomic.AddUint64(&dials, 1)-1)
+			log.Debugf("rpc: dial new connection to %s， dials: %d", addr, atomic.AddUint64(&dials, 1)-1)
 		}
 		return c, err
 	}
@@ -163,7 +163,7 @@ func Send(request *Request) (*Response, error) {
 		io.Copy(ioutil.Discard, rsp.Body)
 		// close http response
 		rsp.Body.Close()
-		log.Debug("call rpc [%s] %s in %v", httpReq.Method, httpReq.URL, time.Since(start))
+		log.Debugf("call rpc [%s] %s in %v", httpReq.Method, httpReq.URL, time.Since(start))
 	}()
 
 	// build response

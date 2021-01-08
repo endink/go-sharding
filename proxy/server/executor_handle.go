@@ -24,7 +24,6 @@ import (
 
 	"github.com/XiaoMi/Gaea/backend"
 	"github.com/XiaoMi/Gaea/core/errors"
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/parser"
 	"github.com/XiaoMi/Gaea/parser/ast"
@@ -41,14 +40,14 @@ func (se *SessionExecutor) Parse(sql string) (ast.StmtNode, error) {
 func (se *SessionExecutor) handleQuery(sql string) (r *mysql.Result, err error) {
 	defer func() {
 		if e := recover(); e != nil {
-			log.Warn("handle query command failed, error: %v, sql: %s", e, sql)
+			exeLogger.Warnf("handle query command failed, error: %v, sql: %s", e, sql)
 
 			if err, ok := e.(error); ok {
 				const size = 4096
 				buf := make([]byte, size)
 				buf = buf[:runtime.Stack(buf, false)]
 
-				log.Warn("handle query command catch panic error, sql: %s, error: %s, stack: %s",
+				exeLogger.Warnf("handle query command catch panic error, sql: %s, error: %s, stack: %s",
 					sql, err.Error(), string(buf))
 			}
 
@@ -64,7 +63,7 @@ func (se *SessionExecutor) handleQuery(sql string) (r *mysql.Result, err error) 
 	ns := se.GetNamespace()
 	if !ns.IsSQLAllowed(reqCtx, sql) {
 		fingerprint := mysql.GetFingerprint(sql)
-		log.Warn("catch black sql, sql: %s", sql)
+		exeLogger.Warnf("catch black sql, sql: %s", sql)
 		se.manager.GetStatisticManager().RecordSQLForbidden(fingerprint, se.GetNamespace().GetName())
 		err := mysql.NewError(mysql.ErrUnknown, "sql in blacklist")
 		return nil, err
@@ -103,7 +102,7 @@ func (se *SessionExecutor) doQuery(reqCtx *util.RequestContext, sql string) (*my
 
 	r, err := p.ExecuteIn(reqCtx, se)
 	if err != nil {
-		log.Warn("execute select: %s", err.Error())
+		exeLogger.Warnf("execute select: %s", err.Error())
 		return nil, err
 	}
 
@@ -323,7 +322,7 @@ func (se *SessionExecutor) handleSetAutoCommit(autocommit bool) (err error) {
 }
 
 func (se *SessionExecutor) handleStmtPrepare(sql string) (*Stmt, error) {
-	log.Debug("namespace: %s use prepare, sql: %s", se.GetNamespace().GetName(), sql)
+	exeLogger.Debugf("namespace: %s use prepare, sql: %s", se.GetNamespace().GetName(), sql)
 
 	stmt := new(Stmt)
 
@@ -332,7 +331,7 @@ func (se *SessionExecutor) handleStmtPrepare(sql string) (*Stmt, error) {
 
 	paramCount, offsets, err := calcParams(stmt.sql)
 	if err != nil {
-		log.Warn("prepare calc params failed, namespace: %s, sql: %s", se.GetNamespace().GetName(), sql)
+		exeLogger.Warnf("prepare calc params failed, namespace: %s, sql: %s", se.GetNamespace().GetName(), sql)
 		return nil, err
 	}
 

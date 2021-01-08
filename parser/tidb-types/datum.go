@@ -15,6 +15,7 @@ package types
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/logging"
 	"math"
 	"sort"
 	"strconv"
@@ -22,14 +23,12 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/pingcap/errors"
-
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/parser/stmtctx"
 	"github.com/XiaoMi/Gaea/parser/terror"
 	"github.com/XiaoMi/Gaea/parser/tidb-types/json"
 	"github.com/XiaoMi/Gaea/util/hack"
+	"github.com/pingcap/errors"
 )
 
 // Kind constants.
@@ -1241,7 +1240,7 @@ func (d *Datum) convertToMysqlEnum(sc *stmtctx.StatementContext, target *FieldTy
 		e, err = ParseEnumValue(target.Elems, uintDatum.GetUint64())
 	}
 	if err != nil {
-		log.Warn(err.Error())
+		logging.DefaultLogger.Warnf(err.Error())
 		err = errors.Trace(ErrTruncated)
 	}
 	ret.SetValue(e)

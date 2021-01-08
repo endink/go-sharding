@@ -31,12 +31,13 @@ import (
 	"bytes"
 	"expvar"
 	"fmt"
+	"github.com/XiaoMi/Gaea/logging"
 	"strconv"
 	"sync"
 	"time"
-
-	"github.com/XiaoMi/Gaea/log"
 )
+
+var logger = logging.GetLogger("stats-export")
 
 const defaultEmitPeriod = 60 * time.Second
 
@@ -121,12 +122,12 @@ func RegisterPushBackend(name string, backend PushBackend, emitPeriod time.Durat
 	pushBackendsLock.Lock()
 	defer pushBackendsLock.Unlock()
 	if _, ok := pushBackends[name]; ok {
-		log.Fatal(fmt.Sprintf("PushBackend %s already exists; can't register the same name multiple times", name))
+		logger.Fatalf(fmt.Sprintf("PushBackend %s already exists; can't register the same name multiple times", name))
 	}
 	pushBackends[name] = backend
 
 	if emitPeriod <= 0 {
-		log.Warn("[stats] push backend got invalid emitPeriod: %v, use default emitPeriod instead: %v", emitPeriod, defaultEmitPeriod)
+		logger.Warnf("[stats] push backend got invalid emitPeriod: %v, use default emitPeriod instead: %v", emitPeriod, defaultEmitPeriod)
 		emitPeriod = defaultEmitPeriod
 	}
 	// Start a single goroutine to emit stats periodically
@@ -143,13 +144,13 @@ func emitToBackend(name string, emitPeriod time.Duration) {
 	for range ticker.C {
 		backend, ok := pushBackends[name]
 		if !ok {
-			log.Fatal(fmt.Sprintf("No PushBackend registered with name %s", name))
+			logger.Fatalf(fmt.Sprintf("No PushBackend registered with name %s", name))
 			return
 		}
 		err := backend.PushAll()
 		if err != nil {
-			// TODO(aaijazi): This might cause log spam...
-			log.Warn("Pushing stats to backend %v failed: %v", name, err)
+			// TODO(aaijazi): This might cause counterLogger spam...
+			logger.Warnf("Pushing stats to backend %v failed: %v", name, err)
 		}
 	}
 }

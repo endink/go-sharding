@@ -66,13 +66,13 @@ func GetStats(p *models.ProxyMonitorMetric, cfg *models.CCConfig, timeout time.D
 }
 
 func newProxyClient(host, user, password string) (*APIClient, error) {
-	log.Debug("call rpc xping to proxy %s", host)
+	log.Debugf("call rpc xping to proxy %s", host)
 	c := NewAPIClient(host, user, password)
 	if err := c.Ping(); err != nil {
-		log.Fatal("call rpc xping to proxy failed")
+		log.Fatalf("call rpc xping to proxy failed")
 		return c, err
 	}
-	log.Debug("call rpc xping OK")
+	log.Debugf("call rpc xping OK")
 
 	return c, nil
 }
@@ -81,13 +81,13 @@ func newProxyClient(host, user, password string) (*APIClient, error) {
 func PrepareConfig(host, name string, cfg *models.CCConfig) error {
 	c, err := newProxyClient(host, cfg.ProxyUserName, cfg.ProxyPassword)
 	if err != nil {
-		log.Fatal("create proxy client failed, %v", err)
+		log.Fatalf("create proxy client failed, %v", err)
 		return err
 	}
 
 	err = c.PrepareConfig(name)
 	if err != nil {
-		log.Fatal("prepare proxy config failed, %v", err)
+		log.Fatalf("prepare proxy config failed, %v", err)
 		return err
 	}
 	return nil
@@ -97,12 +97,12 @@ func PrepareConfig(host, name string, cfg *models.CCConfig) error {
 func CommitConfig(host, name string, cfg *models.CCConfig) error {
 	c, err := newProxyClient(host, cfg.ProxyUserName, cfg.ProxyPassword)
 	if err != nil {
-		log.Fatal("create proxy client failed, %v", err)
+		log.Fatalf("create proxy client failed, %v", err)
 		return err
 	}
 	err = c.CommitConfig(name)
 	if err != nil {
-		log.Fatal("commit proxy config failed, %v", err)
+		log.Fatalf("commit proxy config failed, %v", err)
 		return err
 	}
 	return nil
@@ -112,12 +112,12 @@ func CommitConfig(host, name string, cfg *models.CCConfig) error {
 func DelNamespace(host, name string, cfg *models.CCConfig) error {
 	c, err := newProxyClient(host, cfg.ProxyUserName, cfg.ProxyPassword)
 	if err != nil {
-		log.Fatal("create proxy client failed, %v", err)
+		log.Fatalf("create proxy client failed, %v", err)
 		return err
 	}
 	err = c.DelNamespace(name)
 	if err != nil {
-		log.Warn("delete schema %s in proxy %s failed, %s", name, host, err.Error())
+		log.Warnf("delete schema %s in proxy %s failed, %s", name, host, err.Error())
 		return err
 	}
 	return nil
@@ -127,7 +127,7 @@ func DelNamespace(host, name string, cfg *models.CCConfig) error {
 func QueryNamespaceSQLFingerprint(host, name string, cfg *models.CCConfig) (*SQLFingerprint, error) {
 	c, err := newProxyClient(host, cfg.ProxyUserName, cfg.ProxyPassword)
 	if err != nil {
-		log.Fatal("create proxy client failed, %v", err)
+		log.Fatalf("create proxy client failed, %v", err)
 		return nil, err
 	}
 

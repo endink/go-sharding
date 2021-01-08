@@ -16,9 +16,9 @@ package plan
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/logging"
 
 	"github.com/XiaoMi/Gaea/core/errors"
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/parser/ast"
 	driver "github.com/XiaoMi/Gaea/parser/tidb-types/parser_driver"
@@ -92,7 +92,7 @@ func HandleInsertStmt(p *InsertPlan, stmt *ast.InsertStmt) error {
 
 	sqls, err := generateShardingSQLs(p.stmt, p.result, p.router)
 	if err != nil {
-		log.Warn("generate insert sql failed, %v", err)
+		logging.DefaultLogger.Warnf("generate insert sql failed, %v", err)
 		return err
 	}
 
