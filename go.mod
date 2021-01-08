@@ -31,7 +31,7 @@ require (
 	github.com/pingcap/tipb v0.0.0-20190428032612-535e1abaa330
 	github.com/prometheus/client_golang v0.9.2
 	github.com/remyoudompheng/bigfft v0.0.0-20190321074620-2f0d2b0e0001 // indirect
-	github.com/siddontang/go-mysql v1.1.0 // indirect
+	github.com/siddontang/go-mysql v1.1.0
 	github.com/sirupsen/logrus v1.4.2 // indirect
 	github.com/smartystreets/goconvey v0.0.0-20190222223459-a17d461953aa // indirect
 	github.com/soheilhy/cmux v0.1.4 // indirect
