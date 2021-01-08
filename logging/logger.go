@@ -16,7 +16,7 @@ var levels = make(map[string]zap.AtomicLevel)
 var defaultLevel zapcore.Level = zapcore.InfoLevel
 var output = zapcore.Lock(os.Stdout)
 
-var logCore = newCore(PlaintextOutput, output, defaultLevel)
+var logCore = newCore(ColorizedOutput, output, defaultLevel)
 
 /**
 func newLogger(options []zap.Option) (*zap.Logger, error) {

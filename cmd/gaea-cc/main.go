@@ -25,29 +25,11 @@ import (
 	"github.com/XiaoMi/Gaea/cc"
 	"github.com/XiaoMi/Gaea/core"
 
-	"github.com/XiaoMi/Gaea/log"
-	"github.com/XiaoMi/Gaea/log/xlog"
 	"github.com/XiaoMi/Gaea/models"
 )
 
 var ccConfigFile = flag.String("c", "./etc/gaea_cc.ini", "gaea cc配置")
 var info = flag.Bool("info", false, "show info of gaea-cc")
-
-func initXLog(ccConfig *models.CCConfig) error {
-	cfg := make(map[string]string, 4)
-	cfg["path"] = ccConfig.LogPath
-	cfg["filename"] = ccConfig.LogFileName
-	cfg["level"] = ccConfig.LogLevel
-	cfg["service"] = "gaea-cc"
-	cfg["skip"] = "5"
-
-	logger, err := xlog.CreateLogManager(ccConfig.LogOutput, cfg)
-	if err != nil {
-		return err
-	}
-	log.SetGlobalLogger(logger)
-	return nil
-}
 
 func main() {
 	flag.Parse()
@@ -62,13 +44,6 @@ func main() {
 	ccConfig, err := models.ParseCCConfig(*ccConfigFile)
 	if err != nil {
 		fmt.Printf("parse cc config failed, %v\n", err)
-	}
-
-	// 初始化日志
-	err = initXLog(ccConfig)
-	if err != nil {
-		fmt.Printf("init xlog failed, %v\n", err)
-		return
 	}
 
 	// 构造服务实例

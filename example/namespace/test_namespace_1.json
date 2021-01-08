@@ -1,0 +1,37 @@
+{
+    "name": "test_namespace_1",
+    "online": true,
+    "read_only": false,
+    "allowed_dbs": {
+        "sbtest1": true
+    },
+    "slow_sql_time": "1000",
+    "black_sql": [
+        ""
+    ],
+    "allowed_ip": null,
+    "slices": [
+        {
+            "name": "slice-0",
+            "user_name": "root",
+            "password": "123456",
+            "master": "127.0.0.1:3306",
+            "capacity": 12,
+            "max_capacity": 24,
+            "idle_timeout": 60
+        }
+    ],
+    "shard_rules": null,
+    "users": [
+        {
+            "user_name": "root",
+            "password": "root",
+            "namespace": "test_namespace_1",
+            "rw_flag": 2,
+            "rw_split": 1,
+            "other_property": 0
+        }
+    ],
+    "default_slice": "slice-0",
+    "global_sequences": null
+}

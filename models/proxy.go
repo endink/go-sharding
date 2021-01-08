@@ -63,6 +63,29 @@ type Proxy struct {
 	EncryptKey string `ini:"encrypt_key"`
 }
 
+func DefaultProxy() *Proxy {
+	return &Proxy{
+		ConfigType:      ConfigFile,
+		FileConfigPath:  ".",
+		CoordinatorAddr: "http://127.0.0.1:2379",
+		UserName:        "test",
+		Password:        "test",
+		Environ:         "online",
+		Service:         "sharding_proxy",
+		Cluster:         "sp_cluster",
+		AdminAddr:       "0.0.0.0:13307",
+		AdminUser:       "admin",
+		AdminPassword:   "admin",
+		ProtoType:       "tcp4",
+		ProxyAddr:       "0.0.0.0:3307",
+		SlowSQLTime:     1000,
+		SessionTimeout:  3600,
+		StatsEnabled:    "false",
+		StatsInterval:   10,
+		EncryptKey:      "00000000000000000",
+	}
+}
+
 // ParseProxyConfigFromFile parser proxy config from file
 func ParseProxyConfigFromFile(cfgFile string) (*Proxy, error) {
 	cfg, err := ini.Load(cfgFile)
