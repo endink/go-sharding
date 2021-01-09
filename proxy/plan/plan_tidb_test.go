@@ -15,12 +15,10 @@
 package plan
 
 import (
+	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/format"
 	"strings"
 	"testing"
-
-	"github.com/XiaoMi/Gaea/parser"
-	"github.com/XiaoMi/Gaea/parser/ast"
-	"github.com/XiaoMi/Gaea/parser/format"
 )
 
 func BenchmarkSelectStmtCheckShard(b *testing.B) {
@@ -39,7 +37,7 @@ func BenchmarkSelectStmtCheckShard(b *testing.B) {
 		b.Run(bm.sql, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				//for i := 0; i < 1; i++ {
-				stmt, err := parser.ParseSQL(bm.sql)
+				stmt, err := ParseSQL(bm.sql)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -72,7 +70,7 @@ func TestSelectStmtCheckShard(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.sql, func(t *testing.T) {
 			//for i := 0; i < 1; i++ {
-			stmt, err := parser.ParseSQL(test.sql)
+			stmt, err := ParseSQL(test.sql)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -102,7 +100,7 @@ func _TestGroupByRewriting(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.sql, func(t *testing.T) {
-			stmt, err := parser.ParseSQL(test.sql)
+			stmt, err := ParseSQL(test.sql)
 			if err != nil {
 				t.Fatal(err)
 			}
