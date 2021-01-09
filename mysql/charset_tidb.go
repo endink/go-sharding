@@ -14,9 +14,8 @@
 package mysql
 
 import (
+	"fmt"
 	"strings"
-
-	"github.com/pingcap/errors"
 )
 
 // Charset is a charset.
@@ -110,7 +109,7 @@ func GetDefaultCollation(charset string) (string, error) {
 	}
 	c, ok := charsets[charset]
 	if !ok {
-		return "", errors.Errorf("Unknown charset %s", charset)
+		return "", fmt.Errorf("Unknown charset %s", charset)
 	}
 	return c.DefaultCollation, nil
 }
@@ -124,7 +123,7 @@ func GetDefaultCharsetAndCollate() (string, string) {
 func GetCharsetInfo(cs string) (string, string, error) {
 	c, ok := charsets[strings.ToLower(cs)]
 	if !ok {
-		return "", "", errors.Errorf("Unknown charset %s", cs)
+		return "", "", fmt.Errorf("Unknown charset %s", cs)
 	}
 	return c.Name, c.DefaultCollation, nil
 }
@@ -133,7 +132,7 @@ func GetCharsetInfo(cs string) (string, string, error) {
 func GetCharsetDesc(cs string) (*Desc, error) {
 	c, ok := charsets[strings.ToLower(cs)]
 	if !ok {
-		return nil, errors.Errorf("Unknown charset %s", cs)
+		return nil, fmt.Errorf("Unknown charset %s", cs)
 	}
 	desc := &Desc{
 		Name:             c.Name,
