@@ -29,7 +29,10 @@
 package mysql
 
 import (
+	rand2 "crypto/rand"
+	"crypto/rsa"
 	"crypto/sha1"
+	"crypto/sha256"
 	"math/rand"
 	"time"
 	"unicode/utf8"
@@ -40,8 +43,7 @@ var (
 	encodeMap  [256]byte
 )
 
-// CalcPassword calculate password hash
-func CalcPassword(scramble, password []byte) []byte {
+func CalcPassword(salt, password []byte) []byte {
 	if len(password) == 0 {
 		return nil
 	}
@@ -51,7 +53,7 @@ func CalcPassword(scramble, password []byte) []byte {
 	crypt.Write(password)
 	stage1 := crypt.Sum(nil)
 
-	// scrambleHash = SHA1(scramble + SHA1(stage1Hash))
+	// scrambleHash = SHA1(salt + SHA1(stage1Hash))
 	// inner Hash
 	crypt.Reset()
 	crypt.Write(stage1)
@@ -59,15 +61,54 @@ func CalcPassword(scramble, password []byte) []byte {
 
 	// outer Hash
 	crypt.Reset()
-	crypt.Write(scramble)
+	crypt.Write(salt)
 	crypt.Write(hash)
-	scramble = crypt.Sum(nil)
+	salt = crypt.Sum(nil)
 
 	// token = scrambleHash XOR stage1Hash
-	for i := range scramble {
-		scramble[i] ^= stage1[i]
+	for i := range salt {
+		salt[i] ^= stage1[i]
 	}
-	return scramble
+	return salt
+}
+
+func EncryptPassword(password string, seed []byte, pub *rsa.PublicKey) ([]byte, error) {
+	plain := make([]byte, len(password)+1)
+	copy(plain, password)
+	for i := range plain {
+		j := i % len(seed)
+		plain[i] ^= seed[j]
+	}
+	sha1v := sha1.New()
+	return rsa.EncryptOAEP(sha1v, rand2.Reader, pub, plain, nil)
+}
+
+// CalcCachingSha2Password: Hash password using MySQL 8+ method (SHA256)
+func CalcCachingSha2Password(salt []byte, password string) []byte {
+	if len(password) == 0 {
+		return nil
+	}
+
+	// XOR(SHA256(password), SHA256(SHA256(SHA256(password)), salt))
+
+	crypt := sha256.New()
+	crypt.Write([]byte(password))
+	message1 := crypt.Sum(nil)
+
+	crypt.Reset()
+	crypt.Write(message1)
+	message1Hash := crypt.Sum(nil)
+
+	crypt.Reset()
+	crypt.Write(message1Hash)
+	crypt.Write(salt)
+	message2 := crypt.Sum(nil)
+
+	for i := range message1 {
+		message1[i] ^= message2[i]
+	}
+
+	return message1
 }
 
 // RandomBuf return random salt, seed must be in the range of ascii

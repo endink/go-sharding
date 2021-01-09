@@ -77,7 +77,7 @@ func DefaultProxy() *Proxy {
 		AdminUser:       "admin",
 		AdminPassword:   "admin",
 		ProtoType:       "tcp4",
-		ProxyAddr:       "0.0.0.0:3307",
+		ProxyAddr:       "0.0.0.0:13306",
 		SlowSQLTime:     1000,
 		SessionTimeout:  3600,
 		StatsEnabled:    "false",

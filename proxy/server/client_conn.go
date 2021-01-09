@@ -15,6 +15,7 @@
 package server
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/XiaoMi/Gaea/logging"
 
@@ -41,6 +42,7 @@ type HandshakeResponseInfo struct {
 	AuthResponse []byte
 	Salt         []byte
 	Database     string
+	AuthPlugin   string
 }
 
 // NewClientConn constructor of ClientConn
@@ -51,6 +53,66 @@ func NewClientConn(c *mysql.Conn, manager *Manager) *ClientConn {
 		salt:    salt,
 		manager: manager,
 	}
+}
+
+func (cc *ClientConn) writeInitialHandshake() error {
+	var data []byte
+
+	//min version 10
+	data = append(data, mysql.ProtocolVersion)
+
+	//server version[00]
+	data = append(data, mysql.ServerVersion...)
+	data = append(data, 0x00)
+
+	//connection id
+	data = append(data, byte(cc.GetConnectionID()), byte(cc.GetConnectionID()>>8), byte(cc.GetConnectionID()>>16), byte(cc.GetConnectionID()>>24))
+
+	//auth-plugin-data-part-1
+	data = append(data, cc.salt[0:8]...)
+
+	//filter 0x00 byte, terminating the first part of a scramble
+	data = append(data, 0x00)
+
+	defaultFlag := uint32(2662925)
+	//capability flag lower 2 bytes, using default capability here
+	data = append(data, byte(defaultFlag), byte(defaultFlag>>8)) //len:27
+
+	//charset
+	data = append(data, uint8(mysql.DefaultCollationID))
+
+	//status
+	data = append(data, byte(0), byte(0>>8)) //len:30
+
+	//capability flag upper 2 bytes, using default capability here
+	data = append(data, byte(defaultFlag>>16), byte(defaultFlag>>24)) //len:32
+
+	// server supports CLIENT_PLUGIN_AUTH and CLIENT_SECURE_CONNECTION
+	data = append(data, byte(8+12+1)) //len:33
+
+	//reserved 10 [00]
+	data = append(data, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) //len:43
+
+	//auth-plugin-data-part-2
+	data = append(data, cc.salt[8:]...) //len:55
+	// second part of the password cipher [mininum 13 bytes],
+	// where len=MAX(13, length of auth-plugin-data - 8)
+	// add \NUL to terminate the string
+	data = append(data, 0x00) //len:56
+
+	// auth plugin name
+	data = append(data, mysql.AUTH_CACHING_SHA2_PASSWORD...) //len:77
+
+	// EOF if MySQL version (>= 5.5.7 and < 5.5.10) or (>= 5.6.0 and < 5.6.2)
+	// \NUL otherwise, so we use \NUL
+	data = append(data, 0)
+	p := cc.StartEphemeralPacket(len(data))
+	mysql.WriteBytes(p, 0, data)
+	if err := cc.WriteEphemeralPacket(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (cc *ClientConn) writeInitialHandshakeV10() error {
@@ -67,7 +129,7 @@ func (cc *ClientConn) writeInitialHandshakeV10() error {
 			1 + // length of auth plugin data
 			10 + // reserved (0)
 			13 // auth-plugin-data
-	// mysql.LenNullString(mysql.MysqlNativePassword) // auth-plugin-name
+	// mysql.LenNullString(mysql.AUTH_NATIVE_PASSWORD) // auth-plugin-name
 
 	data := cc.StartEphemeralPacket(length)
 	pos := 0
@@ -114,7 +176,7 @@ func (cc *ClientConn) writeInitialHandshakeV10() error {
 	pos++
 
 	// Copy authPluginName. We always start with mysql_native_password.
-	// pos = mysql.WriteNullString(data, pos, mysql.MysqlNativePassword)
+	// pos = mysql.WriteNullString(data, pos, mysql.AUTH_NATIVE_PASSWORD)
 
 	// Sanity check.
 	if pos != len(data) {
@@ -126,6 +188,50 @@ func (cc *ClientConn) writeInitialHandshakeV10() error {
 	}
 
 	return nil
+}
+
+func readAuthData(data []byte, pos int, capability uint32) ([]byte, int, bool) {
+	// length encoded data
+	var auth []byte
+	var authLen int
+	if capability&mysql.ClientPluginAuthLenencClientData != 0 {
+		authData, newPos, isNULL, isOk := mysql.ReadLenEncStringAsBytes(data, pos)
+		if !isOk {
+			return nil, 0, false
+		}
+		if isNULL {
+			// no auth length and no auth data, just \NUL, considered invalid auth data, and reject connection as MySQL does
+			return nil, 0, false
+		}
+		auth = authData
+		authLen = newPos - pos
+	} else if capability&mysql.ClientSecureConnection != 0 {
+		//auth length and auth
+		authLen = int(data[pos])
+		pos++
+		auth = data[pos : pos+authLen]
+	} else {
+		authLen = bytes.IndexByte(data[pos:], 0x00)
+		auth = data[pos : pos+authLen]
+		// account for last NUL
+		authLen++
+	}
+	return auth, pos + authLen, true
+}
+
+func readPluginName(data []byte, pos int, capability uint32) (string, int) {
+	if capability&mysql.ClientPluginAuth != 0 {
+		buf := data[pos:]
+		end := pos + bytes.IndexByte(buf, 0x00)
+		str := data[pos:end]
+		authPluginName := string(str)
+		pos += len(authPluginName)
+		return authPluginName, pos
+	} else {
+		// The method used is Native Authentication if both CLIENT_PROTOCOL_41 and CLIENT_SECURE_CONNECTION are set,
+		// but CLIENT_PLUGIN_AUTH is not set, so we fallback to 'mysql_native_password'
+		return mysql.AUTH_NATIVE_PASSWORD, pos
+	}
 }
 
 func (cc *ClientConn) readHandshakeResponse() (HandshakeResponseInfo, error) {
@@ -175,19 +281,7 @@ func (cc *ClientConn) readHandshakeResponse() (HandshakeResponseInfo, error) {
 	}
 	info.User = user
 
-	// TODO auth-response can have three forms.
-	var authResponse []byte
-	var l uint64
-	l, pos, _, ok = mysql.ReadLenEncInt(data, pos)
-	if !ok {
-		return info, fmt.Errorf("readHandshakeResponse: can't read auth-response variable length")
-	}
-	authResponse, pos, ok = mysql.ReadBytesCopy(data, pos, int(l))
-	if !ok {
-		return info, fmt.Errorf("readHandshakeResponse: can't read auth-response")
-	}
-
-	info.AuthResponse = authResponse
+	info.AuthResponse, pos, ok = readAuthData(data, pos, capability)
 
 	// check if with database
 	if capability&mysql.ClientConnectWithDB > 0 {
@@ -199,7 +293,7 @@ func (cc *ClientConn) readHandshakeResponse() (HandshakeResponseInfo, error) {
 		info.Database = db
 	}
 
-	// TODO auth plugin name、client conn attrs .etc
+	info.AuthPlugin, _ = readPluginName(data, pos, capability)
 	return info, nil
 }
 
@@ -210,6 +304,22 @@ func (cc *ClientConn) writeOK(status uint16) error {
 		return err
 	}
 	return nil
+}
+
+func (cc *ClientConn) writeMoreDataFlag(value byte) error {
+	data := cc.StartEphemeralPacket(2)
+	pos := 0
+	pos = mysql.WriteByte(data, pos, mysql.MoreDataHeader)
+	mysql.WriteByte(data, pos, value)
+	return cc.WriteEphemeralPacket()
+}
+
+func (cc *ClientConn) WriteAuthMoreDataFastAuth() error {
+	return cc.writeMoreDataFlag(mysql.CacheSha2FastAuth)
+}
+
+func (cc *ClientConn) writeAuthMoreDataFullAuth() error {
+	return cc.writeMoreDataFlag(mysql.CacheSha2FullAuth)
 }
 
 func (cc *ClientConn) writeOKResult(status uint16, r *mysql.Result) error {

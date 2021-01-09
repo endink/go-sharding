@@ -16,6 +16,7 @@ package cc
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/cc/proxy"
 	"net"
 	"net/http"
 	"strings"
@@ -24,7 +25,6 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/XiaoMi/Gaea/cc/service"
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/models"
 )
 
@@ -87,7 +87,7 @@ func (s *Server) listNamespace(c *gin.Context) {
 	cluster := c.DefaultQuery("cluster", s.cfg.DefaultCluster)
 	r.Data, err = service.ListNamespace(s.cfg, cluster)
 	if err != nil {
-		log.Warnf("list names of all namespace failed, %v", err)
+		proxy.ControllerLogger.Warnf("list names of all namespace failed, %v", err)
 		r.RetHeader.RetMessage = err.Error()
 		c.JSON(http.StatusOK, r)
 		return
@@ -117,7 +117,7 @@ func (s *Server) queryNamespace(c *gin.Context) {
 
 	err = c.BindJSON(&req)
 	if err != nil {
-		log.Warnf("queryNamespace got invalid data, err: %v", err)
+		proxy.ControllerLogger.Warnf("queryNamespace got invalid data, err: %v", err)
 		h.RetMessage = err.Error()
 		c.JSON(http.StatusBadRequest, r)
 		return
@@ -125,7 +125,7 @@ func (s *Server) queryNamespace(c *gin.Context) {
 	cluster := c.DefaultQuery("cluster", s.cfg.DefaultCluster)
 	r.Data, err = service.QueryNamespace(req.Names, s.cfg, cluster)
 	if err != nil {
-		log.Warnf("query namespace failed, %v", err)
+		proxy.ControllerLogger.Warnf("query namespace failed, %v", err)
 		c.JSON(http.StatusOK, r)
 		return
 	}
@@ -153,7 +153,7 @@ func (s *Server) detailNamespace(c *gin.Context) {
 	cluster := c.DefaultQuery("cluster", s.cfg.DefaultCluster)
 	r.Data, err = service.QueryNamespace(names, s.cfg, cluster)
 	if err != nil {
-		log.Warnf("query namespace failed, %v", err)
+		proxy.ControllerLogger.Warnf("query namespace failed, %v", err)
 		c.JSON(http.StatusOK, r)
 		return
 	}
@@ -171,14 +171,14 @@ func (s *Server) modifyNamespace(c *gin.Context) {
 
 	err = c.BindJSON(&namespace)
 	if err != nil {
-		log.Warnf("modifyNamespace failed, err: %v", err)
+		proxy.ControllerLogger.Warnf("modifyNamespace failed, err: %v", err)
 		c.JSON(http.StatusBadRequest, h)
 		return
 	}
 	cluster := c.DefaultQuery("cluster", s.cfg.DefaultCluster)
 	err = service.ModifyNamespace(&namespace, s.cfg, cluster)
 	if err != nil {
-		log.Warnf("modifyNamespace failed, err: %v", err)
+		proxy.ControllerLogger.Warnf("modifyNamespace failed, err: %v", err)
 		h.RetMessage = err.Error()
 		c.JSON(http.StatusOK, h)
 		return
@@ -276,10 +276,10 @@ func (s *Server) Run() {
 
 	select {
 	case <-s.exitC:
-		log.Infof("server exit.")
+		proxy.ControllerLogger.Infof("server exit.")
 		return
 	case err := <-errC:
-		log.Fatalf("gaea cc serve failed, %v", err)
+		proxy.ControllerLogger.Fatalf("gaea cc serve failed, %v", err)
 		return
 	}
 

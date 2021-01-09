@@ -439,8 +439,10 @@ func (se *SessionExecutor) recycleBackendConns(pcs map[string]backend.PooledConn
 }
 
 func initBackendConn(pc backend.PooledConnect, phyDB string, charset string, collation mysql.CollationID, sessionVariables *mysql.SessionVariables) error {
-	if err := pc.UseDB(phyDB); err != nil {
-		return err
+	if phyDB != "" {
+		if err := pc.UseDB(phyDB); err != nil {
+			return err
+		}
 	}
 
 	charsetChanged, err := pc.SetCharset(charset, collation)
@@ -716,7 +718,7 @@ func (se *SessionExecutor) rollback() (err error) {
 
 // ExecuteSQL execute sql
 func (se *SessionExecutor) ExecuteSQL(reqCtx *util.RequestContext, slice, db, sql string) (*mysql.Result, error) {
-	pc, err := se.getBackendConn("slice-0", getFromSlave(reqCtx))
+	pc, err := se.getBackendConn(slice, getFromSlave(reqCtx))
 	defer se.recycleBackendConn(pc, false)
 	if err != nil {
 		return nil, err
@@ -725,6 +727,10 @@ func (se *SessionExecutor) ExecuteSQL(reqCtx *util.RequestContext, slice, db, sq
 	phyDB, err := se.GetNamespace().GetDefaultPhyDB(db)
 	if err != nil {
 		return nil, err
+	}
+
+	if phyDB == "" {
+		phyDB = "mysql"
 	}
 
 	if err = initBackendConn(pc, phyDB, se.charset, se.collation, se.sessionVariables); err != nil {

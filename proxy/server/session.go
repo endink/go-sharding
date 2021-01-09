@@ -51,6 +51,8 @@ type Session struct {
 	executor *SessionExecutor
 
 	closed atomic.Value
+
+	cachingSha2FullAuth bool
 }
 
 // create session between client<->proxy
@@ -124,7 +126,7 @@ func (cc *Session) GetCredential(username string) (password string, found bool, 
 // step3: server send ok/err packets to client
 func (cc *Session) Handshake() error {
 	// First build and send the server handshake packet.
-	if err := cc.c.writeInitialHandshakeV10(); err != nil {
+	if err := cc.c.writeInitialHandshake(); err != nil {
 		clientHost, _, innerErr := net.SplitHostPort(cc.c.RemoteAddr().String())
 		if innerErr != nil {
 			logging.DefaultLogger.Warnf("[server] Session parse host error: %v", innerErr)
@@ -173,18 +175,25 @@ func (cc *Session) Handshake() error {
 
 func (cc *Session) handleHandshakeResponse(info HandshakeResponseInfo) error {
 	// check and set user
+
 	user := info.User
 	if !cc.manager.CheckUser(user) {
 		return mysql.NewDefaultError(mysql.ErrAccessDenied, user, cc.c.RemoteAddr().String(), "Yes")
 	}
 	cc.executor.user = user
 
+	password, found, _ := cc.GetCredential(user)
+	if !found {
+		return mysql.NewDefaultError(mysql.ErrAccessDenied, user, cc.c.RemoteAddr().String(), "Yes")
+	}
 	// check password
-	_, password := cc.manager.CheckPassword(user, info.Salt, info.AuthResponse)
+	//_, password := cc.manager.CheckPassword(user, info.Salt, info.AuthResponse)
 	//if !succ {
 	//	return mysql.NewDefaultError(mysql.ErrAccessDenied, user, cc.c.RemoteAddr().String(), "Yes")
 	//}
-	password = "root"
+	if err := cc.auth(info, password); err != nil {
+		return mysql.NewDefaultError(mysql.ErrAccessDenied, user, cc.c.RemoteAddr().String(), "Yes")
+	}
 
 	// handle collation
 	collationID := info.CollationID

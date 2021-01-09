@@ -1788,6 +1788,12 @@ func (n *ShowStmt) Restore(ctx *format.RestoreCtx) error {
 			ctx.WriteKeyWord("FULL ")
 		}
 	}
+
+	restoreFromDatabaseOpt := func() {
+		ctx.WriteKeyWord(" FROM ")
+		ctx.WriteName(n.DBName)
+	}
+
 	restoreShowDatabaseNameOpt := func() {
 		if n.DBName != "" {
 			// FROM OR IN
@@ -1925,7 +1931,7 @@ func (n *ShowStmt) Restore(ctx *format.RestoreCtx) error {
 			ctx.WriteKeyWord("COLLATION")
 		case ShowTriggers:
 			ctx.WriteKeyWord("TRIGGERS")
-			restoreShowDatabaseNameOpt()
+			restoreFromDatabaseOpt()
 		case ShowProcedureStatus:
 			ctx.WriteKeyWord("PROCEDURE STATUS")
 		case ShowEvents:

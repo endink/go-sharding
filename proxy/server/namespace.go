@@ -530,10 +530,15 @@ func parseCharset(charset, collation string) (string, mysql.CollationID, error) 
 		return mysql.DefaultCharset, mysql.DefaultCollationID, nil
 	}
 
+	var collationID mysql.CollationID
 	if collation == "" {
-		collationID, ok := mysql.CharsetIds[charset]
+		collation, ok := mysql.CollationNameToCharset[charset]
+		if ok {
+			collationID, ok = mysql.CollationIds[collation]
+		}
+
 		if !ok {
-			return "", 0, errors.New("invalid charset")
+			return "", 0, fmt.Errorf("invalid charset: %s", charset)
 		}
 		return charset, collationID, nil
 	}
@@ -541,7 +546,7 @@ func parseCharset(charset, collation string) (string, mysql.CollationID, error) 
 	if err := mysql.VerifyCharset(charset, collation); err != nil {
 		return "", 0, err
 	}
-	collationID, ok := mysql.CollationNames[collation]
+	collationID, ok := mysql.CollationIds[collation]
 	if !ok {
 		return "", 0, errors.New("invalid collation")
 	}

@@ -140,6 +140,14 @@ func WriteByte(data []byte, pos int, value byte) int {
 	return pos + 1
 }
 
+func WriteBytes(data []byte, pos int, value []byte) int {
+	for _, b := range value {
+		data[pos] = b
+		pos++
+	}
+	return pos
+}
+
 // WriteUint16 write uint16 to []byte
 func WriteUint16(data []byte, pos int, value uint16) int {
 	data[pos] = byte(value)

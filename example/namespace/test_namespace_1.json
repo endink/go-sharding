@@ -5,10 +5,10 @@
     "allowed_dbs": {
         "sbtest1": true
     },
+    "default_phy_dbs": {
+        "sbtest1": "open_test"
+    },
     "slow_sql_time": "1000",
-    "black_sql": [
-        ""
-    ],
     "allowed_ip": null,
     "slices": [
         {
@@ -28,7 +28,7 @@
             "password": "root",
             "namespace": "test_namespace_1",
             "rw_flag": 2,
-            "rw_split": 1,
+            "rw_split": 0,
             "other_property": 0
         }
     ],

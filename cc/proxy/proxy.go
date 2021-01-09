@@ -16,11 +16,13 @@ package proxy
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/logging"
 	"time"
 
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/models"
 )
+
+var ControllerLogger = logging.GetLogger("sharding-proxy-controller")
 
 // Stats proxy stats
 type Stats struct {
@@ -66,13 +68,13 @@ func GetStats(p *models.ProxyMonitorMetric, cfg *models.CCConfig, timeout time.D
 }
 
 func newProxyClient(host, user, password string) (*APIClient, error) {
-	log.Debugf("call rpc xping to proxy %s", host)
+	ControllerLogger.Debugf("call rpc xping to proxy %s", host)
 	c := NewAPIClient(host, user, password)
 	if err := c.Ping(); err != nil {
-		log.Fatalf("call rpc xping to proxy failed")
+		ControllerLogger.Fatalf("call rpc xping to proxy failed")
 		return c, err
 	}
-	log.Debugf("call rpc xping OK")
+	ControllerLogger.Debugf("call rpc xping OK")
 
 	return c, nil
 }
@@ -81,13 +83,13 @@ func newProxyClient(host, user, password string) (*APIClient, error) {
 func PrepareConfig(host, name string, cfg *models.CCConfig) error {
 	c, err := newProxyClient(host, cfg.ProxyUserName, cfg.ProxyPassword)
 	if err != nil {
-		log.Fatalf("create proxy client failed, %v", err)
+		ControllerLogger.Fatalf("create proxy client failed, %v", err)
 		return err
 	}
 
 	err = c.PrepareConfig(name)
 	if err != nil {
-		log.Fatalf("prepare proxy config failed, %v", err)
+		ControllerLogger.Fatalf("prepare proxy config failed, %v", err)
 		return err
 	}
 	return nil
@@ -97,12 +99,12 @@ func PrepareConfig(host, name string, cfg *models.CCConfig) error {
 func CommitConfig(host, name string, cfg *models.CCConfig) error {
 	c, err := newProxyClient(host, cfg.ProxyUserName, cfg.ProxyPassword)
 	if err != nil {
-		log.Fatalf("create proxy client failed, %v", err)
+		ControllerLogger.Fatalf("create proxy client failed, %v", err)
 		return err
 	}
 	err = c.CommitConfig(name)
 	if err != nil {
-		log.Fatalf("commit proxy config failed, %v", err)
+		ControllerLogger.Fatalf("commit proxy config failed, %v", err)
 		return err
 	}
 	return nil
@@ -112,12 +114,12 @@ func CommitConfig(host, name string, cfg *models.CCConfig) error {
 func DelNamespace(host, name string, cfg *models.CCConfig) error {
 	c, err := newProxyClient(host, cfg.ProxyUserName, cfg.ProxyPassword)
 	if err != nil {
-		log.Fatalf("create proxy client failed, %v", err)
+		ControllerLogger.Fatalf("create proxy client failed, %v", err)
 		return err
 	}
 	err = c.DelNamespace(name)
 	if err != nil {
-		log.Warnf("delete schema %s in proxy %s failed, %s", name, host, err.Error())
+		ControllerLogger.Warnf("delete schema %s in proxy %s failed, %s", name, host, err.Error())
 		return err
 	}
 	return nil
@@ -127,7 +129,7 @@ func DelNamespace(host, name string, cfg *models.CCConfig) error {
 func QueryNamespaceSQLFingerprint(host, name string, cfg *models.CCConfig) (*SQLFingerprint, error) {
 	c, err := newProxyClient(host, cfg.ProxyUserName, cfg.ProxyPassword)
 	if err != nil {
-		log.Fatalf("create proxy client failed, %v", err)
+		ControllerLogger.Fatalf("create proxy client failed, %v", err)
 		return nil, err
 	}
 

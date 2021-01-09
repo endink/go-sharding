@@ -50,7 +50,7 @@ const (
 
 	// MaxPacketSize is the maximum payload length of a packet(16MB)
 	// the server supports.
-	MaxPacketSize = (1 << 24) - 1
+	MaxPacketSize = 1<<24 - 1
 )
 
 // Constants for how ephemeral buffers were used for reading / writing.
@@ -188,7 +188,6 @@ func (c *Conn) readHeaderFrom(r io.Reader) (int, error) {
 	}
 
 	c.sequence++
-
 	return int(uint32(header[0]) | uint32(header[1])<<8 | uint32(header[2])<<16), nil
 }
 
