@@ -17,7 +17,6 @@ package server
 import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/logging"
-	"github.com/siddontang/go-mysql/server"
 	"net"
 	"runtime"
 	"strings"
@@ -97,18 +96,6 @@ func (cc *Session) IsAllowConnect() bool {
 	clientIP := net.ParseIP(clientHost)
 
 	return ns.IsClientIPAllowed(clientIP)
-}
-
-func (cc *Session) CreateCredentialProvider() *server.InMemoryProvider {
-	p := server.NewInMemoryProvider()
-	current, _, _ := cc.manager.switchIndex.Get()
-	mgr := cc.manager.users[current]
-	for k, v := range mgr.users {
-		if len(v) > 0 {
-			p.AddUser(k, v[0])
-		}
-	}
-	return p
 }
 
 func (cc *Session) CheckUsername(username string) (bool, error) {

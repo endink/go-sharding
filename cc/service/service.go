@@ -19,7 +19,6 @@ import (
 	"sync"
 
 	"github.com/XiaoMi/Gaea/cc/proxy"
-	"github.com/XiaoMi/Gaea/log"
 	"github.com/XiaoMi/Gaea/models"
 )
 
@@ -46,11 +45,11 @@ func QueryNamespace(names []string, cfg *models.CCConfig, cluster string) (data 
 	for _, v := range names {
 		namespace, err := mConn.LoadNamespace(cfg.EncryptKey, v)
 		if err != nil {
-			log.Warnf("load namespace %s failed, %v", v, err.Error())
+			proxy.ControllerLogger.Warnf("load namespace %s failed, %v", v, err.Error())
 			return nil, err
 		}
 		if namespace == nil {
-			log.Warnf("namespace %s not found", v)
+			proxy.ControllerLogger.Warnf("namespace %s not found", v)
 			return data, nil
 		}
 		data = append(data, namespace)
@@ -76,14 +75,14 @@ func ModifyNamespace(namespace *models.Namespace, cfg *models.CCConfig, cluster 
 	defer storeConn.Close()
 
 	if err := storeConn.UpdateNamespace(namespace); err != nil {
-		log.Warnf("update namespace failed, %s", string(namespace.Encode()))
+		proxy.ControllerLogger.Warnf("update namespace failed, %s", string(namespace.Encode()))
 		return err
 	}
 
 	// proxies ready to reload config
 	proxies, err := storeConn.ListProxyMonitorMetrics()
 	if err != nil {
-		log.Warnf("list proxies failed, %v", err)
+		proxy.ControllerLogger.Warnf("list proxies failed, %v", err)
 		return err
 	}
 
@@ -113,20 +112,20 @@ func DelNamespace(name string, cfg *models.CCConfig, cluster string) error {
 	defer mConn.Close()
 
 	if err := mConn.DelNamespace(name); err != nil {
-		log.Warnf("delete namespace %s failed, %s", name, err.Error())
+		proxy.ControllerLogger.Warnf("delete namespace %s failed, %s", name, err.Error())
 		return err
 	}
 
 	proxies, err := mConn.ListProxyMonitorMetrics()
 	if err != nil {
-		log.Warnf("list proxy failed, %s", err.Error())
+		proxy.ControllerLogger.Warnf("list proxy failed, %s", err.Error())
 		return err
 	}
 
 	for _, v := range proxies {
 		err := proxy.DelNamespace(v.IP+":"+v.AdminPort, name, cfg)
 		if err != nil {
-			log.Warnf("delete namespace %s in proxy %s failed, err: %s", name, v.IP, err.Error())
+			proxy.ControllerLogger.Warnf("delete namespace %s in proxy %s failed, err: %s", name, v.IP, err.Error())
 			return err
 		}
 	}
@@ -144,7 +143,7 @@ func SQLFingerprint(name string, cfg *models.CCConfig, cluster string) (slowSQLs
 	defer mConn.Close()
 	proxies, err := mConn.ListProxyMonitorMetrics()
 	if err != nil {
-		log.Warnf("list proxy failed, %v", err)
+		proxy.ControllerLogger.Warnf("list proxy failed, %v", err)
 		return nil, nil, err
 	}
 	wg := new(sync.WaitGroup)
@@ -157,7 +156,7 @@ func SQLFingerprint(name string, cfg *models.CCConfig, cluster string) (slowSQLs
 			defer wg.Done()
 			r, err := proxy.QueryNamespaceSQLFingerprint(host, name, cfg)
 			if err != nil {
-				log.Warnf("query namespace sql fingerprint failed ,%v", err)
+				proxy.ControllerLogger.Warnf("query namespace sql fingerprint failed ,%v", err)
 			}
 			respC <- r
 		}(host, name)
@@ -188,7 +187,7 @@ func ProxyConfigFingerprint(cfg *models.CCConfig, cluster string) (r map[string]
 	defer mConn.Close()
 	proxies, err := mConn.ListProxyMonitorMetrics()
 	if err != nil {
-		log.Warnf("list proxy failed, %v", err)
+		proxy.ControllerLogger.Warnf("list proxy failed, %v", err)
 		return nil, err
 	}
 	wg := new(sync.WaitGroup)
@@ -201,7 +200,7 @@ func ProxyConfigFingerprint(cfg *models.CCConfig, cluster string) (r map[string]
 			defer wg.Done()
 			md5, err := proxy.QueryProxyConfigFingerprint(host, cfg)
 			if err != nil {
-				log.Warnf("query config fingerprint of proxy failed, %s %v", host, err)
+				proxy.ControllerLogger.Warnf("query config fingerprint of proxy failed, %s %v", host, err)
 			}
 			m := make(map[string]string, 1)
 			m[host] = md5
