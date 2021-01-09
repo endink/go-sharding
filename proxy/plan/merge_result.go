@@ -16,11 +16,11 @@ package plan
 
 import (
 	"fmt"
+	"github.com/pingcap/parser/ast"
 	"strconv"
 	"strings"
 
 	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/parser/ast"
 	"github.com/XiaoMi/Gaea/util/hack"
 	"github.com/XiaoMi/Gaea/util/math"
 )

@@ -19,6 +19,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"github.com/XiaoMi/Gaea/logging"
+	sql2 "github.com/XiaoMi/Gaea/sql"
 	"go.uber.org/zap"
 	"net/http"
 	"sort"
@@ -30,7 +31,6 @@ import (
 	"github.com/XiaoMi/Gaea/core/errors"
 	"github.com/XiaoMi/Gaea/models"
 	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/parser"
 	"github.com/XiaoMi/Gaea/stats"
 	"github.com/XiaoMi/Gaea/stats/prometheus"
 	"github.com/XiaoMi/Gaea/util"
@@ -303,7 +303,7 @@ func (m *Manager) RecordSessionSQLMetrics(reqCtx *util.RequestContext, se *Sessi
 
 	var operation string
 	if stmtType, ok := reqCtx.Get(util.StmtType).(int); ok {
-		operation = parser.StmtType(stmtType)
+		operation = sql2.GetStmtType(stmtType)
 	} else {
 		fingerprint := mysql.GetFingerprint(sql)
 		operation = mysql.GetFingerprintOperation(fingerprint)
@@ -317,18 +317,18 @@ func (m *Manager) RecordSessionSQLMetrics(reqCtx *util.RequestContext, se *Sessi
 	if duration > ns.getSessionSlowSQLTime() || ns.getSessionSlowSQLTime() == 0 {
 		logging.DefaultLogger.Warnf("session slow SQL, namespace: %s, sql: %s, cost: %d ms", namespace, trimmedSql, duration)
 		fingerprint := mysql.GetFingerprint(sql)
-		md5 := mysql.GetMd5(fingerprint)
-		ns.SetSlowSQLFingerprint(md5, fingerprint)
-		m.statistics.recordSessionSlowSQLFingerprint(namespace, md5)
+		hash := mysql.GetMd5(fingerprint)
+		ns.SetSlowSQLFingerprint(hash, fingerprint)
+		m.statistics.recordSessionSlowSQLFingerprint(namespace, hash)
 	}
 
 	// record error sql
 	if err != nil {
 		logging.DefaultLogger.Warnf("session error SQL, namespace: %s, sql: %s, cost: %d ms, err: %v", namespace, trimmedSql, duration, err)
 		fingerprint := mysql.GetFingerprint(sql)
-		md5 := mysql.GetMd5(fingerprint)
-		ns.SetErrorSQLFingerprint(md5, fingerprint)
-		m.statistics.recordSessionErrorSQLFingerprint(namespace, operation, md5)
+		hash := mysql.GetMd5(fingerprint)
+		ns.SetErrorSQLFingerprint(hash, fingerprint)
+		m.statistics.recordSessionErrorSQLFingerprint(namespace, operation, hash)
 	}
 
 	if OpenProcessGeneralQueryLog() && ns.openGeneralLog {
@@ -348,7 +348,7 @@ func (m *Manager) RecordBackendSQLMetrics(reqCtx *util.RequestContext, namespace
 
 	var operation string
 	if stmtType, ok := reqCtx.Get(util.StmtType).(int); ok {
-		operation = parser.StmtType(stmtType)
+		operation = sql2.GetStmtType(stmtType)
 	} else {
 		fingerprint := mysql.GetFingerprint(sql)
 		operation = mysql.GetFingerprintOperation(fingerprint)
@@ -362,18 +362,18 @@ func (m *Manager) RecordBackendSQLMetrics(reqCtx *util.RequestContext, namespace
 	if m.statistics.isBackendSlowSQL(startTime) {
 		logging.DefaultLogger.Warnf("backend slow SQL, namespace: %s, addr: %s, sql: %s, cost: %d ms", namespace, backendAddr, trimmedSql, duration)
 		fingerprint := mysql.GetFingerprint(sql)
-		md5 := mysql.GetMd5(fingerprint)
-		ns.SetBackendSlowSQLFingerprint(md5, fingerprint)
-		m.statistics.recordBackendSlowSQLFingerprint(namespace, md5)
+		hash := mysql.GetMd5(fingerprint)
+		ns.SetBackendSlowSQLFingerprint(hash, fingerprint)
+		m.statistics.recordBackendSlowSQLFingerprint(namespace, hash)
 	}
 
 	// record error sql
 	if err != nil {
 		logging.DefaultLogger.Warnf("backend error SQL, namespace: %s, addr: %s, sql: %s, cost %d ms, err: %v", namespace, backendAddr, trimmedSql, duration, err)
 		fingerprint := mysql.GetFingerprint(sql)
-		md5 := mysql.GetMd5(fingerprint)
-		ns.SetBackendErrorSQLFingerprint(md5, fingerprint)
-		m.statistics.recordBackendErrorSQLFingerprint(namespace, operation, md5)
+		hash := mysql.GetMd5(fingerprint)
+		ns.SetBackendErrorSQLFingerprint(hash, fingerprint)
+		m.statistics.recordBackendErrorSQLFingerprint(namespace, operation, hash)
 	}
 }
 
@@ -816,8 +816,8 @@ func (s *StatisticManager) recordBackendSQLTiming(namespace string, operation st
 
 // RecordSQLForbidden record forbidden sql
 func (s *StatisticManager) RecordSQLForbidden(fingerprint, namespace string) {
-	md5 := mysql.GetMd5(fingerprint)
-	s.sqlForbidenCounts.Add([]string{s.clusterName, namespace, md5}, 1)
+	hash := mysql.GetMd5(fingerprint)
+	s.sqlForbidenCounts.Add([]string{s.clusterName, namespace, hash}, 1)
 }
 
 // IncrSessionCount incr session count

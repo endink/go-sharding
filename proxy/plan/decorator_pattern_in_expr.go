@@ -16,15 +16,15 @@ package plan
 
 import (
 	"fmt"
+	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/format"
+	"github.com/pingcap/parser/types"
 	"io"
 	"sort"
 
-	"github.com/XiaoMi/Gaea/parser/ast"
-	"github.com/XiaoMi/Gaea/parser/format"
-	driver "github.com/XiaoMi/Gaea/parser/tidb-types/parser_driver"
-	"github.com/XiaoMi/Gaea/parser/types"
 	"github.com/XiaoMi/Gaea/proxy/router"
 	"github.com/XiaoMi/Gaea/util"
+	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
 // type check

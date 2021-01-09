@@ -15,12 +15,14 @@
 package util
 
 import (
+	"github.com/pingcap/parser/format"
 	"strings"
 
-	"github.com/XiaoMi/Gaea/parser/format"
-	types "github.com/XiaoMi/Gaea/parser/tidb-types"
-	driver "github.com/XiaoMi/Gaea/parser/tidb-types/parser_driver"
+	"github.com/pingcap/tidb/types"
+	driver "github.com/pingcap/tidb/types/parser_driver"
 )
+
+var EscapeRestoreFlags = format.RestoreStringSingleQuotes | format.RestoreStringEscapeBackslash | format.RestoreKeyWordUppercase | format.RestoreNameBackQuotes
 
 // GetValueExprResult copy from ValueExpr.Restore()
 // TODO: 分表列是否需要支持等值比较NULL
@@ -40,7 +42,7 @@ func GetValueExprResult(n *driver.ValueExpr) (interface{}, error) {
 		return n.GetString(), nil
 	default:
 		s := &strings.Builder{}
-		ctx := format.NewRestoreCtx(format.EscapeRestoreFlags, s)
+		ctx := format.NewRestoreCtx(EscapeRestoreFlags, s)
 		err := n.Restore(ctx)
 		if err != nil {
 			return nil, err

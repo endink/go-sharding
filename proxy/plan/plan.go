@@ -16,12 +16,11 @@ package plan
 
 import (
 	"fmt"
+	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/format"
 	"strings"
 
 	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/parser"
-	"github.com/XiaoMi/Gaea/parser/ast"
-	"github.com/XiaoMi/Gaea/parser/format"
 	"github.com/XiaoMi/Gaea/proxy/router"
 	"github.com/XiaoMi/Gaea/proxy/sequence"
 	"github.com/XiaoMi/Gaea/util"
@@ -501,7 +500,7 @@ func generateShardingSQLs(stmt ast.StmtNode, result *RouteResult, router *router
 
 	for result.HasNext() {
 		sb := &strings.Builder{}
-		ctx := format.NewRestoreCtx(format.EscapeRestoreFlags, sb)
+		ctx := format.NewRestoreCtx(util.EscapeRestoreFlags, sb)
 		if err := stmt.Restore(ctx); err != nil {
 			return nil, err
 		}
@@ -565,10 +564,11 @@ func newEmptyResultset(info *SelectPlan, stmt *ast.SelectStmt) *mysql.Resultset 
 		} else {
 			if expr.AsName.String() != "" {
 				r.Fields[i].Name = hack.Slice(expr.AsName.String())
-				name, _ := parser.NodeToStringWithoutQuote(expr.Expr)
+
+				name, _ := util.NodeToStringWithoutQuote(expr.Expr)
 				r.Fields[i].OrgName = hack.Slice(name)
 			} else {
-				name, _ := parser.NodeToStringWithoutQuote(expr.Expr)
+				name, _ := util.NodeToStringWithoutQuote(expr.Expr)
 				r.Fields[i].Name = hack.Slice(name)
 			}
 		}

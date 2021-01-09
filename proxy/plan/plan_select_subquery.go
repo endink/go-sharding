@@ -16,8 +16,8 @@ package plan
 
 import (
 	"fmt"
+	"github.com/pingcap/parser/ast"
 
-	"github.com/XiaoMi/Gaea/parser/ast"
 	"github.com/XiaoMi/Gaea/proxy/router"
 )
 
@@ -51,7 +51,7 @@ func (s *SubqueryColumnNameRewriteVisitor) Leave(n ast.Node) (node ast.Node, ok 
 	if rule == nil || rule.GetType() == router.GlobalTableRuleType {
 		return n, true
 	}
- 
+
 	decorator := CreateColumnNameExprDecorator(field, rule, false, s.info.GetRouteResult())
 	return decorator, true
 }

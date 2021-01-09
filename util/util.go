@@ -16,6 +16,8 @@ package util
 
 import (
 	"fmt"
+	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/format"
 	"os"
 	"runtime"
 	"strconv"
@@ -85,4 +87,15 @@ func FileExists(name string) bool {
 		}
 	}
 	return true
+}
+
+const resultTableNameFlag format.RestoreFlags = 0
+
+// NodeToStringWithoutQuote get node text
+func NodeToStringWithoutQuote(node ast.Node) (string, error) {
+	s := &strings.Builder{}
+	if err := node.Restore(format.NewRestoreCtx(resultTableNameFlag, s)); err != nil {
+		return "", err
+	}
+	return s.String(), nil
 }

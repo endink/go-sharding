@@ -16,12 +16,12 @@ package plan
 
 import (
 	"fmt"
+	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/format"
 	"strings"
 
 	"github.com/XiaoMi/Gaea/backend"
 	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/parser/ast"
-	"github.com/XiaoMi/Gaea/parser/format"
 	"github.com/XiaoMi/Gaea/util"
 )
 
@@ -94,7 +94,7 @@ func rewriteUnshardTableName(phyDBs map[string]string, tableNames []*ast.TableNa
 
 func generateUnshardingSQL(stmt ast.StmtNode) (string, error) {
 	s := &strings.Builder{}
-	ctx := format.NewRestoreCtx(format.EscapeRestoreFlags, s)
+	ctx := format.NewRestoreCtx(util.EscapeRestoreFlags, s)
 	_ = stmt.Restore(ctx)
 	return s.String(), nil
 }

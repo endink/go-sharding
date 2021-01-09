@@ -16,9 +16,8 @@ package mysql
 
 import (
 	"fmt"
+	"github.com/pingcap/parser/format"
 	"strings"
-
-	"github.com/XiaoMi/Gaea/parser/format"
 )
 
 const (

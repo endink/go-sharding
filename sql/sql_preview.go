@@ -1,31 +1,10 @@
-// Copyright 2012, Google Inc. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
-// Copyright 2016 The kingshard Authors. All rights reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License"): you may
-// not use this file except in compliance with the License. You may obtain
-// a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-// License for the specific language governing permissions and limitations
-// under the License.
-
-package parser
-
-// analyzer.go contains utility analysis functions.
+package sql
 
 import (
 	"strings"
 	"unicode"
 )
 
-// These constants are used to identify the SQL statement type.
 const (
 	StmtSelect = iota
 	StmtStream
@@ -47,7 +26,7 @@ const (
 
 // Preview analyzes the beginning of the query using a simpler and faster
 // textual comparison to identify the statement type.
-func Preview(sql string) int {
+func PreviewSql(sql string) int {
 	trimmed := StripLeadingComments(sql)
 
 	firstWord := trimmed
@@ -104,7 +83,7 @@ func Preview(sql string) int {
 }
 
 // StmtType returns the statement type as a string
-func StmtType(stmtType int) string {
+func GetStmtType(stmtType int) string {
 	switch stmtType {
 	case StmtSelect:
 		return "SELECT"
