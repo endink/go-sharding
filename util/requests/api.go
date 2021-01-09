@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/XiaoMi/Gaea/logging"
 	"io"
 	"io/ioutil"
 	"net"
@@ -25,8 +26,6 @@ import (
 	"net/url"
 	"sync/atomic"
 	"time"
-
-	"github.com/XiaoMi/Gaea/log"
 )
 
 // Supported http methods
@@ -47,7 +46,7 @@ func init() {
 	tr.Dial = func(network, addr string) (net.Conn, error) {
 		c, err := net.DialTimeout(network, addr, time.Second*10)
 		if err == nil {
-			log.Debugf("rpc: dial new connection to %s， dials: %d", addr, atomic.AddUint64(&dials, 1)-1)
+			logging.DefaultLogger.Debugf("rpc: dial new connection to %s， dials: %d", addr, atomic.AddUint64(&dials, 1)-1)
 		}
 		return c, err
 	}
@@ -163,7 +162,7 @@ func Send(request *Request) (*Response, error) {
 		io.Copy(ioutil.Discard, rsp.Body)
 		// close http response
 		rsp.Body.Close()
-		log.Debugf("call rpc [%s] %s in %v", httpReq.Method, httpReq.URL, time.Since(start))
+		logging.DefaultLogger.Debugf("call rpc [%s] %s in %v", httpReq.Method, httpReq.URL, time.Since(start))
 	}()
 
 	// build response
