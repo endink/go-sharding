@@ -30,7 +30,7 @@ const (
 	// TimeFormat time format
 	TimeFormat string = "2006-01-02 15:04:05"
 	// ServerVersion server version
-	ServerVersion string = "8.0.12"
+	ServerVersion string = "8.0.12-proxy"
 	// ProtocolVersion is the current version of the protocol.
 	// Always 10.
 	ProtocolVersion = 10

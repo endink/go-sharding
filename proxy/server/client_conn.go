@@ -55,6 +55,7 @@ func NewClientConn(c *mysql.Conn, manager *Manager) *ClientConn {
 	}
 }
 
+//https://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeV10
 func (cc *ClientConn) writeInitialHandshake() error {
 	var data []byte
 
@@ -74,34 +75,33 @@ func (cc *ClientConn) writeInitialHandshake() error {
 	//filter 0x00 byte, terminating the first part of a scramble
 	data = append(data, 0x00)
 
-	defaultFlag := uint32(2662925)
 	//capability flag lower 2 bytes, using default capability here
-	data = append(data, byte(defaultFlag), byte(defaultFlag>>8)) //len:27
+	data = append(data, byte(DefaultCapability), byte(DefaultCapability>>8))
 
 	//charset
 	data = append(data, uint8(mysql.DefaultCollationID))
 
 	//status
-	data = append(data, byte(0), byte(0>>8)) //len:30
+	data = append(data, byte(0), byte(0>>8))
 
 	//capability flag upper 2 bytes, using default capability here
-	data = append(data, byte(defaultFlag>>16), byte(defaultFlag>>24)) //len:32
+	data = append(data, byte(DefaultCapability>>16), byte(DefaultCapability>>24))
 
 	// server supports CLIENT_PLUGIN_AUTH and CLIENT_SECURE_CONNECTION
-	data = append(data, byte(8+12+1)) //len:33
+	data = append(data, byte(8+12+1))
 
 	//reserved 10 [00]
-	data = append(data, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0) //len:43
+	data = append(data, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
 
 	//auth-plugin-data-part-2
-	data = append(data, cc.salt[8:]...) //len:55
+	data = append(data, cc.salt[8:]...)
 	// second part of the password cipher [mininum 13 bytes],
 	// where len=MAX(13, length of auth-plugin-data - 8)
 	// add \NUL to terminate the string
-	data = append(data, 0x00) //len:56
+	data = append(data, 0x00)
 
 	// auth plugin name
-	data = append(data, mysql.AUTH_CACHING_SHA2_PASSWORD...) //len:77
+	data = append(data, mysql.AUTH_CACHING_SHA2_PASSWORD...)
 
 	// EOF if MySQL version (>= 5.5.7 and < 5.5.10) or (>= 5.6.0 and < 5.6.2)
 	// \NUL otherwise, so we use \NUL
@@ -194,7 +194,7 @@ func readAuthData(data []byte, pos int, capability uint32) ([]byte, int, bool) {
 	// length encoded data
 	var auth []byte
 	var authLen int
-	if capability&mysql.ClientPluginAuthLenencClientData != 0 {
+	if capability&mysql.ClientPluginAuthLenencClientData > 0 {
 		authData, newPos, isNULL, isOk := mysql.ReadLenEncStringAsBytes(data, pos)
 		if !isOk {
 			return nil, 0, false
@@ -204,7 +204,7 @@ func readAuthData(data []byte, pos int, capability uint32) ([]byte, int, bool) {
 			return nil, 0, false
 		}
 		auth = authData
-		authLen = newPos - pos
+		return auth, newPos, true
 	} else if capability&mysql.ClientSecureConnection != 0 {
 		//auth length and auth
 		authLen = int(data[pos])
