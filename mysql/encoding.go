@@ -344,7 +344,8 @@ func ReadLenEncInt(data []byte, pos int) (uint64, int, bool, bool) {
 			uint64(data[pos+8])<<56, pos + 9, isNull, true
 	}
 	// 0-250
-	return uint64(data[pos]), pos + 1, isNull, true
+	b := data[pos]
+	return uint64(b), pos + 1, isNull, true
 }
 
 func readLenEncString(data []byte, pos int) (string, int, bool) {

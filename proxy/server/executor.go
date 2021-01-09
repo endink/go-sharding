@@ -595,6 +595,22 @@ func modifyResultStatus(r *mysql.Result, cc *SessionExecutor) {
 	r.Status = r.Status | cc.GetStatus()
 }
 
+func createEmptyResult() *mysql.Result {
+	r := new(mysql.Resultset)
+
+	//field := &mysql.Field{}
+	//field.Name = hack.Slice("Master_Host")
+	//r.Fields = append(r.Fields, field)
+
+	result := &mysql.Result{
+		AffectedRows: uint64(0),
+		Resultset:    r,
+	}
+
+	plan.GenerateSelectResultRowData(result)
+	return result
+}
+
 func createShowDatabaseResult(dbs []string) *mysql.Result {
 	r := new(mysql.Resultset)
 

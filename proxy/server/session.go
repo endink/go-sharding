@@ -28,10 +28,15 @@ import (
 	"github.com/XiaoMi/Gaea/util"
 )
 
+/*
+CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_CONNECT_WITH_DB | CLIENT_PROTOCOL_41 |
+			CLIENT_TRANSACTIONS | CLIENT_SECURE_CONNECTION | CLIENT_PLUGIN_AUTH | CLIENT_SSL | CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA,
+*/
+
 // DefaultCapability means default capability
 var DefaultCapability = mysql.ClientLongPassword | mysql.ClientLongFlag |
 	mysql.ClientConnectWithDB | mysql.ClientProtocol41 |
-	mysql.ClientTransactions | mysql.ClientSecureConnection
+	mysql.ClientTransactions | mysql.ClientSecureConnection | mysql.ClientPluginAuth | mysql.ClientPluginAuthLenencClientData
 
 var baseConnID uint32 = 10000
 
@@ -191,6 +196,7 @@ func (cc *Session) handleHandshakeResponse(info HandshakeResponseInfo) error {
 	//if !succ {
 	//	return mysql.NewDefaultError(mysql.ErrAccessDenied, user, cc.c.RemoteAddr().String(), "Yes")
 	//}
+
 	if err := cc.auth(info, password); err != nil {
 		return mysql.NewDefaultError(mysql.ErrAccessDenied, user, cc.c.RemoteAddr().String(), "Yes")
 	}

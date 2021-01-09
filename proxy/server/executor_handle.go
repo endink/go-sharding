@@ -119,6 +119,10 @@ func (se *SessionExecutor) doQuery(reqCtx *util.RequestContext, sql string) (*my
 func (se *SessionExecutor) handleQueryWithoutPlan(reqCtx *util.RequestContext, sql string) (*mysql.Result, error) {
 	n, err := se.Parse(sql)
 	if err != nil {
+		return nil, errors.ErrCmdUnsupport
+	}
+
+	if err != nil {
 		return nil, fmt.Errorf("parse sql error, sql: %s, err: %v", sql, err)
 	}
 
@@ -210,6 +214,9 @@ func (se *SessionExecutor) handleShow(reqCtx *util.RequestContext, sql string, s
 		fallthrough
 	default:
 
+		if strings.Contains(sql, "SHOW SLAVE") {
+			return createEmptyResult(), nil
+		}
 		r, err := se.ExecuteSQL(reqCtx, backend.DefaultSlice, se.db, sql)
 		if err != nil {
 			return nil, fmt.Errorf("execute sql error, sql: %s, err: %v", sql, err)
