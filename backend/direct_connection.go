@@ -53,6 +53,8 @@ type DirectConnection struct {
 
 	pkgErr error
 	closed sync2.AtomicBool
+
+	authPluginName string
 }
 
 // NewDirectConnection return direct and authorised connection to mysql with real net connection
@@ -111,16 +113,10 @@ func (dc *DirectConnection) connect() error {
 		return err
 	}
 
-	response, err := dc.readPacket()
+	err = dc.handleAuthResult()
 	if err != nil {
 		dc.conn.Close()
 		return err
-	}
-
-	switch response[0] {
-	case mysql.OKHeader:
-	default:
-		return errors.New("dc connection handshake failed with mysql")
 	}
 
 	// we must always use autocommit
@@ -244,63 +240,163 @@ func (dc *DirectConnection) readInitialHandshake() error {
 		// mysql-proxy also use 12
 		// which is not documented but seems to work.
 		dc.salt = append(dc.salt, data[pos:pos+12]...)
+
+		pos += 13
+		// auth plugin
+		if end := bytes.IndexByte(data[pos:], 0x00); end != -1 {
+			dc.authPluginName = string(data[pos : pos+end])
+		} else {
+			dc.authPluginName = string(data[pos:])
+		}
+
+		if dc.authPluginName == "" {
+			dc.authPluginName = mysql.AUTH_NATIVE_PASSWORD
+		}
 	}
 
 	return nil
 }
 
+func (dc *DirectConnection) CalcPassword(authData []byte) ([]byte, error) {
+	// password hashing
+	switch dc.authPluginName {
+	case mysql.AUTH_NATIVE_PASSWORD:
+		return mysql.CalcPassword(authData[:20], []byte(dc.password)), nil
+	case mysql.AUTH_CACHING_SHA2_PASSWORD:
+		return mysql.CalcCachingSha2Password(authData, dc.password), nil
+	//case mysql.AUTH_SHA256_PASSWORD:
+	//	if len(c.password) == 0 {
+	//		return nil, true, nil
+	//	}
+	//	if c.tlsConfig != nil || c.proto == "unix" {
+	//		// write cleartext auth packet
+	//		// see: https://dev.mysql.com/doc/refman/8.0/en/sha256-pluggable-authentication.html
+	//		return []byte(c.password), true, nil
+	//	} else {
+	//		// request public key from server
+	//		// see: https://dev.mysql.com/doc/internals/en/public-key-retrieval.html
+	//		return []byte{1}, false, nil
+	//	}
+	default:
+		// not reachable
+		return nil, fmt.Errorf("auth plugin '%s' is not supported", dc.authPluginName)
+	}
+}
+
+// See: http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::HandshakeResponse
 // writeHandshakeResponse41 writes the handshake response.
 func (dc *DirectConnection) writeHandshakeResponse41() error {
 	// Adjust client capability flags based on server support
 	capability := mysql.ClientProtocol41 | mysql.ClientSecureConnection |
-		mysql.ClientLongPassword | mysql.ClientTransactions | mysql.ClientLongFlag
+		mysql.ClientLongPassword | mysql.ClientTransactions | mysql.ClientPluginAuth | mysql.ClientLongFlag
 	capability &= dc.capability
 
+	//capability := CLIENT_PROTOCOL_41 | CLIENT_SECURE_CONNECTION |
+	//		CLIENT_LONG_PASSWORD | CLIENT_TRANSACTIONS | CLIENT_PLUGIN_AUTH | c.capability&CLIENT_LONG_FLAG
+
 	//we only support secure connection
-	auth := mysql.CalcPassword(dc.salt, []byte(dc.password))
+	auth, err := dc.CalcPassword(dc.salt)
+	if err != nil {
+		return err
+	}
 
-	length := 4 + // Client capability flags
-		4 + // Max-packet size.
-		1 + // Character set.
-		23 + // Reserved.
-		mysql.LenNullString(dc.user) + // user
-		1 +
-		len(auth)
+	// encode length of the auth plugin data
+	// here we use the Length-Encoded-Integer(LEI) as the data length may not fit into one byte
+	// see: https://dev.mysql.com/doc/internals/en/integer.html#length-encoded-integer
+	var authRespLEIBuf [9]byte
+	authRespLEI := mysql.AppendLenEncInt(authRespLEIBuf[:0], uint64(len(auth)))
+	if len(authRespLEI) > 1 {
+		// if the length can not be written in 1 byte, it must be written as a
+		// length encoded integer
+		capability |= mysql.ClientPluginAuthLenencClientData
+	}
 
+	//packet length
+	//capability 4
+	//max-packet size 4
+	//charset 1
+	//reserved all[0] 23
+	//username
+	//auth
+	//mysql_native_password + null-terminated
+	length := 4 + 4 + 1 + 23 + len(dc.user) + 1 + len(authRespLEI) + len(auth) + 21 + 1
+	//if addNull {
+	//	length++
+	//}
+	// db name
 	if len(dc.db) > 0 {
 		capability |= mysql.ClientConnectWithDB
-		length += mysql.LenNullString(dc.db)
+		length += len(dc.db) + 1
 	}
 
-	dc.capability = capability
+	data := make([]byte, length)
 
-	data := make([]byte, length, length)
-	pos := 0
+	// capability [32 bit]
+	data[0] = byte(capability)
+	data[1] = byte(capability >> 8)
+	data[2] = byte(capability >> 16)
+	data[3] = byte(capability >> 24)
 
-	// Client capability flags.
-	pos = mysql.WriteUint32(data, pos, capability)
+	// MaxPacketSize [32 bit] (none)
+	data[4] = 0x00
+	data[5] = 0x00
+	data[6] = 0x00
+	data[7] = 0x00
 
-	// Max-packet size, always 0. See doc.go.
-	pos = mysql.WriteZeroes(data, pos, 4)
+	// Charset [1 byte]
+	// use default collation id 33 here, is utf-8
+	data[8] = byte(mysql.DefaultCollationID)
 
-	// Character set.
-	pos = mysql.WriteByte(data, pos, byte(dc.collation))
+	// SSL Connection Request Packet
+	// http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::SSLRequest
+	//if c.tlsConfig != nil {
+	//	// Send TLS / SSL request packet
+	//	if err := c.WritePacket(data[:(4+4+1+23)+4]); err != nil {
+	//		return err
+	//	}
+	//
+	//	// Switch to TLS
+	//	tlsConn := tls.Client(c.Conn.Conn, c.tlsConfig)
+	//	if err := tlsConn.Handshake(); err != nil {
+	//		return err
+	//	}
+	//
+	//	currentSequence := c.Sequence
+	//	c.Conn = packet.NewConn(tlsConn)
+	//	c.Sequence = currentSequence
+	//}
 
-	// 23 reserved bytes, all 0.
-	pos = mysql.WriteZeroes(data, pos, 23)
+	// Filler [23 bytes] (all 0x00)
+	pos := 9
+	for ; pos < 9+23; pos++ {
+		data[pos] = 0
+	}
 
-	// user type: null terminated string
-	pos = mysql.WriteNullString(data, pos, dc.user)
+	// User [null terminated string]
+	if len(dc.user) > 0 {
+		pos += copy(data[pos:], dc.user)
+	}
+	data[pos] = 0x00
+	pos++
 
 	// auth [length encoded integer]
-	data[pos] = byte(len(auth))
-	pos++
+	pos += copy(data[pos:], authRespLEI)
 	pos += copy(data[pos:], auth)
+	//if addNull {
+	//	data[pos] = 0x00
+	//	pos++
+	//}
 
-	// db type: null terminated string
+	// db [null terminated string]
 	if len(dc.db) > 0 {
-		pos = mysql.WriteNullString(data, pos, dc.db)
+		pos += copy(data[pos:], dc.db)
+		data[pos] = 0x00
+		pos++
 	}
+
+	// Assume native client during response
+	pos += copy(data[pos:], dc.authPluginName)
+	data[pos] = 0x00
 
 	if err := dc.writePacket(data); err != nil {
 		return err
@@ -395,6 +491,21 @@ func (dc *DirectConnection) UseDB(dbName string) error {
 	return nil
 }
 
+func (dc *DirectConnection) readOK() error {
+	data, err := dc.readPacket()
+	if err != nil {
+		return err
+	}
+
+	if data[0] == mysql.OKHeader {
+		return nil
+	} else if data[0] == mysql.ErrHeader {
+		return dc.handleErrorPacket(data)
+	} else {
+		return errors.New("invalid ok packet")
+	}
+}
+
 // GetDB return database name
 func (dc *DirectConnection) GetDB() string {
 	return dc.db
@@ -451,14 +562,18 @@ func (dc *DirectConnection) SetCharset(charset string, collation mysql.Collation
 	charset = strings.Trim(charset, "\"'`")
 
 	if collation == 0 {
-		collation = mysql.CollationNames[mysql.Charsets[charset]]
+		col, ok := mysql.CharsetsToCollationNames[charset]
+		if !ok {
+			return false, fmt.Errorf("invalid charset %s", charset)
+		}
+		collation = mysql.CollationIds[col]
 	}
 
 	if dc.charset == charset && dc.collation == collation {
 		return false, nil
 	}
 
-	_, ok := mysql.CharsetIds[charset]
+	_, ok := mysql.CharsetsToCollationNames[charset]
 	if !ok {
 		return false, fmt.Errorf("invalid charset %s", charset)
 	}

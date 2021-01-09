@@ -30,12 +30,18 @@ const (
 	// TimeFormat time format
 	TimeFormat string = "2006-01-02 15:04:05"
 	// ServerVersion server version
-	ServerVersion string = "5.6.20-gaea"
-	// MysqlNativePassword uses a salt and transmits a hash on the wire.
-	MysqlNativePassword = "mysql_native_password"
+	ServerVersion string = "8.0.12"
 	// ProtocolVersion is the current version of the protocol.
 	// Always 10.
 	ProtocolVersion = 10
+	Server
+)
+
+const (
+	AUTH_MYSQL_OLD_PASSWORD    = "mysql_old_password"
+	AUTH_NATIVE_PASSWORD       = "mysql_native_password"
+	AUTH_CACHING_SHA2_PASSWORD = "caching_sha2_password"
+	AUTH_SHA256_PASSWORD       = "sha256_password"
 )
 
 const (
@@ -49,6 +55,11 @@ const (
 	ErrHeader         byte = 0xff
 	EOFHeader         byte = 0xfe
 	LocalInFileHeader byte = 0xfb
+
+	MoreDataHeader byte = 0x01
+
+	CacheSha2FastAuth byte = 0x03
+	CacheSha2FullAuth byte = 0x04
 )
 
 // Server information.

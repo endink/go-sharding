@@ -17,6 +17,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"github.com/XiaoMi/Gaea/cc/proxy"
 	"os"
 	"os/signal"
 	"sync"
@@ -49,12 +50,12 @@ func main() {
 	// 构造服务实例
 	s, err := cc.NewServer(ccConfig.Addr, ccConfig)
 	if err != nil {
-		log.Fatalf("create server failed, %v", err)
+		proxy.ControllerLogger.Fatalf("create server failed, %v", err)
 		return
 	}
 
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGPIPE, syscall.SIGUSR1)
+	signal.Notify(c, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT, syscall.SIGPIPE)
 	wg := new(sync.WaitGroup)
 	wg.Add(1)
 	go func() {
@@ -62,15 +63,14 @@ func main() {
 		for {
 			sig := <-c
 			if sig == syscall.SIGINT || sig == syscall.SIGTERM || sig == syscall.SIGQUIT {
-				log.Infof("got signal %d, quit", sig)
+				proxy.ControllerLogger.Infof("got signal %d, quit", sig)
 				s.Close()
 				return
 			}
-			log.Infof("ignore signal %d", sig)
+			proxy.ControllerLogger.Infof("ignore signal %d", sig)
 		}
 	}()
 
 	s.Run()
 	wg.Wait()
-	log.Close()
 }

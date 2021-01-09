@@ -17,19 +17,23 @@ package server
 import (
 	"bytes"
 	"encoding/binary"
+	errs "errors"
 	"fmt"
-	"runtime"
-	"strings"
-	"time"
-
 	"github.com/XiaoMi/Gaea/backend"
 	"github.com/XiaoMi/Gaea/core/errors"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/parser"
 	"github.com/XiaoMi/Gaea/parser/ast"
+	"github.com/XiaoMi/Gaea/parser/format"
+	"github.com/XiaoMi/Gaea/parser/model"
 	"github.com/XiaoMi/Gaea/proxy/plan"
 	"github.com/XiaoMi/Gaea/util"
+	"runtime"
+	"strings"
+	"time"
 )
+
+var _foundWhereTableError = errs.New("")
 
 // Parse parse sql
 func (se *SessionExecutor) Parse(sql string) (ast.StmtNode, error) {
@@ -120,7 +124,7 @@ func (se *SessionExecutor) handleQueryWithoutPlan(reqCtx *util.RequestContext, s
 
 	switch stmt := n.(type) {
 	case *ast.ShowStmt:
-		return se.handleShow(reqCtx, sql, stmt)
+		return se.handleShow(reqCtx, sql, stmt, n)
 	case *ast.SetStmt:
 		return se.handleSet(reqCtx, sql, stmt)
 	case *ast.BeginStmt:
@@ -166,17 +170,46 @@ func (se *SessionExecutor) getPlan(ns *Namespace, db string, sql string) (plan.P
 	return p, nil
 }
 
-func (se *SessionExecutor) handleShow(reqCtx *util.RequestContext, sql string, stmt *ast.ShowStmt) (*mysql.Result, error) {
+func (se *SessionExecutor) handleShow(reqCtx *util.RequestContext, sql string, stmt *ast.ShowStmt, node ast.StmtNode) (*mysql.Result, error) {
 	switch stmt.Tp {
 	case ast.ShowDatabases:
 		dbs := se.GetNamespace().GetAllowedDBs()
 		return createShowDatabaseResult(dbs), nil
+	case ast.ShowTables, ast.ShowColumns, ast.ShowIndex, ast.ShowTriggers, ast.ShowCreateTable:
+		exeSql := sql
+		change := false
+		phyDB, err := se.GetNamespace().GetDefaultPhyDB(se.db)
+		if stmt.DBName == se.db {
+			stmt.DBName = phyDB
+			change = true
+		}
+		if stmt.Table != nil && stmt.Table.Schema.String() == se.db {
+			stmt.Table.Schema = model.NewCIStr(phyDB)
+			change = true
+		}
+		if stmt.Tp == ast.ShowTriggers && stmt.Table != nil && stmt.Table.Name.String() == se.db {
+			stmt.Table.Name = model.NewCIStr(phyDB)
+			change = true
+		}
+		if change {
+			var sb = &strings.Builder{}
+			var ctx = format.NewRestoreCtx(format.DefaultRestoreFlags, sb)
+			stmt.Restore(ctx)
+			exeSql = sb.String()
+		}
+		r, err := se.ExecuteSQL(reqCtx, backend.DefaultSlice, se.db, exeSql)
+		if err != nil {
+			return nil, fmt.Errorf("execute sql error, sql: %s, err: %v", sql, err)
+		}
+		modifyResultStatus(r, se)
+		return r, nil
 	case ast.ShowVariables:
 		if strings.Contains(sql, gaeaGeneralLogVariable) {
 			return createShowGeneralLogResult(), nil
 		}
 		fallthrough
 	default:
+
 		r, err := se.ExecuteSQL(reqCtx, backend.DefaultSlice, se.db, sql)
 		if err != nil {
 			return nil, fmt.Errorf("execute sql error, sql: %s, err: %v", sql, err)
@@ -212,12 +245,12 @@ func (se *SessionExecutor) handleSetVariable(v *ast.VariableAssignment) error {
 			se.collation = se.GetNamespace().GetDefaultCollationID()
 			return nil
 		}
-		cid, ok := mysql.CharsetIds[charset]
+		col, ok := mysql.CharsetsToCollationNames[charset]
 		if !ok {
 			return mysql.NewDefaultError(mysql.ErrUnknownCharacterSet, charset)
 		}
 		se.charset = charset
-		se.collation = cid
+		se.collation = mysql.CollationIds[col]
 		return nil
 	case "autocommit":
 		value := getVariableExprResult(v.Value)
@@ -238,7 +271,7 @@ func (se *SessionExecutor) handleSetVariable(v *ast.VariableAssignment) error {
 		// if SET NAMES 'xxx' COLLATE DEFAULT, the parser treats it like SET NAMES 'xxx', and the ExtendValue is nil
 		if v.ExtendValue != nil {
 			collationName := getVariableExprResult(v.ExtendValue)
-			cid, ok := mysql.CollationNames[collationName]
+			cid, ok := mysql.CollationIds[collationName]
 			if !ok {
 				return mysql.NewDefaultError(mysql.ErrUnknownCharacterSet, charset)
 			}
@@ -252,11 +285,13 @@ func (se *SessionExecutor) handleSetVariable(v *ast.VariableAssignment) error {
 			collationID = cid
 		} else {
 			// if only set charset but not set collation, the collation is set to charset default collation implicitly.
-			cid, ok := mysql.CharsetIds[charset]
+			col, ok := mysql.CharsetsToCollationNames[charset]
+			if ok {
+				collationID, ok = mysql.CollationIds[col]
+			}
 			if !ok {
 				return mysql.NewDefaultError(mysql.ErrUnknownCharacterSet, charset)
 			}
-			collationID = cid
 		}
 
 		se.charset = charset

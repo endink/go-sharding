@@ -26,8 +26,6 @@ import (
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/util"
 	"github.com/XiaoMi/Gaea/util/sync2"
-	gomysql "github.com/siddontang/go-mysql/mysql"
-	myserver "github.com/siddontang/go-mysql/server"
 )
 
 var (
@@ -104,7 +102,7 @@ func (s *Server) Listener() net.Listener {
 	return s.listener
 }
 
-func (s *Server) onConn(c net.Conn, server *myserver.Server) {
+func (s *Server) onConn(c net.Conn) {
 	cc := newSession(s, c) //新建一个conn
 	defer func() {
 		err := recover()
@@ -119,11 +117,11 @@ func (s *Server) onConn(c net.Conn, server *myserver.Server) {
 		cc.Close()
 	}()
 
-	_, err := myserver.NewCustomizedConn(c, server, cc.CreateCredentialProvider(), myserver.EmptyHandler{})
-	if err != nil {
-		cc.c.writeErrorPacket(err)
-		return
-	}
+	//_, err := myserver.NewCustomizedConn(c, server, cc.CreateCredentialProvider(), myserver.EmptyHandler{})
+	//if err != nil {
+	//	cc.c.writeErrorPacket(err)
+	//	return
+	//}
 
 	if err := cc.Handshake(); err != nil {
 		logging.DefaultLogger.Warnf("[server] onConn error: %s", err.Error())
@@ -159,18 +157,12 @@ func (s *Server) Run() error {
 	for s.closed.Get() != true {
 		conn, err := s.listener.Accept()
 
-		svr := myserver.NewServer("8.0.12",
-			gomysql.DEFAULT_COLLATION_ID,
-			gomysql.AUTH_CACHING_SHA2_PASSWORD,
-			nil,
-			nil)
-
 		if err != nil {
 			logging.DefaultLogger.Warnf("[server] listener accept error: %s", err.Error())
 			continue
 		}
 
-		go s.onConn(conn, svr)
+		go s.onConn(conn)
 	}
 
 	return nil
