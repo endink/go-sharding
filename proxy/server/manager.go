@@ -302,8 +302,8 @@ func (m *Manager) RecordSessionSQLMetrics(reqCtx *util.RequestContext, se *Sessi
 	}
 
 	var operation string
-	if stmtType, ok := reqCtx.Get(util.StmtType).(int); ok {
-		operation = parser.GetStmtType(stmtType)
+	if stmtType, ok := reqCtx.Get(util.StmtType).(parser.StatementType); ok {
+		operation = stmtType.String()
 	} else {
 		fingerprint := mysql.GetFingerprint(sql)
 		operation = mysql.GetFingerprintOperation(fingerprint)
@@ -347,8 +347,8 @@ func (m *Manager) RecordBackendSQLMetrics(reqCtx *util.RequestContext, namespace
 	}
 
 	var operation string
-	if stmtType, ok := reqCtx.Get(util.StmtType).(int); ok {
-		operation = parser.GetStmtType(stmtType)
+	if stmtType, ok := reqCtx.Get(util.StmtType).(parser.StatementType); ok {
+		operation = stmtType.String()
 	} else {
 		fingerprint := mysql.GetFingerprint(sql)
 		operation = mysql.GetFingerprintOperation(fingerprint)

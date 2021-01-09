@@ -81,13 +81,13 @@ func (se *SessionExecutor) handleQuery(sql string) (r *mysql.Result, err error) 
 }
 
 func (se *SessionExecutor) doQuery(reqCtx *util.RequestContext, sql string) (*mysql.Result, error) {
-	stmtType := reqCtx.Get("stmtType").(int)
+	stmtType := reqCtx.Get(util.StmtType).(parser.StatementType)
 
 	if isSQLNotAllowedByUser(se, stmtType) {
 		return nil, fmt.Errorf("write DML is now allowed by read user")
 	}
 
-	if canHandleWithoutPlan(stmtType) {
+	if stmtType.CanHandleWithoutPlan() {
 		return se.handleQueryWithoutPlan(reqCtx, sql)
 	}
 

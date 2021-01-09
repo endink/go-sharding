@@ -539,15 +539,6 @@ func (se *SessionExecutor) executeInMultiSlices(reqCtx *util.RequestContext, pcs
 	return r, err
 }
 
-func canHandleWithoutPlan(stmtType int) bool {
-	return stmtType == parser2.StmtShow ||
-		stmtType == parser2.StmtSet ||
-		stmtType == parser2.StmtBegin ||
-		stmtType == parser2.StmtCommit ||
-		stmtType == parser2.StmtRollback ||
-		stmtType == parser2.StmtUse
-}
-
 const variableRestoreFlag = format.RestoreKeyWordLowercase | format.RestoreNameLowercase
 
 // 获取SET语句中变量的字符串值, 去掉各种引号并转换为小写
@@ -585,7 +576,7 @@ func canExecuteFromSlave(c *SessionExecutor, sql string) bool {
 }
 
 // 如果是只读用户, 且SQL是INSERT, UPDATE, DELETE, 则拒绝执行, 返回true
-func isSQLNotAllowedByUser(c *SessionExecutor, stmtType int) bool {
+func isSQLNotAllowedByUser(c *SessionExecutor, stmtType parser2.StatementType) bool {
 	if c.GetNamespace().IsAllowWrite(c.user) {
 		return false
 	}
