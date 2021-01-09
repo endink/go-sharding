@@ -17,14 +17,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/XiaoMi/Gaea/proxy/plan"
+	"github.com/XiaoMi/Gaea/sql"
+	"github.com/pingcap/parser/ast"
 	"testing"
 
 	"github.com/XiaoMi/Gaea/backend"
 	"github.com/XiaoMi/Gaea/backend/mocks"
 	"github.com/XiaoMi/Gaea/models"
 	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/parser"
-	"github.com/XiaoMi/Gaea/parser/ast"
 	"github.com/XiaoMi/Gaea/util"
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
@@ -45,7 +46,8 @@ func TestGetVariableExprResult(t *testing.T) {
 		t.Run(test.expect, func(t *testing.T) {
 			for _, v := range test.variable {
 				sql := fmt.Sprintf("set autocommit = %s", v)
-				s, err := parser.ParseSQL(sql)
+
+				s, err := plan.ParseSQL(sql)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -114,7 +116,7 @@ func TestExecute(t *testing.T) {
 	ret = append(ret, expectResult1, expectResult2)
 
 	reqCtx := util.NewRequestContext()
-	reqCtx.Set(util.StmtType, parser.StmtInsert)
+	reqCtx.Set(util.StmtType, sql.StmtInsert)
 
 	rs, err := se.ExecuteSQLs(reqCtx, sqls)
 	assert.Equal(t, nil, err)

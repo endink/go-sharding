@@ -21,7 +21,6 @@ import (
 
 	"github.com/XiaoMi/Gaea/backend"
 	"github.com/XiaoMi/Gaea/models"
-	"github.com/XiaoMi/Gaea/parser"
 	"github.com/XiaoMi/Gaea/proxy/router"
 	"github.com/XiaoMi/Gaea/proxy/sequence"
 )
@@ -66,7 +65,7 @@ func (s *OrderSequence) NextSeq() (int64, error) {
 // 获取使用TiDB parser测试SQL改写结果的测试函数
 func getTestFunc(info *PlanInfo, test SQLTestcase) func(t *testing.T) {
 	return func(t *testing.T) {
-		stmt, err := parser.ParseSQL(test.sql)
+		stmt, err := ParseSQL(test.sql)
 		if err != nil {
 			if test.hasErr {
 				t.Logf("parse sql error: %v", err)
