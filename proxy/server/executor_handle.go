@@ -17,13 +17,13 @@ package server
 import (
 	"bytes"
 	"encoding/binary"
-	errs "errors"
 	"fmt"
 	"github.com/XiaoMi/Gaea/backend"
 	"github.com/XiaoMi/Gaea/core/errors"
+	"github.com/XiaoMi/Gaea/logging"
 	"github.com/XiaoMi/Gaea/mysql"
+	"github.com/XiaoMi/Gaea/parser"
 	"github.com/XiaoMi/Gaea/proxy/plan"
-	sql2 "github.com/XiaoMi/Gaea/sql"
 	"github.com/XiaoMi/Gaea/util"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
@@ -33,9 +33,7 @@ import (
 	"time"
 )
 
-var _foundWhereTableError = errs.New("")
-
-// Parse parse sql
+// Parse parse parser
 func (se *SessionExecutor) Parse(sql string) (ast.StmtNode, error) {
 	return se.parser.ParseOneStmt(sql, "", "")
 }
@@ -44,14 +42,14 @@ func (se *SessionExecutor) Parse(sql string) (ast.StmtNode, error) {
 func (se *SessionExecutor) handleQuery(sql string) (r *mysql.Result, err error) {
 	defer func() {
 		if e := recover(); e != nil {
-			exeLogger.Warnf("handle query command failed, error: %v, sql: %s", e, sql)
+			exeLogger.Warnf("handle query command failed, error: %v, parser: %s", e, sql)
 
 			if err, ok := e.(error); ok {
 				const size = 4096
 				buf := make([]byte, size)
 				buf = buf[:runtime.Stack(buf, false)]
 
-				exeLogger.Warnf("handle query command catch panic error, sql: %s, error: %s, stack: %s",
+				exeLogger.Warnf("handle query command catch panic error, parser: %s, error: %s, stack: %s",
 					sql, err.Error(), string(buf))
 			}
 
@@ -63,18 +61,18 @@ func (se *SessionExecutor) handleQuery(sql string) (r *mysql.Result, err error) 
 	sql = strings.TrimRight(sql, ";") //删除sql语句最后的分号
 
 	reqCtx := util.NewRequestContext()
-	// check black sql
+	// check black parser
 	ns := se.GetNamespace()
 	if !ns.IsSQLAllowed(reqCtx, sql) {
 		fingerprint := mysql.GetFingerprint(sql)
-		exeLogger.Warnf("catch black sql, sql: %s", sql)
+		exeLogger.Warnf("catch black parser, parser: %s", sql)
 		se.manager.GetStatisticManager().RecordSQLForbidden(fingerprint, se.GetNamespace().GetName())
-		err := mysql.NewError(mysql.ErrUnknown, "sql in blacklist")
+		err := mysql.NewError(mysql.ErrUnknown, "parser in blacklist")
 		return nil, err
 	}
 
 	startTime := time.Now()
-	stmtType := sql2.PreviewSql(sql)
+	stmtType := parser.PreviewSql(sql)
 	reqCtx.Set(util.StmtType, stmtType)
 
 	r, err = se.doQuery(reqCtx, sql)
@@ -97,7 +95,7 @@ func (se *SessionExecutor) doQuery(reqCtx *util.RequestContext, sql string) (*my
 
 	p, err := se.getPlan(se.GetNamespace(), db, sql)
 	if err != nil {
-		return nil, fmt.Errorf("get plan error, db: %s, sql: %s, err: %v", db, sql, err)
+		return nil, fmt.Errorf("get plan error, db: %s, parser: %s, err: %v", db, sql, err)
 	}
 
 	if canExecuteFromSlave(se, sql) {
@@ -119,11 +117,8 @@ func (se *SessionExecutor) doQuery(reqCtx *util.RequestContext, sql string) (*my
 func (se *SessionExecutor) handleQueryWithoutPlan(reqCtx *util.RequestContext, sql string) (*mysql.Result, error) {
 	n, err := se.Parse(sql)
 	if err != nil {
+		logging.DefaultLogger.Warnf("parse parser error, parser: %s, err: %v", sql, err)
 		return nil, errors.ErrCmdUnsupport
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("parse sql error, sql: %s, err: %v", sql, err)
 	}
 
 	switch stmt := n.(type) {
@@ -140,7 +135,7 @@ func (se *SessionExecutor) handleQueryWithoutPlan(reqCtx *util.RequestContext, s
 	case *ast.UseStmt:
 		return nil, se.handleUseDB(stmt.DBName)
 	default:
-		return nil, fmt.Errorf("cannot handle sql without plan, ns: %s, sql: %s", se.namespace, sql)
+		return nil, fmt.Errorf("cannot handle parser without plan, ns: %s, parser: %s", se.namespace, sql)
 	}
 }
 
@@ -160,7 +155,7 @@ func (se *SessionExecutor) handleUseDB(dbName string) error {
 func (se *SessionExecutor) getPlan(ns *Namespace, db string, sql string) (plan.Plan, error) {
 	n, err := se.Parse(sql)
 	if err != nil {
-		return nil, fmt.Errorf("parse sql error, sql: %s, err: %v", sql, err)
+		return nil, fmt.Errorf("parse parser error, parser: %s, err: %v", sql, err)
 	}
 
 	rt := ns.GetRouter()
@@ -203,7 +198,7 @@ func (se *SessionExecutor) handleShow(reqCtx *util.RequestContext, sql string, s
 		}
 		r, err := se.ExecuteSQL(reqCtx, backend.DefaultSlice, se.db, exeSql)
 		if err != nil {
-			return nil, fmt.Errorf("execute sql error, sql: %s, err: %v", sql, err)
+			return nil, fmt.Errorf("execute parser error, parser: %s, err: %v", sql, err)
 		}
 		modifyResultStatus(r, se)
 		return r, nil
@@ -219,7 +214,7 @@ func (se *SessionExecutor) handleShow(reqCtx *util.RequestContext, sql string, s
 		}
 		r, err := se.ExecuteSQL(reqCtx, backend.DefaultSlice, se.db, sql)
 		if err != nil {
-			return nil, fmt.Errorf("execute sql error, sql: %s, err: %v", sql, err)
+			return nil, fmt.Errorf("execute parser error, parser: %s, err: %v", sql, err)
 		}
 		modifyResultStatus(r, se)
 		return r, nil
@@ -364,7 +359,7 @@ func (se *SessionExecutor) handleSetAutoCommit(autocommit bool) (err error) {
 }
 
 func (se *SessionExecutor) handleStmtPrepare(sql string) (*Stmt, error) {
-	exeLogger.Debugf("namespace: %s use prepare, sql: %s", se.GetNamespace().GetName(), sql)
+	exeLogger.Debugf("namespace: %s use prepare, parser: %s", se.GetNamespace().GetName(), sql)
 
 	stmt := new(Stmt)
 
@@ -373,7 +368,7 @@ func (se *SessionExecutor) handleStmtPrepare(sql string) (*Stmt, error) {
 
 	paramCount, offsets, err := calcParams(stmt.sql)
 	if err != nil {
-		exeLogger.Warnf("prepare calc params failed, namespace: %s, sql: %s", se.GetNamespace().GetName(), sql)
+		exeLogger.Warnf("prepare calc params failed, namespace: %s, parser: %s", se.GetNamespace().GetName(), sql)
 		return nil, err
 	}
 

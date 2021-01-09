@@ -37,7 +37,7 @@ const (
 	selfDefinedInternalError = 800
 )
 
-// SQLFingerprint sql fingerprint
+// SQLFingerprint parser fingerprint
 type SQLFingerprint struct {
 	SlowSQL  map[string]string `json:"slow_sql"`
 	ErrorSQL map[string]string `json:"error_sql"`
@@ -315,7 +315,7 @@ func (s *AdminServer) configFingerprint(c *gin.Context) {
 	c.JSON(http.StatusOK, s.proxy.manager.ConfigFingerprint())
 }
 
-// getNamespaceSessionSQLFingerprint return namespace sql fingerprint information
+// getNamespaceSessionSQLFingerprint return namespace parser fingerprint information
 func (s *AdminServer) getNamespaceSessionSQLFingerprint(c *gin.Context) {
 	ns := strings.TrimSpace(c.Param("namespace"))
 	namespace := s.proxy.manager.GetNamespace(ns)

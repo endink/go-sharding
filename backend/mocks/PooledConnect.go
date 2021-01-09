@@ -45,7 +45,7 @@ func (_m *PooledConnect) Commit() error {
 	return r0
 }
 
-// Execute provides a mock function with given fields: sql
+// Execute provides a mock function with given fields: parser
 func (_m *PooledConnect) Execute(sql string) (*mysql.Result, error) {
 	ret := _m.Called(sql)
 

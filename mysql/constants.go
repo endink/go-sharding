@@ -28,7 +28,7 @@ const (
 	// TimeFormat time format
 	TimeFormat string = "2006-01-02 15:04:05"
 	// ServerVersion server version
-	ServerVersion string = "8.0.12-proxy"
+	ServerVersion string = "8.0.12"
 	// ProtocolVersion is the current version of the protocol.
 	// Always 10.
 	ProtocolVersion = 10
@@ -295,7 +295,7 @@ func (m SQLMode) HasAllowInvalidDatesMode() bool {
 	return m&ModeAllowInvalidDates == ModeAllowInvalidDates
 }
 
-// consts for sql modes.
+// consts for parser modes.
 const (
 	ModeNone        SQLMode = 0
 	ModeRealAsFloat SQLMode = 1 << iota
@@ -333,7 +333,7 @@ const (
 	ModeAllowInvalidDates
 )
 
-// GetSQLMode gets the sql mode for string literal. SQL_mode is a list of different modes separated by commas.
+// GetSQLMode gets the parser mode for string literal. SQL_mode is a list of different modes separated by commas.
 // The input string must be formatted by 'FormatSQLModeStr'
 func GetSQLMode(s string) (SQLMode, error) {
 	strs := strings.Split(s, ",")

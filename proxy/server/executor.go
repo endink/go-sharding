@@ -17,10 +17,11 @@ package server
 import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/logging"
-	sql2 "github.com/XiaoMi/Gaea/sql"
+	parser2 "github.com/XiaoMi/Gaea/parser"
 	"github.com/pingcap/parser"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
+	_ "github.com/pingcap/tidb/types/parser_driver"
 	"strconv"
 	"strings"
 	"sync"
@@ -274,7 +275,7 @@ func (se *SessionExecutor) ExecuteCommand(cmd byte, data []byte) Response {
 	case mysql.ComQuit:
 		se.handleRollback()
 		// https://dev.mysql.com/doc/internals/en/com-quit.html
-		// either a connection close or a OK_Packet, OK_Packet will cause client RST sometimes, but doesn't affect sql execute
+		// either a connection close or a OK_Packet, OK_Packet will cause client RST sometimes, but doesn't affect parser execute
 		return CreateNoopResponse()
 	case mysql.ComQuery: // data type: string[EOF]
 		sql := string(data)
@@ -539,12 +540,12 @@ func (se *SessionExecutor) executeInMultiSlices(reqCtx *util.RequestContext, pcs
 }
 
 func canHandleWithoutPlan(stmtType int) bool {
-	return stmtType == sql2.StmtShow ||
-		stmtType == sql2.StmtSet ||
-		stmtType == sql2.StmtBegin ||
-		stmtType == sql2.StmtCommit ||
-		stmtType == sql2.StmtRollback ||
-		stmtType == sql2.StmtUse
+	return stmtType == parser2.StmtShow ||
+		stmtType == parser2.StmtSet ||
+		stmtType == parser2.StmtBegin ||
+		stmtType == parser2.StmtCommit ||
+		stmtType == parser2.StmtRollback ||
+		stmtType == parser2.StmtUse
 }
 
 const variableRestoreFlag = format.RestoreKeyWordLowercase | format.RestoreNameLowercase
@@ -569,11 +570,11 @@ func getOnOffVariable(v string) (string, error) {
 
 // master-slave routing
 func canExecuteFromSlave(c *SessionExecutor, sql string) bool {
-	if sql2.PreviewSql(sql) != sql2.StmtSelect {
+	if parser2.PreviewSql(sql) != parser2.StmtSelect {
 		return false
 	}
 
-	_, comments := sql2.SplitMarginComments(sql)
+	_, comments := parser2.SplitMarginComments(sql)
 	lcomment := strings.ToLower(strings.TrimSpace(comments.Leading))
 	var fromSlave = c.GetNamespace().IsRWSplit(c.user)
 	if strings.ToLower(lcomment) == masterComment {
@@ -589,7 +590,7 @@ func isSQLNotAllowedByUser(c *SessionExecutor, stmtType int) bool {
 		return false
 	}
 
-	return stmtType == sql2.StmtDelete || stmtType == sql2.StmtInsert || stmtType == sql2.StmtUpdate
+	return stmtType == parser2.StmtDelete || stmtType == parser2.StmtInsert || stmtType == parser2.StmtUpdate
 }
 
 func modifyResultStatus(r *mysql.Result, cc *SessionExecutor) {
@@ -733,7 +734,7 @@ func (se *SessionExecutor) rollback() (err error) {
 	return
 }
 
-// ExecuteSQL execute sql
+// ExecuteSQL execute parser
 func (se *SessionExecutor) ExecuteSQL(reqCtx *util.RequestContext, slice, db, sql string) (*mysql.Result, error) {
 	pc, err := se.getBackendConn(slice, getFromSlave(reqCtx))
 	defer se.recycleBackendConn(pc, false)
@@ -754,7 +755,7 @@ func (se *SessionExecutor) ExecuteSQL(reqCtx *util.RequestContext, slice, db, sq
 		return nil, err
 	}
 
-	// execute.sql may be rewritten in getShowExecDB
+	// execute.parser may be rewritten in getShowExecDB
 	rs, err := se.executeInSlice(reqCtx, pc, sql)
 	if err != nil {
 		return nil, err
@@ -762,7 +763,7 @@ func (se *SessionExecutor) ExecuteSQL(reqCtx *util.RequestContext, slice, db, sq
 
 	if len(rs) == 0 {
 		msg := fmt.Sprintf("result is empty")
-		exeLogger.Warnf("[server] Session handle Unsupport: %s, sql: %s", msg, sql)
+		exeLogger.Warnf("[server] Session handle Unsupport: %s, parser: %s", msg, sql)
 		return nil, mysql.NewError(mysql.ErrUnknown, msg)
 	}
 	return rs[0], nil
@@ -771,7 +772,7 @@ func (se *SessionExecutor) ExecuteSQL(reqCtx *util.RequestContext, slice, db, sq
 // ExecuteSQLs len(sqls) must not be 0, or return error
 func (se *SessionExecutor) ExecuteSQLs(reqCtx *util.RequestContext, sqls map[string]map[string][]string) ([]*mysql.Result, error) {
 	if len(sqls) == 0 {
-		return nil, fmt.Errorf("no sql to execute")
+		return nil, fmt.Errorf("no parser to execute")
 	}
 
 	pcs, err := se.getBackendConns(sqls, getFromSlave(reqCtx))

@@ -487,7 +487,7 @@ func TestMycatSelectMultiTablesEQ(t *testing.T) {
 		// TODO: 分表列是否需要支持等值比较NULL
 		//{
 		//	db:     "db_mycat",
-		//	sql:    "select * from tbl_mycat, tbl_mycat_child where tbl_mycat.id = null",
+		//	parser:    "select * from tbl_mycat, tbl_mycat_child where tbl_mycat.id = null",
 		//	hasErr: true,
 		//},
 		{

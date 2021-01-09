@@ -133,7 +133,7 @@ func DelNamespace(name string, cfg *models.CCConfig, cluster string) error {
 	return nil
 }
 
-// SQLFingerprint return sql fingerprints of all proxy
+// SQLFingerprint return parser fingerprints of all proxy
 func SQLFingerprint(name string, cfg *models.CCConfig, cluster string) (slowSQLs, errSQLs map[string]string, err error) {
 	slowSQLs = make(map[string]string, 16)
 	errSQLs = make(map[string]string, 16)
@@ -148,7 +148,7 @@ func SQLFingerprint(name string, cfg *models.CCConfig, cluster string) (slowSQLs
 	}
 	wg := new(sync.WaitGroup)
 	respC := make(chan *proxy.SQLFingerprint, len(proxies))
-	// query sql fingerprints concurrently
+	// query parser fingerprints concurrently
 	for _, p := range proxies {
 		wg.Add(1)
 		host := p.IP + ":" + p.AdminPort
@@ -156,7 +156,7 @@ func SQLFingerprint(name string, cfg *models.CCConfig, cluster string) (slowSQLs
 			defer wg.Done()
 			r, err := proxy.QueryNamespaceSQLFingerprint(host, name, cfg)
 			if err != nil {
-				proxy.ControllerLogger.Warnf("query namespace sql fingerprint failed ,%v", err)
+				proxy.ControllerLogger.Warnf("query namespace parser fingerprint failed ,%v", err)
 			}
 			respC <- r
 		}(host, name)

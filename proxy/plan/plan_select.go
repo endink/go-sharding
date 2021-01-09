@@ -141,7 +141,7 @@ func (s *SelectPlan) GetOrderByColumnInfo() ([]int, []bool) {
 }
 
 // GetSQLs get generated SQLs
-// the first key is slice, the second key is backend database name, the value is sql list.
+// the first key is slice, the second key is backend database name, the value is parser list.
 func (s *SelectPlan) GetSQLs() map[string]map[string][]string {
 	return s.sqls
 }

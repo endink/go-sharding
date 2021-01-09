@@ -17,8 +17,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/XiaoMi/Gaea/proxy/plan"
-	"github.com/XiaoMi/Gaea/sql"
+	"github.com/XiaoMi/Gaea/parser"
 	"github.com/pingcap/parser/ast"
 	"testing"
 
@@ -47,7 +46,7 @@ func TestGetVariableExprResult(t *testing.T) {
 			for _, v := range test.variable {
 				sql := fmt.Sprintf("set autocommit = %s", v)
 
-				s, err := plan.ParseSQL(sql)
+				s, err := parser.ParseSQL(sql)
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -116,7 +115,7 @@ func TestExecute(t *testing.T) {
 	ret = append(ret, expectResult1, expectResult2)
 
 	reqCtx := util.NewRequestContext()
-	reqCtx.Set(util.StmtType, sql.StmtInsert)
+	reqCtx.Set(util.StmtType, parser.StmtInsert)
 
 	rs, err := se.ExecuteSQLs(reqCtx, sqls)
 	assert.Equal(t, nil, err)
@@ -181,7 +180,7 @@ proto_type=tcp4
 proxy_addr=0.0.0.0:13306
 proxy_charset=utf8
 
-;slow sql time, when execute time is higher than this, log it, unit: ms
+;slow parser time, when execute time is higher than this, log it, unit: ms
 slow_sql_time=100
 
 ;close session after session timeout, unit: seconds

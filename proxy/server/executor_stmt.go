@@ -108,7 +108,7 @@ func (s *Stmt) GetParamTypes() []byte {
 	return s.paramTypes
 }
 
-// GetRewriteSQL get rewrite sql
+// GetRewriteSQL get rewrite parser
 func (s *Stmt) GetRewriteSQL() (string, error) {
 	sql := s.sql
 	var tmp = ""
@@ -201,7 +201,7 @@ func (se *SessionExecutor) handleStmtExecute(data []byte) (*mysql.Result, error)
 
 	defer s.ResetParams()
 
-	// execute sql using ComQuery
+	// execute parser using ComQuery
 	r, err := se.handleQuery(executeSQL)
 	if err != nil {
 		return nil, err

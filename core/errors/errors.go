@@ -50,7 +50,7 @@ var (
 	ErrInvalidMycatLocations = errors.New("mycat locations must be all 1")
 	// ErrNoCriteria no shard condition
 	ErrNoCriteria = errors.New("plan have no criteria")
-	// ErrSelectInInsert insert sql has sub select sql, not support
+	// ErrSelectInInsert insert parser has sub select parser, not support
 	ErrSelectInInsert = errors.New("select in insert not allowed")
 	// ErrInsertInMulti insert into multi slice
 	ErrInsertInMulti = errors.New("insert in multi slice")
@@ -65,7 +65,7 @@ var (
 	// ErrTransInMulti transaction cross slices, not support
 	ErrTransInMulti = errors.New("transaction in multi slice")
 	// ErrUnsupportedShard unsupport shard type
-	ErrUnsupportedShard = errors.New("sql is unsupported in shard mode")
+	ErrUnsupportedShard = errors.New("parser is unsupported in shard mode")
 
 	// ErrNoPlan get no plan
 	ErrNoPlan = errors.New("statement have no plan")
@@ -87,8 +87,8 @@ var (
 	ErrDateRangeOverlap = errors.New("date range is overlapped")
 	// ErrUnknownRuleType unknown rule type
 	ErrUnknownRuleType = errors.New("unknown rule type")
-	// ErrInvalidSQLMode invalid sql mode
-	ErrInvalidSQLMode = errors.New("invalid sql mode")
+	// ErrInvalidSQLMode invalid parser mode
+	ErrInvalidSQLMode = errors.New("invalid parser mode")
 	// ErrInternalServer internal error
 	ErrInternalServer = errors.New("internal server error")
 	// ErrUserIsReadOnly user is readonly

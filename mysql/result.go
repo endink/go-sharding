@@ -270,7 +270,7 @@ func (p RowData) ParseBinary(f []*Field) ([]interface{}, error) {
 	return data, nil
 }
 
-// Result means mysql status、results after sql execution
+// Result means mysql status、results after parser execution
 type Result struct {
 	Status uint16
 
@@ -280,11 +280,11 @@ type Result struct {
 	*Resultset
 }
 
-// Resultset means mysql results of sql execution, included split table sql
+// Resultset means mysql results of parser execution, included split table parser
 type Resultset struct {
 	Fields     []*Field        // columns information
 	FieldNames map[string]int  // column information, key: column name value: index in Fields
-	Values     [][]interface{} // values after sql handled
+	Values     [][]interface{} // values after parser handled
 
 	RowDatas []RowData // data will returned
 }

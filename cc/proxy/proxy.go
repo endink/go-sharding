@@ -125,7 +125,7 @@ func DelNamespace(host, name string, cfg *models.CCConfig) error {
 	return nil
 }
 
-// QueryNamespaceSQLFingerprint return sql fingerprint
+// QueryNamespaceSQLFingerprint return parser fingerprint
 func QueryNamespaceSQLFingerprint(host, name string, cfg *models.CCConfig) (*SQLFingerprint, error) {
 	c, err := newProxyClient(host, cfg.ProxyUserName, cfg.ProxyPassword)
 	if err != nil {

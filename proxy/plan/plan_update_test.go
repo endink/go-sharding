@@ -283,12 +283,12 @@ func TestMycatShardUpdateWithLimit(t *testing.T) {
 		{
 			db:     "db_mycat",
 			sql:    "update tbl_mycat set a = 'hi' limit 0, 10",
-			hasErr: true, // parse sql error: line 1 column 45 near "offset 0"
+			hasErr: true, // parse parser error: line 1 column 45 near "offset 0"
 		},
 		{
 			db:     "db_mycat",
 			sql:    "update tbl_mycat set a = 'hi' limit 10 offset 20",
-			hasErr: true, // parse sql error: line 1 column 45 near "offset 20"
+			hasErr: true, // parse parser error: line 1 column 45 near "offset 20"
 		},
 	}
 	for _, test := range tests {
@@ -334,12 +334,12 @@ func TestGlobalTableUpdate(t *testing.T) {
 		{
 			db:     "db_mycat",
 			sql:    "update tbl_mycat_global_one set a = 'hi' limit 0, 10",
-			hasErr: true, // parse sql error: line 1 column 45 near "offset 0"
+			hasErr: true, // parse parser error: line 1 column 45 near "offset 0"
 		},
 		{
 			db:     "db_mycat",
 			sql:    "update tbl_mycat_global_one set a = 'hi' limit 10 offset 20",
-			hasErr: true, // parse sql error: line 1 column 45 near "offset 20"
+			hasErr: true, // parse parser error: line 1 column 45 near "offset 20"
 		},
 	}
 	for _, test := range tests {

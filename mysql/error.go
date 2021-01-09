@@ -42,7 +42,7 @@ var (
 	// ErrMalformPacket packet error
 	ErrMalformPacket = errors.New("Malform packet error")
 	// ErrTxDone transaction done error
-	ErrTxDone = errors.New("sql: Transaction has already been committed or rolled back")
+	ErrTxDone = errors.New("parser: Transaction has already been committed or rolled back")
 )
 
 // SQLError contains error code、SQLSTATE and message string

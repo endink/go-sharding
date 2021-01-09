@@ -204,7 +204,7 @@ func (v *Variable) Get() interface{} {
 func verifySQLMode(v interface{}) error {
 	value, ok := v.(string)
 	if !ok {
-		return fmt.Errorf("invalid type of sql mode")
+		return fmt.Errorf("invalid type of parser mode")
 	}
 	if value == "" {
 		return nil

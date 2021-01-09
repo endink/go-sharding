@@ -91,7 +91,7 @@ func HandleInsertStmt(p *InsertPlan, stmt *ast.InsertStmt) error {
 
 	sqls, err := generateShardingSQLs(p.stmt, p.result, p.router)
 	if err != nil {
-		logging.DefaultLogger.Warnf("generate insert sql failed, %v", err)
+		logging.DefaultLogger.Warnf("generate insert parser failed, %v", err)
 		return err
 	}
 
@@ -160,7 +160,7 @@ func handleInsertTableRefs(p *InsertPlan) (fastReturn bool, err error) {
 		p.result.indexes = rule.GetSubTableIndexes()
 		sqls, err := generateShardingSQLs(p.stmt, p.result, p.router)
 		if err != nil {
-			return false, fmt.Errorf("generate global table insert sql error: %v", err)
+			return false, fmt.Errorf("generate global table insert parser error: %v", err)
 		}
 		p.sqls = sqls
 		return true, nil
