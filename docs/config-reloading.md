@@ -39,8 +39,8 @@ type Namespace struct {
     name               string
     allowedDBs         map[string]bool
     defaultPhyDBs      map[string]string // logicDBName-phyDBName
-    sqls               map[string]string //key: sql fingerprint
-    slowSQLTime        int64             // session slow sql time, millisecond, default 1000
+    sqls               map[string]string //key: parser fingerprint
+    slowSQLTime        int64             // session slow parser time, millisecond, default 1000
     allowips           []util.IPInfo
     router             *router.Router
     slices             map[string]*backend.Slice // key: slice name

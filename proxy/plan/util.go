@@ -28,27 +28,6 @@
 
 package plan
 
-import (
-	"github.com/pingcap/parser"
-	"github.com/pingcap/parser/ast"
-
-	_ "github.com/pingcap/parser/test_driver"
-)
-
-var _testParser *parser.Parser
-
-func getTesterParser() *parser.Parser {
-	if _testParser == nil {
-		_testParser = parser.New()
-	}
-	return _testParser
-}
-
-func ParseSQL(sql string) (ast.StmtNode, error) {
-	n, e := getTesterParser().ParseOneStmt(sql, "", "")
-	return n, e
-}
-
 /*2,5 ==> [2,3,4]*/
 func makeList(start, end int) []int {
 	if start >= end {

@@ -7,7 +7,7 @@ import (
 	"time"
 )
 
-// Go MySQL Driver - A MySQL-Driver for Go's database/sql package
+// Go MySQL Driver - A MySQL-Driver for Go's database/parser package
 //
 // Copyright 2013 The Go-MySQL-Driver Authors. All rights reserved.
 //

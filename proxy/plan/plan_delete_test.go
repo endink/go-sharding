@@ -236,12 +236,12 @@ func TestMycatShardDeleteWithLimit(t *testing.T) {
 		{
 			db:     "db_mycat",
 			sql:    "delete from tbl_mycat limit 0, 10",
-			hasErr: true, // parse sql error
+			hasErr: true, // parse parser error
 		},
 		{
 			db:     "db_mycat",
 			sql:    "delete from tbl_mycat limit 10 offset 20",
-			hasErr: true, // parse sql error
+			hasErr: true, // parse parser error
 		},
 	}
 	for _, test := range tests {

@@ -50,7 +50,7 @@ func (c *APIClient) DelNamespace(name string) error {
 	return requests.SendPut(url, c.user, c.password)
 }
 
-// GetNamespaceSQLFingerprint return sql fingerprint of specific namespace
+// GetNamespaceSQLFingerprint return parser fingerprint of specific namespace
 func (c *APIClient) GetNamespaceSQLFingerprint(name string) (*SQLFingerprint, error) {
 	var reply SQLFingerprint
 	url := c.encodeURL("/api/proxy/stats/sessionsqlfingerprint/%s", name)

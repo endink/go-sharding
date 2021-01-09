@@ -1,4 +1,4 @@
-package sql
+package parser
 
 import (
 	"strings"
@@ -65,7 +65,7 @@ func trailingCommentStart(text string) (start int) {
 		// Find the beginning of the comment
 		startCommentPos := strings.LastIndex(text[:reducedLen-2], "/*")
 		if startCommentPos < 0 {
-			// Badly formatted sql :/
+			// Badly formatted parser :/
 			break
 		}
 
@@ -85,7 +85,7 @@ type MarginComments struct {
 	Trailing string
 }
 
-// SplitMarginComments pulls out any leading or trailing comments from a raw sql query.
+// SplitMarginComments pulls out any leading or trailing comments from a raw parser query.
 // This function also trims leading (if there's a comment) and trailing whitespace.
 func SplitMarginComments(sql string) (query string, comments MarginComments) {
 	trailingStart := trailingCommentStart(sql)

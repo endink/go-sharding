@@ -166,7 +166,7 @@ func (n *Namespace) isSlowSQLTimeExists() bool {
 
 func (n *Namespace) isSlowSQLTimeValid() error {
 	if slowSQLTime, err := strconv.ParseInt(n.SlowSQLTime, 10, 64); err != nil || slowSQLTime < 0 {
-		return errors.New("invalid slow sql time")
+		return errors.New("invalid slow parser time")
 	}
 	return nil
 }

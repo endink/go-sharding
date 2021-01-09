@@ -614,7 +614,7 @@ func (dc *DirectConnection) SetSessionVariables(frontend *mysql.SessionVariables
 	return dc.sessionVariables.SetEqualsWith(frontend)
 }
 
-// WriteSetStatement execute sql
+// WriteSetStatement execute parser
 func (dc *DirectConnection) WriteSetStatement() error {
 	var setVariableSQL bytes.Buffer
 	collation, ok := mysql.Collations[dc.collation]

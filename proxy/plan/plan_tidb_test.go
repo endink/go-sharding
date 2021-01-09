@@ -15,6 +15,7 @@
 package plan
 
 import (
+	"github.com/XiaoMi/Gaea/parser"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
 	"strings"
@@ -37,7 +38,7 @@ func BenchmarkSelectStmtCheckShard(b *testing.B) {
 		b.Run(bm.sql, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
 				//for i := 0; i < 1; i++ {
-				stmt, err := ParseSQL(bm.sql)
+				stmt, err := parser.ParseSQL(bm.sql)
 				if err != nil {
 					b.Fatal(err)
 				}
@@ -70,7 +71,7 @@ func TestSelectStmtCheckShard(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.sql, func(t *testing.T) {
 			//for i := 0; i < 1; i++ {
-			stmt, err := ParseSQL(test.sql)
+			stmt, err := parser.ParseSQL(test.sql)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -100,7 +101,7 @@ func _TestGroupByRewriting(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.sql, func(t *testing.T) {
-			stmt, err := ParseSQL(test.sql)
+			stmt, err := parser.ParseSQL(test.sql)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -117,10 +118,10 @@ func _TestGroupByRewriting(t *testing.T) {
 			selectStmt.Restore(format.NewRestoreCtx(0, s))
 			rewriteSQL := s.String()
 			if rewriteSQL != test.rewrite {
-				t.Errorf("rewrite sql not equal, expect: %v, actual: %v", test.rewrite, rewriteSQL)
+				t.Errorf("rewrite parser not equal, expect: %v, actual: %v", test.rewrite, rewriteSQL)
 			}
 			if len(info.GetGroupByColumnInfo()) != test.count {
-				t.Errorf("rewrite sql not equal, expect: %v, actual: %v", test.rewrite, rewriteSQL)
+				t.Errorf("rewrite parser not equal, expect: %v, actual: %v", test.rewrite, rewriteSQL)
 			}
 			for i, columnsIndex := range info.GetGroupByColumnInfo() {
 				if test.groupByCol[i] != columnsIndex {

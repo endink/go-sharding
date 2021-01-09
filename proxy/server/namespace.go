@@ -55,8 +55,8 @@ type Namespace struct {
 	name               string
 	allowedDBs         map[string]bool
 	defaultPhyDBs      map[string]string // logicDBName-phyDBName
-	sqls               map[string]string //key: sql fingerprint
-	slowSQLTime        int64             // session slow sql time, millisecond, default 1000
+	sqls               map[string]string //key: parser fingerprint
+	slowSQLTime        int64             // session slow parser time, millisecond, default 1000
 	allowips           []util.IPInfo
 	router             *router.Router
 	sequences          *sequence.SequenceManager
@@ -99,10 +99,10 @@ func NewNamespace(namespaceConfig *models.Namespace) (*Namespace, error) {
 		}
 	}()
 
-	// init black sql
+	// init black parser
 	namespace.sqls = parseBlackSqls(namespaceConfig.BlackSQL)
 
-	// init session slow sql time
+	// init session slow parser time
 	namespace.slowSQLTime, err = parseSlowSQLTime(namespaceConfig.SlowSQLTime)
 	if err != nil {
 		return nil, fmt.Errorf("parse slowSQLTime error: %v", err)
@@ -227,7 +227,7 @@ func (n *Namespace) GetUserProperty(user string) int {
 	return n.userProperties[user].OtherProperty
 }
 
-// IsSQLAllowed check black sql
+// IsSQLAllowed check black parser
 func (n *Namespace) IsSQLAllowed(reqCtx *util.RequestContext, sql string) bool {
 	if len(n.sqls) == 0 {
 		return true
@@ -298,12 +298,12 @@ func (n *Namespace) SetCachedPlan(db, sql string, p plan.Plan) {
 	n.planCache.SetIfAbsent(db+"|"+sql, p)
 }
 
-// SetSlowSQLFingerprint store slow sql fingerprint
+// SetSlowSQLFingerprint store slow parser fingerprint
 func (n *Namespace) SetSlowSQLFingerprint(md5, fingerprint string) {
 	n.slowSQLCache.Set(md5, cache.CachedString(fingerprint))
 }
 
-// GetSlowSQLFingerprint return slow sql fingerprint
+// GetSlowSQLFingerprint return slow parser fingerprint
 func (n *Namespace) GetSlowSQLFingerprint(md5 string) (string, bool) {
 	v, ok := n.slowSQLCache.Get(md5)
 	if !ok {
@@ -312,7 +312,7 @@ func (n *Namespace) GetSlowSQLFingerprint(md5 string) (string, bool) {
 	return string(v.(cache.CachedString)), true
 }
 
-// GetSlowSQLFingerprints return slow sql fingerprints
+// GetSlowSQLFingerprints return slow parser fingerprints
 func (n *Namespace) GetSlowSQLFingerprints() map[string]string {
 	ret := make(map[string]string)
 	items := n.slowSQLCache.Items()
@@ -322,17 +322,17 @@ func (n *Namespace) GetSlowSQLFingerprints() map[string]string {
 	return ret
 }
 
-// ClearSlowSQLFingerprints clear all slow sql fingerprints
+// ClearSlowSQLFingerprints clear all slow parser fingerprints
 func (n *Namespace) ClearSlowSQLFingerprints() {
 	n.slowSQLCache.Clear()
 }
 
-// SetErrorSQLFingerprint store error sql fingerprint
+// SetErrorSQLFingerprint store error parser fingerprint
 func (n *Namespace) SetErrorSQLFingerprint(md5, fingerprint string) {
 	n.errorSQLCache.Set(md5, cache.CachedString(fingerprint))
 }
 
-// GetErrorSQLFingerprint return error sql fingerprint
+// GetErrorSQLFingerprint return error parser fingerprint
 func (n *Namespace) GetErrorSQLFingerprint(md5 string) (string, bool) {
 	v, ok := n.errorSQLCache.Get(md5)
 	if !ok {
@@ -341,7 +341,7 @@ func (n *Namespace) GetErrorSQLFingerprint(md5 string) (string, bool) {
 	return string(v.(cache.CachedString)), true
 }
 
-// GetErrorSQLFingerprints return all error sql fingerprints
+// GetErrorSQLFingerprints return all error parser fingerprints
 func (n *Namespace) GetErrorSQLFingerprints() map[string]string {
 	ret := make(map[string]string)
 	items := n.errorSQLCache.Items()
@@ -351,17 +351,17 @@ func (n *Namespace) GetErrorSQLFingerprints() map[string]string {
 	return ret
 }
 
-// ClearErrorSQLFingerprints clear all error sql fingerprints
+// ClearErrorSQLFingerprints clear all error parser fingerprints
 func (n *Namespace) ClearErrorSQLFingerprints() {
 	n.errorSQLCache.Clear()
 }
 
-// SetBackendSlowSQLFingerprint store backend slow sql fingerprint
+// SetBackendSlowSQLFingerprint store backend slow parser fingerprint
 func (n *Namespace) SetBackendSlowSQLFingerprint(md5, fingerprint string) {
 	n.backendSlowSQLCache.Set(md5, cache.CachedString(fingerprint))
 }
 
-// GetBackendSlowSQLFingerprint return backend slow sql fingerprint
+// GetBackendSlowSQLFingerprint return backend slow parser fingerprint
 func (n *Namespace) GetBackendSlowSQLFingerprint(md5 string) (string, bool) {
 	v, ok := n.backendSlowSQLCache.Get(md5)
 	if !ok {
@@ -370,7 +370,7 @@ func (n *Namespace) GetBackendSlowSQLFingerprint(md5 string) (string, bool) {
 	return string(v.(cache.CachedString)), true
 }
 
-// GetBackendSlowSQLFingerprints return all backend slow sql fingerprints
+// GetBackendSlowSQLFingerprints return all backend slow parser fingerprints
 func (n *Namespace) GetBackendSlowSQLFingerprints() map[string]string {
 	ret := make(map[string]string)
 	items := n.backendSlowSQLCache.Items()
@@ -380,17 +380,17 @@ func (n *Namespace) GetBackendSlowSQLFingerprints() map[string]string {
 	return ret
 }
 
-// ClearBackendSlowSQLFingerprints clear all backend slow sql fingerprints
+// ClearBackendSlowSQLFingerprints clear all backend slow parser fingerprints
 func (n *Namespace) ClearBackendSlowSQLFingerprints() {
 	n.backendSlowSQLCache.Clear()
 }
 
-// SetBackendErrorSQLFingerprint store backend error sql fingerprint
+// SetBackendErrorSQLFingerprint store backend error parser fingerprint
 func (n *Namespace) SetBackendErrorSQLFingerprint(md5, fingerprint string) {
 	n.backendErrorSQLCache.Set(md5, cache.CachedString(fingerprint))
 }
 
-// GetBackendErrorSQLFingerprint return backedn error sql fingerprint
+// GetBackendErrorSQLFingerprint return backedn error parser fingerprint
 func (n *Namespace) GetBackendErrorSQLFingerprint(md5 string) (string, bool) {
 	v, ok := n.backendErrorSQLCache.Get(md5)
 	if !ok {
@@ -399,7 +399,7 @@ func (n *Namespace) GetBackendErrorSQLFingerprint(md5 string) (string, bool) {
 	return string(v.(cache.CachedString)), true
 }
 
-// GetBackendErrorSQLFingerprints return all backend error sql fingerprints
+// GetBackendErrorSQLFingerprints return all backend error parser fingerprints
 func (n *Namespace) GetBackendErrorSQLFingerprints() map[string]string {
 	ret := make(map[string]string)
 	items := n.backendErrorSQLCache.Items()
@@ -409,7 +409,7 @@ func (n *Namespace) GetBackendErrorSQLFingerprints() map[string]string {
 	return ret
 }
 
-// ClearBackendErrorSQLFingerprints clear all backend error sql fingerprints
+// ClearBackendErrorSQLFingerprints clear all backend error parser fingerprints
 func (n *Namespace) ClearBackendErrorSQLFingerprints() {
 	n.backendErrorSQLCache.Clear()
 }

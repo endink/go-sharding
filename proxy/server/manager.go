@@ -19,7 +19,7 @@ import (
 	"crypto/md5"
 	"fmt"
 	"github.com/XiaoMi/Gaea/logging"
-	sql2 "github.com/XiaoMi/Gaea/sql"
+	"github.com/XiaoMi/Gaea/parser"
 	"go.uber.org/zap"
 	"net/http"
 	"sort"
@@ -297,34 +297,34 @@ func (m *Manager) RecordSessionSQLMetrics(reqCtx *util.RequestContext, se *Sessi
 	namespace := se.namespace
 	ns := m.GetNamespace(namespace)
 	if ns == nil {
-		log.Warnf("record session SQL metrics error, namespace: %s, sql: %s, err: %s", namespace, trimmedSql, "namespace not found")
+		log.Warnf("record session SQL metrics error, namespace: %s, parser: %s, err: %s", namespace, trimmedSql, "namespace not found")
 		return
 	}
 
 	var operation string
 	if stmtType, ok := reqCtx.Get(util.StmtType).(int); ok {
-		operation = sql2.GetStmtType(stmtType)
+		operation = parser.GetStmtType(stmtType)
 	} else {
 		fingerprint := mysql.GetFingerprint(sql)
 		operation = mysql.GetFingerprintOperation(fingerprint)
 	}
 
-	// record sql timing
+	// record parser timing
 	m.statistics.recordSessionSQLTiming(namespace, operation, startTime)
 
-	// record slow sql
+	// record slow parser
 	duration := time.Since(startTime).Nanoseconds() / int64(time.Millisecond)
 	if duration > ns.getSessionSlowSQLTime() || ns.getSessionSlowSQLTime() == 0 {
-		logging.DefaultLogger.Warnf("session slow SQL, namespace: %s, sql: %s, cost: %d ms", namespace, trimmedSql, duration)
+		logging.DefaultLogger.Warnf("session slow SQL, namespace: %s, parser: %s, cost: %d ms", namespace, trimmedSql, duration)
 		fingerprint := mysql.GetFingerprint(sql)
 		hash := mysql.GetMd5(fingerprint)
 		ns.SetSlowSQLFingerprint(hash, fingerprint)
 		m.statistics.recordSessionSlowSQLFingerprint(namespace, hash)
 	}
 
-	// record error sql
+	// record error parser
 	if err != nil {
-		logging.DefaultLogger.Warnf("session error SQL, namespace: %s, sql: %s, cost: %d ms, err: %v", namespace, trimmedSql, duration, err)
+		logging.DefaultLogger.Warnf("session error SQL, namespace: %s, parser: %s, cost: %d ms, err: %v", namespace, trimmedSql, duration, err)
 		fingerprint := mysql.GetFingerprint(sql)
 		hash := mysql.GetMd5(fingerprint)
 		ns.SetErrorSQLFingerprint(hash, fingerprint)
@@ -332,7 +332,7 @@ func (m *Manager) RecordSessionSQLMetrics(reqCtx *util.RequestContext, se *Sessi
 	}
 
 	if OpenProcessGeneralQueryLog() && ns.openGeneralLog {
-		m.statistics.generalLogger.Infof("client: %s, namespace: %s, db: %s, user: %s, cmd: %s, sql: %s, cost: %d ms, succ: %t",
+		m.statistics.generalLogger.Infof("client: %s, namespace: %s, db: %s, user: %s, cmd: %s, parser: %s, cost: %d ms, succ: %t",
 			se.clientAddr, namespace, se.db, se.user, operation, trimmedSql, duration, err == nil)
 	}
 }
@@ -342,34 +342,34 @@ func (m *Manager) RecordBackendSQLMetrics(reqCtx *util.RequestContext, namespace
 	trimmedSql := strings.ReplaceAll(sql, "\n", " ")
 	ns := m.GetNamespace(namespace)
 	if ns == nil {
-		logging.DefaultLogger.Warnf("record backend SQL metrics error, namespace: %s, backend addr: %s, sql: %s, err: %s", namespace, backendAddr, trimmedSql, "namespace not found")
+		logging.DefaultLogger.Warnf("record backend SQL metrics error, namespace: %s, backend addr: %s, parser: %s, err: %s", namespace, backendAddr, trimmedSql, "namespace not found")
 		return
 	}
 
 	var operation string
 	if stmtType, ok := reqCtx.Get(util.StmtType).(int); ok {
-		operation = sql2.GetStmtType(stmtType)
+		operation = parser.GetStmtType(stmtType)
 	} else {
 		fingerprint := mysql.GetFingerprint(sql)
 		operation = mysql.GetFingerprintOperation(fingerprint)
 	}
 
-	// record sql timing
+	// record parser timing
 	m.statistics.recordBackendSQLTiming(namespace, operation, startTime)
 
-	// record slow sql
+	// record slow parser
 	duration := time.Since(startTime).Nanoseconds() / int64(time.Millisecond)
 	if m.statistics.isBackendSlowSQL(startTime) {
-		logging.DefaultLogger.Warnf("backend slow SQL, namespace: %s, addr: %s, sql: %s, cost: %d ms", namespace, backendAddr, trimmedSql, duration)
+		logging.DefaultLogger.Warnf("backend slow SQL, namespace: %s, addr: %s, parser: %s, cost: %d ms", namespace, backendAddr, trimmedSql, duration)
 		fingerprint := mysql.GetFingerprint(sql)
 		hash := mysql.GetMd5(fingerprint)
 		ns.SetBackendSlowSQLFingerprint(hash, fingerprint)
 		m.statistics.recordBackendSlowSQLFingerprint(namespace, hash)
 	}
 
-	// record error sql
+	// record error parser
 	if err != nil {
-		logging.DefaultLogger.Warnf("backend error SQL, namespace: %s, addr: %s, sql: %s, cost %d ms, err: %v", namespace, backendAddr, trimmedSql, duration, err)
+		logging.DefaultLogger.Warnf("backend error SQL, namespace: %s, addr: %s, parser: %s, cost %d ms, err: %v", namespace, backendAddr, trimmedSql, duration, err)
 		fingerprint := mysql.GetFingerprint(sql)
 		hash := mysql.GetMd5(fingerprint)
 		ns.SetBackendErrorSQLFingerprint(hash, fingerprint)
@@ -700,28 +700,28 @@ func (s *StatisticManager) Init(cfg *models.Proxy) error {
 	}
 
 	s.sqlTimings = stats.NewMultiTimings("SqlTimings",
-		"gaea proxy sql sqlTimings", []string{statsLabelCluster, statsLabelNamespace, statsLabelOperation})
+		"gaea proxy parser sqlTimings", []string{statsLabelCluster, statsLabelNamespace, statsLabelOperation})
 	s.sqlFingerprintSlowCounts = stats.NewCountersWithMultiLabels("SqlFingerprintSlowCounts",
-		"gaea proxy sql fingerprint slow counts", []string{statsLabelCluster, statsLabelNamespace, statsLabelFingerprint})
+		"gaea proxy parser fingerprint slow counts", []string{statsLabelCluster, statsLabelNamespace, statsLabelFingerprint})
 	s.sqlErrorCounts = stats.NewCountersWithMultiLabels("SqlErrorCounts",
-		"gaea proxy sql error counts per error type", []string{statsLabelCluster, statsLabelNamespace, statsLabelOperation})
+		"gaea proxy parser error counts per error type", []string{statsLabelCluster, statsLabelNamespace, statsLabelOperation})
 	s.sqlFingerprintErrorCounts = stats.NewCountersWithMultiLabels("SqlFingerprintErrorCounts",
-		"gaea proxy sql fingerprint error counts", []string{statsLabelCluster, statsLabelNamespace, statsLabelFingerprint})
+		"gaea proxy parser fingerprint error counts", []string{statsLabelCluster, statsLabelNamespace, statsLabelFingerprint})
 	s.sqlForbidenCounts = stats.NewCountersWithMultiLabels("SqlForbiddenCounts",
-		"gaea proxy sql error counts per error type", []string{statsLabelCluster, statsLabelNamespace, statsLabelFingerprint})
+		"gaea proxy parser error counts per error type", []string{statsLabelCluster, statsLabelNamespace, statsLabelFingerprint})
 	s.flowCounts = stats.NewCountersWithMultiLabels("FlowCounts",
 		"gaea proxy flow counts", []string{statsLabelCluster, statsLabelNamespace, statsLabelFlowDirection})
 	s.sessionCounts = stats.NewGaugesWithMultiLabels("SessionCounts",
 		"gaea proxy session counts", []string{statsLabelCluster, statsLabelNamespace})
 
 	s.backendSQLTimings = stats.NewMultiTimings("BackendSqlTimings",
-		"gaea proxy backend sql sqlTimings", []string{statsLabelCluster, statsLabelNamespace, statsLabelOperation})
+		"gaea proxy backend parser sqlTimings", []string{statsLabelCluster, statsLabelNamespace, statsLabelOperation})
 	s.backendSQLFingerprintSlowCounts = stats.NewCountersWithMultiLabels("BackendSqlFingerprintSlowCounts",
-		"gaea proxy backend sql fingerprint slow counts", []string{statsLabelCluster, statsLabelNamespace, statsLabelFingerprint})
+		"gaea proxy backend parser fingerprint slow counts", []string{statsLabelCluster, statsLabelNamespace, statsLabelFingerprint})
 	s.backendSQLErrorCounts = stats.NewCountersWithMultiLabels("BackendSqlErrorCounts",
-		"gaea proxy backend sql error counts per error type", []string{statsLabelCluster, statsLabelNamespace, statsLabelOperation})
+		"gaea proxy backend parser error counts per error type", []string{statsLabelCluster, statsLabelNamespace, statsLabelOperation})
 	s.backendSQLFingerprintErrorCounts = stats.NewCountersWithMultiLabels("BackendSqlFingerprintErrorCounts",
-		"gaea proxy backend sql fingerprint error counts", []string{statsLabelCluster, statsLabelNamespace, statsLabelFingerprint})
+		"gaea proxy backend parser fingerprint error counts", []string{statsLabelCluster, statsLabelNamespace, statsLabelFingerprint})
 	s.backendConnectPoolIdleCounts = stats.NewGaugesWithMultiLabels("backendConnectPoolIdleCounts",
 		"gaea proxy backend idle connect counts", []string{statsLabelCluster, statsLabelNamespace, statsLabelSlice, statsLabelIPAddr})
 	s.backendConnectPoolInUseCounts = stats.NewGaugesWithMultiLabels("backendConnectPoolInUseCounts",
@@ -814,7 +814,7 @@ func (s *StatisticManager) recordBackendSQLTiming(namespace string, operation st
 	s.backendSQLTimings.Record(operationStatsKey, startTime)
 }
 
-// RecordSQLForbidden record forbidden sql
+// RecordSQLForbidden record forbidden parser
 func (s *StatisticManager) RecordSQLForbidden(fingerprint, namespace string) {
 	hash := mysql.GetMd5(fingerprint)
 	s.sqlForbidenCounts.Add([]string{s.clusterName, namespace, hash}, 1)

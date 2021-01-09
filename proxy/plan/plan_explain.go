@@ -93,7 +93,7 @@ func (p *ExplainPlan) Size() int {
 
 func createExplainResult(shardType string, sqls map[string]map[string][]string) *mysql.Result {
 	var rows [][]interface{}
-	var names = []string{"type", "slice", "db", "sql"}
+	var names = []string{"type", "slice", "db", "parser"}
 
 	for slice, dbSQLs := range sqls {
 		for db, tableSQLs := range dbSQLs {

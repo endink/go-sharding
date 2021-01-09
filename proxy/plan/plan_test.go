@@ -16,6 +16,7 @@ package plan
 
 import (
 	"encoding/json"
+	"github.com/XiaoMi/Gaea/parser"
 	"sync/atomic"
 	"testing"
 
@@ -65,22 +66,22 @@ func (s *OrderSequence) NextSeq() (int64, error) {
 // 获取使用TiDB parser测试SQL改写结果的测试函数
 func getTestFunc(info *PlanInfo, test SQLTestcase) func(t *testing.T) {
 	return func(t *testing.T) {
-		stmt, err := ParseSQL(test.sql)
+		stmt, err := parser.ParseSQL(test.sql)
 		if err != nil {
 			if test.hasErr {
-				t.Logf("parse sql error: %v", err)
+				t.Logf("parse parser error: %v", err)
 				return
 			}
-			t.Fatalf("parse sql error: %v", err)
+			t.Fatalf("parse parser error: %v", err)
 		}
 
 		p, err := BuildPlan(stmt, info.phyDBs, test.db, test.sql, info.rt, info.seqs)
 		if err != nil {
 			if test.hasErr {
-				t.Logf("BuildPlan got expect error, sql: %s, err: %v", test.sql, err)
+				t.Logf("BuildPlan got expect error, parser: %s, err: %v", test.sql, err)
 				return
 			}
-			t.Fatalf("BuildPlan error, sql: %s, err: %v", test.sql, err)
+			t.Fatalf("BuildPlan error, parser: %s, err: %v", test.sql, err)
 		}
 
 		var actualSQLs map[string]map[string][]string

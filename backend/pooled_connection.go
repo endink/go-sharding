@@ -18,7 +18,7 @@ import (
 	"github.com/XiaoMi/Gaea/mysql"
 )
 
-// PooledConnect app use this object to exec sql
+// PooledConnect app use this object to exec parser
 type pooledConnectImpl struct {
 	directConnection *DirectConnection
 	pool             *connectionPoolImpl
@@ -63,7 +63,7 @@ func (pc *pooledConnectImpl) UseDB(db string) error {
 	return pc.directConnection.UseDB(db)
 }
 
-// Execute wrapper of direct connection, execute sql
+// Execute wrapper of direct connection, execute parser
 func (pc *pooledConnectImpl) Execute(sql string) (*mysql.Result, error) {
 	return pc.directConnection.Execute(sql)
 }
@@ -108,7 +108,7 @@ func (pc *pooledConnectImpl) SetSessionVariables(frontend *mysql.SessionVariable
 	return pc.directConnection.SetSessionVariables(frontend)
 }
 
-// WriteSetStatement exec sql
+// WriteSetStatement exec parser
 func (pc *pooledConnectImpl) WriteSetStatement() error {
 	return pc.directConnection.WriteSetStatement()
 }
