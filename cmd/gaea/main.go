@@ -30,7 +30,7 @@ import (
 )
 
 func main() {
-	var defaultConfigFilePath = "etc/gaea.ini"
+	var defaultConfigFilePath = "/etc/gaea.ini"
 	if util.IsWindows() {
 		defaultConfigFilePath = "gaea.ini"
 	}
