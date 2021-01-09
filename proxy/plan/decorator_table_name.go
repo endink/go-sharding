@@ -16,9 +16,9 @@ package plan
 
 import (
 	"fmt"
+	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/format"
 
-	"github.com/XiaoMi/Gaea/parser/ast"
-	"github.com/XiaoMi/Gaea/parser/format"
 	"github.com/XiaoMi/Gaea/proxy/router"
 	"github.com/pingcap/errors"
 )

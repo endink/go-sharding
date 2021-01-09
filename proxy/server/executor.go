@@ -17,6 +17,10 @@ package server
 import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/logging"
+	sql2 "github.com/XiaoMi/Gaea/sql"
+	"github.com/pingcap/parser"
+	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/format"
 	"strconv"
 	"strings"
 	"sync"
@@ -26,9 +30,6 @@ import (
 	"github.com/XiaoMi/Gaea/backend"
 	"github.com/XiaoMi/Gaea/core/errors"
 	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/parser"
-	"github.com/XiaoMi/Gaea/parser/ast"
-	"github.com/XiaoMi/Gaea/parser/format"
 	"github.com/XiaoMi/Gaea/proxy/plan"
 	"github.com/XiaoMi/Gaea/util"
 	"github.com/XiaoMi/Gaea/util/hack"
@@ -538,12 +539,12 @@ func (se *SessionExecutor) executeInMultiSlices(reqCtx *util.RequestContext, pcs
 }
 
 func canHandleWithoutPlan(stmtType int) bool {
-	return stmtType == parser.StmtShow ||
-		stmtType == parser.StmtSet ||
-		stmtType == parser.StmtBegin ||
-		stmtType == parser.StmtCommit ||
-		stmtType == parser.StmtRollback ||
-		stmtType == parser.StmtUse
+	return stmtType == sql2.StmtShow ||
+		stmtType == sql2.StmtSet ||
+		stmtType == sql2.StmtBegin ||
+		stmtType == sql2.StmtCommit ||
+		stmtType == sql2.StmtRollback ||
+		stmtType == sql2.StmtUse
 }
 
 const variableRestoreFlag = format.RestoreKeyWordLowercase | format.RestoreNameLowercase
@@ -568,11 +569,11 @@ func getOnOffVariable(v string) (string, error) {
 
 // master-slave routing
 func canExecuteFromSlave(c *SessionExecutor, sql string) bool {
-	if parser.Preview(sql) != parser.StmtSelect {
+	if sql2.PreviewSql(sql) != sql2.StmtSelect {
 		return false
 	}
 
-	_, comments := parser.SplitMarginComments(sql)
+	_, comments := sql2.SplitMarginComments(sql)
 	lcomment := strings.ToLower(strings.TrimSpace(comments.Leading))
 	var fromSlave = c.GetNamespace().IsRWSplit(c.user)
 	if strings.ToLower(lcomment) == masterComment {
@@ -588,7 +589,7 @@ func isSQLNotAllowedByUser(c *SessionExecutor, stmtType int) bool {
 		return false
 	}
 
-	return stmtType == parser.StmtDelete || stmtType == parser.StmtInsert || stmtType == parser.StmtUpdate
+	return stmtType == sql2.StmtDelete || stmtType == sql2.StmtInsert || stmtType == sql2.StmtUpdate
 }
 
 func modifyResultStatus(r *mysql.Result, cc *SessionExecutor) {

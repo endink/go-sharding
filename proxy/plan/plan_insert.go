@@ -16,15 +16,14 @@ package plan
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/logging"
-
 	"github.com/XiaoMi/Gaea/core/errors"
+	"github.com/XiaoMi/Gaea/logging"
 	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/parser/ast"
-	driver "github.com/XiaoMi/Gaea/parser/tidb-types/parser_driver"
 	"github.com/XiaoMi/Gaea/proxy/router"
 	"github.com/XiaoMi/Gaea/proxy/sequence"
 	"github.com/XiaoMi/Gaea/util"
+	"github.com/pingcap/parser/ast"
+	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
 // InsertPlan is the plan for insert statement
@@ -293,7 +292,7 @@ func handleInsertGlobalSequenceValue(p *InsertPlan) error {
 						if err != nil {
 							return fmt.Errorf("get next seq error: %v", err)
 						}
-						assignment.Expr = ast.NewValueExpr(id)
+						assignment.Expr = ast.NewValueExpr(id, "", "")
 						break
 					}
 				}
@@ -324,7 +323,7 @@ func handleInsertGlobalSequenceValue(p *InsertPlan) error {
 				if err != nil {
 					return fmt.Errorf("get next seq error: %v", err)
 				}
-				valueList[seqIndex] = ast.NewValueExpr(id)
+				valueList[seqIndex] = ast.NewValueExpr(id, "", "")
 			}
 		}
 	}

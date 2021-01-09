@@ -22,12 +22,12 @@ import (
 	"github.com/XiaoMi/Gaea/backend"
 	"github.com/XiaoMi/Gaea/core/errors"
 	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/parser"
-	"github.com/XiaoMi/Gaea/parser/ast"
-	"github.com/XiaoMi/Gaea/parser/format"
-	"github.com/XiaoMi/Gaea/parser/model"
 	"github.com/XiaoMi/Gaea/proxy/plan"
+	sql2 "github.com/XiaoMi/Gaea/sql"
 	"github.com/XiaoMi/Gaea/util"
+	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/format"
+	"github.com/pingcap/parser/model"
 	"runtime"
 	"strings"
 	"time"
@@ -74,7 +74,7 @@ func (se *SessionExecutor) handleQuery(sql string) (r *mysql.Result, err error) 
 	}
 
 	startTime := time.Now()
-	stmtType := parser.Preview(sql)
+	stmtType := sql2.PreviewSql(sql)
 	reqCtx.Set(util.StmtType, stmtType)
 
 	r, err = se.doQuery(reqCtx, sql)

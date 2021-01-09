@@ -16,13 +16,13 @@ package plan
 
 import (
 	"fmt"
+	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/opcode"
 
 	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/parser/ast"
-	"github.com/XiaoMi/Gaea/parser/opcode"
-	driver "github.com/XiaoMi/Gaea/parser/tidb-types/parser_driver"
 	"github.com/XiaoMi/Gaea/proxy/router"
 	"github.com/XiaoMi/Gaea/util"
+	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
 // SelectPlan is the plan for select statement
@@ -672,10 +672,10 @@ func handleBetweenExpr(p *TableAliasStmtInfo, expr *ast.BetweenExpr) (bool, []in
 // return value: hasRoutingResult, RouteResult, Decorator, error
 // the Decorator must not be nil. If no modification to the input expr, just return it.
 func handleBinaryOperationExpr(p *TableAliasStmtInfo, expr *ast.BinaryOperationExpr) (bool, []int, ast.ExprNode, error) {
-	_, ok := opcode.Ops[expr.Op]
-	if !ok {
-		return false, nil, nil, fmt.Errorf("unknown BinaryOperationExpr.Op: %v", expr.Op)
-	}
+	//_, ok := opcode.Ops[expr.Op]
+	//if !ok {
+	//	return false, nil, nil, fmt.Errorf("unknown BinaryOperationExpr.Op: %v", expr.Op)
+	//}
 
 	switch expr.Op {
 	case opcode.LogicAnd, opcode.LogicOr:
