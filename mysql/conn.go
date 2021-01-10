@@ -120,6 +120,10 @@ func NewConn(conn net.Conn) *Conn {
 	}
 }
 
+func (c *Conn) LocalAddr() net.Addr {
+	return c.conn.LocalAddr()
+}
+
 // StartWriterBuffering starts using buffered writes. This should
 // be terminated by a call to flush.
 func (c *Conn) StartWriterBuffering() {
