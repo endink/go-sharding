@@ -37,12 +37,13 @@ type ClientConn struct {
 
 // HandshakeResponseInfo handshake response information
 type HandshakeResponseInfo struct {
-	CollationID  mysql.CollationID
-	User         string
-	AuthResponse []byte
-	Salt         []byte
-	Database     string
-	AuthPlugin   string
+	CollationID      mysql.CollationID
+	User             string
+	AuthResponse     []byte
+	Salt             []byte
+	Database         string
+	AuthPlugin       string
+	ClientPluginAuth bool
 }
 
 // NewClientConn constructor of ClientConn
@@ -106,13 +107,7 @@ func (cc *ClientConn) writeInitialHandshake() error {
 	// EOF if MySQL version (>= 5.5.7 and < 5.5.10) or (>= 5.6.0 and < 5.6.2)
 	// \NUL otherwise, so we use \NUL
 	data = append(data, 0)
-	p := cc.StartEphemeralPacket(len(data))
-	mysql.WriteBytes(p, 0, data)
-	if err := cc.WriteEphemeralPacket(); err != nil {
-		return err
-	}
-
-	return nil
+	return cc.WritePacket(data)
 }
 
 func (cc *ClientConn) writeInitialHandshakeV10() error {
@@ -280,7 +275,7 @@ func (cc *ClientConn) readHandshakeResponse() (HandshakeResponseInfo, error) {
 		return info, fmt.Errorf("readHandshakeResponse: can't read username")
 	}
 	info.User = user
-
+	info.ClientPluginAuth = capability&mysql.ClientPluginAuth > 0
 	info.AuthResponse, pos, ok = readAuthData(data, pos, capability)
 
 	// check if with database
@@ -318,8 +313,19 @@ func (cc *ClientConn) WriteAuthMoreDataFastAuth() error {
 	return cc.writeMoreDataFlag(mysql.CacheSha2FastAuth)
 }
 
-func (cc *ClientConn) writeAuthMoreDataFullAuth() error {
+func (cc *ClientConn) WriteAuthMoreDataFullAuth() error {
 	return cc.writeMoreDataFlag(mysql.CacheSha2FullAuth)
+}
+
+func (cc *ClientConn) WriteAuthSwitchRequest(authMethod string) error {
+	l := 1 + len(authMethod) + 1 + len(cc.salt) + 1
+	data := cc.StartEphemeralPacket(l)
+	pos := 0
+	pos = mysql.WriteByte(data, pos, mysql.AuthSwitchHeader)
+	pos = mysql.WriteNullString(data, pos, authMethod)
+	pos = mysql.WriteBytes(data, pos, cc.salt)
+	mysql.WriteByte(data, pos, 0)
+	return cc.WriteEphemeralPacket()
 }
 
 func (cc *ClientConn) writeOKResult(status uint16, r *mysql.Result) error {

@@ -54,6 +54,8 @@ const (
 	EOFHeader         byte = 0xfe
 	LocalInFileHeader byte = 0xfb
 
+	AuthSwitchHeader byte = 0xfe
+
 	MoreDataHeader byte = 0x01
 
 	CacheSha2FastAuth byte = 0x03

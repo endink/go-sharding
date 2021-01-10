@@ -10,12 +10,24 @@ import (
 	"errors"
 	"fmt"
 	"github.com/XiaoMi/Gaea/mysql"
+	"sync"
 )
 
 var ErrAccessDenied = errors.New("access denied")
 var tlsConfig tls.Config
 
+var ShaPasswordCache = &sync.Map{}
+
 func (c *Session) auth(authInfo HandshakeResponseInfo, password string) error {
+	//尝试交换
+	if authInfo.AuthPlugin != mysql.AUTH_CACHING_SHA2_PASSWORD && authInfo.ClientPluginAuth {
+		if err := c.c.WriteAuthSwitchRequest(mysql.AUTH_CACHING_SHA2_PASSWORD); err != nil {
+			return err
+		}
+		authInfo.AuthPlugin = mysql.AUTH_CACHING_SHA2_PASSWORD
+		return c.handleAuthSwitchResponse(authInfo, password)
+	}
+
 	clientAuthData := authInfo.AuthResponse
 	switch authInfo.AuthPlugin {
 	case mysql.AUTH_NATIVE_PASSWORD:
@@ -133,22 +145,27 @@ func (c *Session) compareCacheSha2PasswordAuthData(clientAuthData []byte, passwo
 	}
 	return ErrAccessDenied
 
+	//return c.fastShaCacheAuth(clientAuthData, handshakeInfo)
+}
+
+//https://dev.mysql.com/doc/dev/mysql-server/latest/page_caching_sha2_authentication_exchanges.html
+func (c *Session) cachingSha2AuthenticationExchange(clientAuthData []byte, handshakeInfo HandshakeResponseInfo) error {
 	// other type of credential provider, we use the cache
-	//cached, ok := c.serverConf.cacheShaPassword.Load(fmt.Sprintf("%s@%s", c.user, c.Conn.LocalAddr()))
-	//if ok {
-	//	// Scramble validation
-	//	if scrambleValidation(cached.([]byte), c.salt, clientAuthData) {
-	//		// 'fast' auth: write "More data" packet (first byte == 0x01) with the second byte = 0x03
-	//		return c.writeAuthMoreDataFastAuth()
-	//	}
-	//	return ErrAccessDenied
-	//}
-	//// cache miss, do full auth
-	//if err := c.writeAuthMoreDataFullAuth(); err != nil {
-	//	return err
-	//}
-	//c.cachingSha2FullAuth = true
-	//return nil
+	cached, ok := ShaPasswordCache.Load(fmt.Sprintf("%s@%s", handshakeInfo.User, c.c.LocalAddr()))
+	if ok {
+		// Scramble validation
+		if scrambleValidation(cached.([]byte), handshakeInfo.Salt, clientAuthData) {
+			// 'fast' auth: write "More data" packet (first byte == 0x01) with the second byte = 0x03
+			return c.c.WriteAuthMoreDataFastAuth()
+		}
+		return ErrAccessDenied
+	}
+	// cache miss, do full auth
+	if err := c.c.WriteAuthMoreDataFullAuth(); err != nil {
+		return err
+	}
+	c.cachingSha2FullAuth = true
+	return nil
 }
 
 /************resonse handler***********/
@@ -194,7 +211,7 @@ func (c *Session) handleAuthSwitchResponse(info HandshakeResponseInfo, password 
 		if err := c.handleCachingSha2PasswordFullAuth(authData, password); err != nil {
 			return err
 		}
-		c.writeCachingSha2Cache(password)
+		c.writeCachingSha2Cache(info.User, password)
 		return nil
 
 	case mysql.AUTH_SHA256_PASSWORD:
@@ -219,7 +236,7 @@ func (c *Session) handleCachingSha2PasswordFullAuth(authData []byte, password st
 
 	if len(authData) == 1 && authData[0] == 0x02 {
 		// send the public key
-		if err := c.c.writeAuthMoreDataFullAuth(); err != nil {
+		if err := c.c.WriteAuthMoreDataFullAuth(); err != nil {
 			return err
 		}
 		// read the encrypted password
@@ -246,11 +263,18 @@ func (c *Session) handleCachingSha2PasswordFullAuth(authData []byte, password st
 	return ErrAccessDenied
 }
 
-func (c *Session) writeCachingSha2Cache(password string) {
+func (c *Session) writeCachingSha2Cache(user string, password string) {
 	// write cache
 	if password == "" {
 		return
 	}
+	m2 := generateScrambleData(password)
+	// caching_sha2_password will maintain an in-memory hash of `user`@`host` => SHA256(SHA256(PASSWORD))
+
+	ShaPasswordCache.Store(fmt.Sprintf("%s@%s", user, c.c.LocalAddr()), m2)
+}
+
+func generateScrambleData(password string) []byte {
 	// SHA256(PASSWORD)
 	crypt := sha256.New()
 	crypt.Write([]byte(password))
@@ -258,8 +282,6 @@ func (c *Session) writeCachingSha2Cache(password string) {
 	// SHA256(SHA256(PASSWORD))
 	crypt.Reset()
 	crypt.Write(m1)
-	_ = crypt.Sum(nil)
-	// caching_sha2_password will maintain an in-memory hash of `user`@`host` => SHA256(SHA256(PASSWORD))
-
-	//c.serverConf.cacheShaPassword.Store(fmt.Sprintf("%s@%s", c.user, c.Conn.LocalAddr()), m2)
+	m2 := crypt.Sum(nil)
+	return m2
 }
