@@ -250,7 +250,7 @@ func (se *SessionExecutor) SetCharset(charset string) {
 }
 
 // SetNamespaceDefaultCharset set session default charset
-func (se SessionExecutor) SetNamespaceDefaultCharset() {
+func (se *SessionExecutor) SetNamespaceDefaultCharset() {
 	se.charset = se.manager.GetNamespace(se.namespace).GetDefaultCharset()
 }
 
@@ -588,23 +588,7 @@ func modifyResultStatus(r *mysql.Result, cc *SessionExecutor) {
 	r.Status = r.Status | cc.GetStatus()
 }
 
-func createEmptyResult() *mysql.Result {
-	r := new(mysql.Resultset)
-
-	//field := &mysql.Field{}
-	//field.Name = hack.Slice("Master_Host")
-	//r.Fields = append(r.Fields, field)
-
-	result := &mysql.Result{
-		AffectedRows: uint64(0),
-		Resultset:    r,
-	}
-
-	plan.GenerateSelectResultRowData(result)
-	return result
-}
-
-func createShowDatabaseResult(dbs []string) *mysql.Result {
+func createShowDatabaseResult(dbs []string) (*mysql.Result, error) {
 	r := new(mysql.Resultset)
 
 	field := &mysql.Field{}
@@ -620,8 +604,10 @@ func createShowDatabaseResult(dbs []string) *mysql.Result {
 		Resultset:    r,
 	}
 
-	plan.GenerateSelectResultRowData(result)
-	return result
+	if err := plan.GenerateSelectResultRowData(result); err != nil {
+		return nil, err
+	}
+	return result, nil
 }
 
 func createShowGeneralLogResult() *mysql.Result {
@@ -723,6 +709,30 @@ func (se *SessionExecutor) rollback() (err error) {
 
 	se.txConns = make(map[string]backend.PooledConnect)
 	return
+}
+
+func changeToEmptyResult(raw *mysql.Result) (*mysql.Result, error) {
+	r := new(mysql.Resultset)
+
+	r.Fields = raw.Fields
+
+	result := &mysql.Result{
+		AffectedRows: uint64(0),
+		Resultset:    r,
+	}
+
+	if err := plan.GenerateSelectResultRowData(result); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
+func (se *SessionExecutor) executeSQLNoData(reqCtx *util.RequestContext, slice, db, sql string) (*mysql.Result, error) {
+	if r, err := se.ExecuteSQL(reqCtx, slice, db, sql); err == nil {
+		return changeToEmptyResult(r)
+	} else {
+		return nil, err
+	}
 }
 
 // ExecuteSQL execute parser

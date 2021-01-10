@@ -117,7 +117,14 @@ func (se *SessionExecutor) doQuery(reqCtx *util.RequestContext, sql string) (*my
 func (se *SessionExecutor) handleQueryWithoutPlan(reqCtx *util.RequestContext, sql string) (*mysql.Result, error) {
 	n, err := se.Parse(sql)
 	if err != nil {
-		logging.DefaultLogger.Warnf("parse parser error, parser: %s, err: %v", sql, err)
+		stmtType := reqCtx.Get(util.StmtType).(parser.StatementType)
+		if stmtType == parser.StmtShow { // SHOW SLAVE STATUS 等无法被 parse 解析, 应该屏蔽结果，使得某些客户端可以使用
+			if r, err := se.executeSQLNoData(reqCtx, backend.DefaultSlice, se.db, sql); err == nil {
+				return r, nil
+			}
+		} else {
+			logging.DefaultLogger.Warnf("parse parser error, parser: %s, err: %v", sql, err)
+		}
 		return nil, errors.ErrCmdUnsupport
 	}
 
@@ -173,7 +180,7 @@ func (se *SessionExecutor) handleShow(reqCtx *util.RequestContext, sql string, s
 	switch stmt.Tp {
 	case ast.ShowDatabases:
 		dbs := se.GetNamespace().GetAllowedDBs()
-		return createShowDatabaseResult(dbs), nil
+		return createShowDatabaseResult(dbs)
 	case ast.ShowTables, ast.ShowColumns, ast.ShowIndex, ast.ShowTriggers, ast.ShowCreateTable:
 		exeSql := sql
 		change := false
@@ -202,16 +209,18 @@ func (se *SessionExecutor) handleShow(reqCtx *util.RequestContext, sql string, s
 		}
 		modifyResultStatus(r, se)
 		return r, nil
+	case ast.ShowStatus:
+		r, err := se.executeSQLNoData(reqCtx, backend.DefaultSlice, se.db, sql)
+		if err != nil {
+			return nil, fmt.Errorf("execute parser error, parser: %s, err: %v", sql, err)
+		}
+		return r, nil
 	case ast.ShowVariables:
 		if strings.Contains(sql, gaeaGeneralLogVariable) {
 			return createShowGeneralLogResult(), nil
 		}
 		fallthrough
 	default:
-
-		if strings.Contains(sql, "SHOW SLAVE") {
-			return createEmptyResult(), nil
-		}
 		r, err := se.ExecuteSQL(reqCtx, backend.DefaultSlice, se.db, sql)
 		if err != nil {
 			return nil, fmt.Errorf("execute parser error, parser: %s, err: %v", sql, err)
