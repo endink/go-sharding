@@ -147,10 +147,10 @@ func (s *AdminServer) Close() error {
 func (s *AdminServer) registerURL() {
 	adminGroup := s.engine.Group("/api/proxy", gin.BasicAuth(gin.Accounts{s.adminUser: s.adminPassword}))
 	adminGroup.GET("/ping", s.ping)
-	adminGroup.PUT("/impl/prepare/:name", s.prepareConfig)
-	adminGroup.PUT("/impl/commit/:name", s.commitConfig)
+	adminGroup.PUT("/source/prepare/:name", s.prepareConfig)
+	adminGroup.PUT("/source/commit/:name", s.commitConfig)
 	adminGroup.PUT("/namespace/delete/:name", s.deleteNamespace)
-	adminGroup.GET("/impl/fingerprint", s.configFingerprint)
+	adminGroup.GET("/source/fingerprint", s.configFingerprint)
 
 	adminGroup.GET("/stats/sessionsqlfingerprint/:namespace", s.getNamespaceSessionSQLFingerprint)
 	adminGroup.GET("/stats/backendsqlfingerprint/:namespace", s.getNamespaceBackendSQLFingerprint)
@@ -276,7 +276,7 @@ func (s *AdminServer) prepareConfig(c *gin.Context) {
 	defer client.Close()
 	err := s.proxy.ReloadNamespacePrepare(name, client)
 	if err != nil {
-		log.Warnf("prepare impl of namespace: %s failed, err: %v", name, err)
+		log.Warnf("prepare source of namespace: %s failed, err: %v", name, err)
 		c.JSON(selfDefinedInternalError, err.Error())
 		return
 	}

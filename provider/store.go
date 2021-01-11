@@ -17,15 +17,16 @@ package provider
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/XiaoMi/Gaea/config"
+	"github.com/XiaoMi/Gaea/config/source"
 	"github.com/XiaoMi/Gaea/logging"
 	"github.com/XiaoMi/Gaea/models"
-	"github.com/XiaoMi/Gaea/provider/impl"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
-// impl type
+// source type
 const (
 	ConfigFile = "file"
 	ConfigEtcd = "etcd"
@@ -33,15 +34,15 @@ const (
 
 // Store means exported client to use
 type Store struct {
-	client ConfigProvider
+	client config.SourceProvider
 	prefix string
 }
 
 // NewClient constructor to create client by case etcd/file/zk etc.
-func NewClient(configType, addr, username, password, root string) ConfigProvider {
+func NewClient(configType, addr, username, password, root string) config.SourceProvider {
 	switch configType {
 	case ConfigFile:
-		c, err := impl.New(root)
+		c, err := source.NewEtcdConfig(root)
 		if err != nil {
 			logging.DefaultLogger.Warnf("create fileclient failed, %s", addr)
 			return nil
@@ -49,19 +50,19 @@ func NewClient(configType, addr, username, password, root string) ConfigProvider
 		return c
 	case ConfigEtcd:
 		// etcd
-		c, err := impl.New(addr, time.Minute, username, password, root)
+		c, err := source.New(addr, time.Minute, username, password, root)
 		if err != nil {
 			logging.DefaultLogger.Fatalf("create etcdclient to %s failed, %v", addr, err)
 			return nil
 		}
 		return c
 	}
-	logging.DefaultLogger.Fatalf("unknown impl type")
+	logging.DefaultLogger.Fatalf("unknown source type")
 	return nil
 }
 
 // NewStore constructor of Store
-func NewStore(client ConfigProvider) *Store {
+func NewStore(client config.SourceProvider) *Store {
 	return &Store{
 		client: client,
 		prefix: client.BasePrefix(),

@@ -80,7 +80,7 @@ func ModifyNamespace(namespace *models.Namespace, cfg *models.CCConfig, cluster 
 		return err
 	}
 
-	// proxies ready to reload impl
+	// proxies ready to reload source
 	proxies, err := storeConn.ListProxyMonitorMetrics()
 	if err != nil {
 		proxy.ControllerLogger.Warnf("list proxies failed, %v", err)
@@ -201,7 +201,7 @@ func ProxyConfigFingerprint(cfg *models.CCConfig, cluster string) (r map[string]
 			defer wg.Done()
 			md5, err := proxy.QueryProxyConfigFingerprint(host, cfg)
 			if err != nil {
-				proxy.ControllerLogger.Warnf("query impl fingerprint of proxy failed, %s %v", host, err)
+				proxy.ControllerLogger.Warnf("query source fingerprint of proxy failed, %s %v", host, err)
 			}
 			m := make(map[string]string, 1)
 			m[host] = md5

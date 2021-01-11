@@ -44,7 +44,7 @@ func main() {
 	// 初始化配置
 	ccConfig, err := models.ParseCCConfig(*ccConfigFile)
 	if err != nil {
-		fmt.Printf("parse cc impl failed, %v\n", err)
+		fmt.Printf("parse cc source failed, %v\n", err)
 	}
 
 	// 构造服务实例

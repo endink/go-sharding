@@ -15,11 +15,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package impl
+package source
 
 import (
 	"context"
 	"errors"
+	"github.com/XiaoMi/Gaea/config"
 	"github.com/XiaoMi/Gaea/logging"
 	"strings"
 	"sync"
@@ -35,8 +36,8 @@ const (
 	defaultEtcdPrefix = "/gaea"
 )
 
-// EtcdClient etcd client
-type EtcdClient struct {
+// etcdSource etcd client
+type etcdSource struct {
 	sync.Mutex
 	kapi client.KeysAPI
 
@@ -45,8 +46,16 @@ type EtcdClient struct {
 	Prefix  string
 }
 
-// New constructor of EtcdClient
-func NewEtcdConfig(addr string, timeout time.Duration, username, passwd, root string) (*EtcdClient, error) {
+func (c *etcdSource) GetName() string {
+	panic("implement me")
+}
+
+func (c *etcdSource) OnLoad() {
+	panic("implement me")
+}
+
+// New constructor of etcdSource
+func NewEtcdSource(addr string, timeout time.Duration, username, passwd, root string) (config.SourceProvider, error) {
 	endpoints := strings.Split(addr, ",")
 	for i, s := range endpoints {
 		if s != "" && !strings.HasPrefix(s, "http://") {
@@ -67,7 +76,7 @@ func NewEtcdConfig(addr string, timeout time.Duration, username, passwd, root st
 	if strings.TrimSpace(root) == "" {
 		root = defaultEtcdPrefix
 	}
-	return &EtcdClient{
+	return &etcdSource{
 		kapi:    client.NewKeysAPI(c),
 		timeout: timeout,
 		Prefix:  root,
@@ -75,7 +84,7 @@ func NewEtcdConfig(addr string, timeout time.Duration, username, passwd, root st
 }
 
 // Close close etcd client
-func (c *EtcdClient) Close() error {
+func (c *etcdSource) Close() error {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {
@@ -85,7 +94,7 @@ func (c *EtcdClient) Close() error {
 	return nil
 }
 
-func (c *EtcdClient) contextWithTimeout() (context.Context, context.CancelFunc) {
+func (c *etcdSource) contextWithTimeout() (context.Context, context.CancelFunc) {
 	if c.timeout == 0 {
 		return context.Background(), func() {}
 	}
@@ -111,7 +120,7 @@ func isErrNodeExists(err error) bool {
 }
 
 // Mkdir create directory
-func (c *EtcdClient) Mkdir(dir string) error {
+func (c *etcdSource) Mkdir(dir string) error {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {
@@ -120,7 +129,7 @@ func (c *EtcdClient) Mkdir(dir string) error {
 	return c.mkdir(dir)
 }
 
-func (c *EtcdClient) mkdir(dir string) error {
+func (c *etcdSource) mkdir(dir string) error {
 	if dir == "" || dir == "/" {
 		return nil
 	}
@@ -137,7 +146,7 @@ func (c *EtcdClient) mkdir(dir string) error {
 }
 
 // Create create path with data
-func (c *EtcdClient) Create(path string, data []byte) error {
+func (c *etcdSource) Create(path string, data []byte) error {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {
@@ -156,7 +165,7 @@ func (c *EtcdClient) Create(path string, data []byte) error {
 }
 
 // Update update path with data
-func (c *EtcdClient) Update(path string, data []byte) error {
+func (c *etcdSource) Update(path string, data []byte) error {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {
@@ -175,7 +184,7 @@ func (c *EtcdClient) Update(path string, data []byte) error {
 }
 
 // UpdateWithTTL update path with data and ttl
-func (c *EtcdClient) UpdateWithTTL(path string, data []byte, ttl time.Duration) error {
+func (c *etcdSource) UpdateWithTTL(path string, data []byte, ttl time.Duration) error {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {
@@ -194,7 +203,7 @@ func (c *EtcdClient) UpdateWithTTL(path string, data []byte, ttl time.Duration) 
 }
 
 // Delete delete path
-func (c *EtcdClient) Delete(path string) error {
+func (c *etcdSource) Delete(path string) error {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {
@@ -213,7 +222,7 @@ func (c *EtcdClient) Delete(path string) error {
 }
 
 // Read read path data
-func (c *EtcdClient) Read(path string) ([]byte, error) {
+func (c *etcdSource) Read(path string) ([]byte, error) {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {
@@ -233,7 +242,7 @@ func (c *EtcdClient) Read(path string) ([]byte, error) {
 }
 
 // List list path, return slice of all paths
-func (c *EtcdClient) List(path string) ([]string, error) {
+func (c *etcdSource) List(path string) ([]string, error) {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {
@@ -257,7 +266,7 @@ func (c *EtcdClient) List(path string) ([]string, error) {
 }
 
 // Watch watch path
-func (c *EtcdClient) Watch(path string, ch chan string) error {
+func (c *etcdSource) Watch(path string, ch chan string) error {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {
@@ -274,6 +283,6 @@ func (c *EtcdClient) Watch(path string, ch chan string) error {
 }
 
 // BasePrefix return base prefix
-func (c *EtcdClient) BasePrefix() string {
+func (c *etcdSource) BasePrefix() string {
 	return c.Prefix
 }

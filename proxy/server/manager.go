@@ -38,7 +38,7 @@ import (
 	"github.com/XiaoMi/Gaea/util/sync2"
 )
 
-// LoadAndCreateManager load namespace impl, and create manager
+// LoadAndCreateManager load namespace source, and create manager
 func LoadAndCreateManager(cfg *models.Proxy) (*Manager, error) {
 	namespaceConfigs, err := loadAllNamespace(cfg)
 	if err != nil {
@@ -93,7 +93,7 @@ func loadAllNamespace(cfg *models.Proxy) (map[string]*models.Namespace, error) {
 					err = e
 					return
 				}
-				// verify namespace impl
+				// verify namespace source
 				e = namespace.Verify()
 				if e != nil {
 					log.Warnf("verify namespace %s failed, err: %v", name, e)
@@ -191,7 +191,7 @@ func (m *Manager) ReloadNamespacePrepare(namespaceConfig *models.Namespace) erro
 	currentNamespaceManager := m.namespaces[current]
 	newNamespaceManager := ShallowCopyNamespaceManager(currentNamespaceManager)
 	if err := newNamespaceManager.RebuildNamespace(namespaceConfig); err != nil {
-		log.Warnf("prepare impl of namespace: %s failed, err: %v", name, err)
+		log.Warnf("prepare source of namespace: %s failed, err: %v", name, err)
 		return err
 	}
 	m.namespaces[other] = newNamespaceManager
@@ -206,7 +206,7 @@ func (m *Manager) ReloadNamespacePrepare(namespaceConfig *models.Namespace) erro
 	return nil
 }
 
-// ReloadNamespaceCommit commit impl
+// ReloadNamespaceCommit commit source
 func (m *Manager) ReloadNamespaceCommit(name string) error {
 	if !m.reloadPrepared.CompareAndSwap(true, false) {
 		err := errors.ErrNamespaceNotPrepared
@@ -286,7 +286,7 @@ func (m *Manager) GetNamespaceByUser(userName, password string) string {
 	return m.users[current].GetNamespaceByUser(userName, password)
 }
 
-// ConfigFingerprint return impl fingerprint
+// ConfigFingerprint return source fingerprint
 func (m *Manager) ConfigFingerprint() string {
 	current, _, _ := m.switchIndex.Get()
 	return m.namespaces[current].ConfigFingerprint()
@@ -484,7 +484,7 @@ func (n *NamespaceManager) GetNamespaces() map[string]*Namespace {
 	return n.namespaces
 }
 
-// ConfigFingerprint return impl fingerprint
+// ConfigFingerprint return source fingerprint
 func (n *NamespaceManager) ConfigFingerprint() string {
 	sortedKeys := make([]string, 0)
 	for k := range n.GetNamespaces() {

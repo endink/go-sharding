@@ -32,15 +32,15 @@ func NewAPIClient(addr, user, password string) *APIClient {
 	return &APIClient{addr: addr, user: user, password: password}
 }
 
-// PrepareConfig send prepare impl
+// PrepareConfig send prepare source
 func (c *APIClient) PrepareConfig(name string) error {
-	url := c.encodeURL("/api/proxy/impl/prepare/%s", name)
+	url := c.encodeURL("/api/proxy/source/prepare/%s", name)
 	return requests.SendPut(url, c.user, c.password)
 }
 
-// CommitConfig send commit impl
+// CommitConfig send commit source
 func (c *APIClient) CommitConfig(name string) error {
-	url := c.encodeURL("/api/proxy/impl/commit/%s", name)
+	url := c.encodeURL("/api/proxy/source/commit/%s", name)
 	return requests.SendPut(url, c.user, c.password)
 }
 
@@ -66,7 +66,7 @@ func (c *APIClient) GetNamespaceSQLFingerprint(name string) (*SQLFingerprint, er
 
 func (c *APIClient) proxyConfigFingerprint() (string, error) {
 	r := ""
-	url := c.encodeURL("/api/proxy/impl/fingerprint")
+	url := c.encodeURL("/api/proxy/source/fingerprint")
 	resp, err := requests.SendGet(url, c.user, c.password)
 	if err != nil {
 		return r, err

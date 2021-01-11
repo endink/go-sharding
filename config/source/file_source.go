@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package impl
+package source
 
 import (
 	"errors"
@@ -27,21 +27,21 @@ const (
 	defaultFilePath = "./etc/file"
 )
 
-// Client used to test with impl from file
-type Client struct {
+// File source provider for configuration
+type fileSource struct {
 	Prefix string
 }
 
-// New constructor of EtcdClient
-func New(path string) (*Client, error) {
+// New constructor of etcdSource
+func NewFileSource(path string) (*fileSource, error) {
 	if strings.TrimSpace(path) == "" {
 		path = defaultFilePath
 	}
 	if err := checkDir(path); err != nil {
-		logging.DefaultLogger.Warnf("check file impl directory failed, %v", err)
+		logging.DefaultLogger.Warnf("check file source directory failed, %v", err)
 		return nil, err
 	}
-	return &Client{Prefix: path}, nil
+	return &fileSource{Prefix: path}, nil
 }
 
 func checkDir(path string) error {
@@ -61,32 +61,32 @@ func checkDir(path string) error {
 }
 
 // Close do nothing
-func (c *Client) Close() error {
+func (c *fileSource) Close() error {
 	return nil
 }
 
 // Create do nothing
-func (c *Client) Create(path string, data []byte) error {
+func (c *fileSource) Create(path string, data []byte) error {
 	return nil
 }
 
 // Update do nothing
-func (c *Client) Update(path string, data []byte) error {
+func (c *fileSource) Update(path string, data []byte) error {
 	return nil
 }
 
 // UpdateWithTTL update path with data and ttl
-func (c *Client) UpdateWithTTL(path string, data []byte, ttl time.Duration) error {
+func (c *fileSource) UpdateWithTTL(path string, data []byte, ttl time.Duration) error {
 	return nil
 }
 
 // Delete delete path
-func (c *Client) Delete(path string) error {
+func (c *fileSource) Delete(path string) error {
 	return nil
 }
 
 // Read read file data
-func (c *Client) Read(file string) ([]byte, error) {
+func (c *fileSource) Read(file string) ([]byte, error) {
 	value, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (c *Client) Read(file string) ([]byte, error) {
 }
 
 // List list path, return slice of all files
-func (c *Client) List(path string) ([]string, error) {
+func (c *fileSource) List(path string) ([]string, error) {
 	r := make([]string, 0)
 	files, err := ioutil.ReadDir(path)
 	if err != nil {
@@ -110,6 +110,6 @@ func (c *Client) List(path string) ([]string, error) {
 }
 
 // BasePrefix return base prefix
-func (c *Client) BasePrefix() string {
+func (c *fileSource) BasePrefix() string {
 	return c.Prefix
 }

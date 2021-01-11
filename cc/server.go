@@ -71,7 +71,7 @@ func (s *Server) registerURL() {
 	api.PUT("/namespace/modify", s.modifyNamespace)
 	api.PUT("/namespace/delete/:name", s.delNamespace)
 	api.GET("/namespace/sqlfingerprint/:name", s.sqlFingerprint)
-	api.GET("/proxy/impl/fingerprint", s.proxyConfigFingerprint)
+	api.GET("/proxy/source/fingerprint", s.proxyConfigFingerprint)
 }
 
 // ListNamespaceResp list names of all namespace response
@@ -243,7 +243,7 @@ func (s *Server) sqlFingerprint(c *gin.Context) {
 
 type proxyConfigFingerprintResp struct {
 	RetHeader *RetHeader        `json:"ret_header"`
-	Data      map[string]string `json:"data"` // key: ip:port value: md5 of impl
+	Data      map[string]string `json:"data"` // key: ip:port value: md5 of source
 }
 
 func (s *Server) proxyConfigFingerprint(c *gin.Context) {
