@@ -12,49 +12,36 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package models
+package provider
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/XiaoMi/Gaea/logging"
+	"github.com/XiaoMi/Gaea/models"
+	"github.com/XiaoMi/Gaea/provider/impl"
 	"path/filepath"
 	"strings"
 	"time"
-
-	etcdclient "github.com/XiaoMi/Gaea/models/etcd"
-	fileclient "github.com/XiaoMi/Gaea/models/file"
 )
 
-// config type
+// impl type
 const (
 	ConfigFile = "file"
 	ConfigEtcd = "etcd"
 )
 
-// Client client interface
-type Client interface {
-	Create(path string, data []byte) error
-	Update(path string, data []byte) error
-	UpdateWithTTL(path string, data []byte, ttl time.Duration) error
-	Delete(path string) error
-	Read(path string) ([]byte, error)
-	List(path string) ([]string, error)
-	Close() error
-	BasePrefix() string
-}
-
 // Store means exported client to use
 type Store struct {
-	client Client
+	client ConfigProvider
 	prefix string
 }
 
 // NewClient constructor to create client by case etcd/file/zk etc.
-func NewClient(configType, addr, username, password, root string) Client {
+func NewClient(configType, addr, username, password, root string) ConfigProvider {
 	switch configType {
 	case ConfigFile:
-		c, err := fileclient.New(root)
+		c, err := impl.New(root)
 		if err != nil {
 			logging.DefaultLogger.Warnf("create fileclient failed, %s", addr)
 			return nil
@@ -62,19 +49,19 @@ func NewClient(configType, addr, username, password, root string) Client {
 		return c
 	case ConfigEtcd:
 		// etcd
-		c, err := etcdclient.New(addr, time.Minute, username, password, root)
+		c, err := impl.New(addr, time.Minute, username, password, root)
 		if err != nil {
 			logging.DefaultLogger.Fatalf("create etcdclient to %s failed, %v", addr, err)
 			return nil
 		}
 		return c
 	}
-	logging.DefaultLogger.Fatalf("unknown config type")
+	logging.DefaultLogger.Fatalf("unknown impl type")
 	return nil
 }
 
 // NewStore constructor of Store
-func NewStore(client Client) *Store {
+func NewStore(client ConfigProvider) *Store {
 	return &Store{
 		client: client,
 		prefix: client.BasePrefix(),
@@ -107,7 +94,7 @@ func (s *Store) ProxyPath(token string) string {
 }
 
 // CreateProxy create proxy model
-func (s *Store) CreateProxy(p *ProxyInfo) error {
+func (s *Store) CreateProxy(p *models.ProxyInfo) error {
 	return s.client.Update(s.ProxyPath(p.Token), p.Encode())
 }
 
@@ -130,7 +117,7 @@ func (s *Store) ListNamespace() ([]string, error) {
 }
 
 // LoadNamespace load namespace value
-func (s *Store) LoadNamespace(key, name string) (*Namespace, error) {
+func (s *Store) LoadNamespace(key, name string) (*models.Namespace, error) {
 	b, err := s.client.Read(s.NamespacePath(name))
 	if err != nil {
 		return nil, err
@@ -140,7 +127,7 @@ func (s *Store) LoadNamespace(key, name string) (*Namespace, error) {
 		return nil, fmt.Errorf("node %s not exists", s.NamespacePath(name))
 	}
 
-	p := &Namespace{}
+	p := &models.Namespace{}
 	if err = json.Unmarshal(b, p); err != nil {
 		return nil, err
 	}
@@ -157,7 +144,7 @@ func (s *Store) LoadNamespace(key, name string) (*Namespace, error) {
 }
 
 // UpdateNamespace update namespace path with data
-func (s *Store) UpdateNamespace(p *Namespace) error {
+func (s *Store) UpdateNamespace(p *models.Namespace) error {
 	return s.client.Update(s.NamespacePath(p.Name), p.Encode())
 }
 
@@ -167,19 +154,19 @@ func (s *Store) DelNamespace(name string) error {
 }
 
 // ListProxyMonitorMetrics list proxies in proxy register path
-func (s *Store) ListProxyMonitorMetrics() (map[string]*ProxyMonitorMetric, error) {
+func (s *Store) ListProxyMonitorMetrics() (map[string]*models.ProxyMonitorMetric, error) {
 	files, err := s.client.List(s.ProxyBase())
 	if err != nil {
 		return nil, err
 	}
-	proxy := make(map[string]*ProxyMonitorMetric)
+	proxy := make(map[string]*models.ProxyMonitorMetric)
 	for _, path := range files {
 		b, err := s.client.Read(path)
 		if err != nil {
 			return nil, err
 		}
-		p := &ProxyMonitorMetric{}
-		if err := JSONDecode(p, b); err != nil {
+		p := &models.ProxyMonitorMetric{}
+		if err := models.JSONDecode(p, b); err != nil {
 			return nil, err
 		}
 		proxy[p.Token] = p

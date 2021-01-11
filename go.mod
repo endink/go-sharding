@@ -16,6 +16,7 @@ require (
 	github.com/prometheus/client_golang v1.5.1
 	github.com/smartystreets/goconvey v0.0.0-20190222223459-a17d461953aa // indirect
 	github.com/stretchr/testify v1.5.1
+	go.uber.org/config v1.4.0 // indirect
 	go.uber.org/multierr v1.5.0
 	go.uber.org/zap v1.16.0
 	gopkg.in/ini.v1 v1.42.0

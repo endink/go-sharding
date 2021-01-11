@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/logging"
 	"github.com/XiaoMi/Gaea/parser"
+	"github.com/XiaoMi/Gaea/provider"
 	"go.uber.org/zap"
 	"net/http"
 	"sort"
@@ -37,7 +38,7 @@ import (
 	"github.com/XiaoMi/Gaea/util/sync2"
 )
 
-// LoadAndCreateManager load namespace config, and create manager
+// LoadAndCreateManager load namespace impl, and create manager
 func LoadAndCreateManager(cfg *models.Proxy) (*Manager, error) {
 	namespaceConfigs, err := loadAllNamespace(cfg)
 	if err != nil {
@@ -58,12 +59,12 @@ func LoadAndCreateManager(cfg *models.Proxy) (*Manager, error) {
 func loadAllNamespace(cfg *models.Proxy) (map[string]*models.Namespace, error) {
 	// get names of all namespace
 	root := cfg.CoordinatorRoot
-	if cfg.ConfigType == models.ConfigFile {
+	if cfg.ConfigType == provider.ConfigFile {
 		root = cfg.FileConfigPath
 	}
 
-	client := models.NewClient(cfg.ConfigType, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, root)
-	store := models.NewStore(client)
+	client := provider.NewClient(cfg.ConfigType, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, root)
+	store := provider.NewStore(client)
 	defer store.Close()
 	var err error
 	var names []string
@@ -80,8 +81,8 @@ func loadAllNamespace(cfg *models.Proxy) (map[string]*models.Namespace, error) {
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
-			client := models.NewClient(cfg.ConfigType, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, root)
-			store := models.NewStore(client)
+			client := provider.NewClient(cfg.ConfigType, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, root)
+			store := provider.NewStore(client)
 			defer store.Close()
 			defer wg.Done()
 			for name := range nameC {
@@ -92,7 +93,7 @@ func loadAllNamespace(cfg *models.Proxy) (map[string]*models.Namespace, error) {
 					err = e
 					return
 				}
-				// verify namespace config
+				// verify namespace impl
 				e = namespace.Verify()
 				if e != nil {
 					log.Warnf("verify namespace %s failed, err: %v", name, e)
@@ -190,7 +191,7 @@ func (m *Manager) ReloadNamespacePrepare(namespaceConfig *models.Namespace) erro
 	currentNamespaceManager := m.namespaces[current]
 	newNamespaceManager := ShallowCopyNamespaceManager(currentNamespaceManager)
 	if err := newNamespaceManager.RebuildNamespace(namespaceConfig); err != nil {
-		log.Warnf("prepare config of namespace: %s failed, err: %v", name, err)
+		log.Warnf("prepare impl of namespace: %s failed, err: %v", name, err)
 		return err
 	}
 	m.namespaces[other] = newNamespaceManager
@@ -205,7 +206,7 @@ func (m *Manager) ReloadNamespacePrepare(namespaceConfig *models.Namespace) erro
 	return nil
 }
 
-// ReloadNamespaceCommit commit config
+// ReloadNamespaceCommit commit impl
 func (m *Manager) ReloadNamespaceCommit(name string) error {
 	if !m.reloadPrepared.CompareAndSwap(true, false) {
 		err := errors.ErrNamespaceNotPrepared
@@ -285,7 +286,7 @@ func (m *Manager) GetNamespaceByUser(userName, password string) string {
 	return m.users[current].GetNamespaceByUser(userName, password)
 }
 
-// ConfigFingerprint return config fingerprint
+// ConfigFingerprint return impl fingerprint
 func (m *Manager) ConfigFingerprint() string {
 	current, _, _ := m.switchIndex.Get()
 	return m.namespaces[current].ConfigFingerprint()
@@ -483,7 +484,7 @@ func (n *NamespaceManager) GetNamespaces() map[string]*Namespace {
 	return n.namespaces
 }
 
-// ConfigFingerprint return config fingerprint
+// ConfigFingerprint return impl fingerprint
 func (n *NamespaceManager) ConfigFingerprint() string {
 	sortedKeys := make([]string, 0)
 	for k := range n.GetNamespaces() {

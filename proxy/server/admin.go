@@ -17,6 +17,7 @@ package server
 import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/logging"
+	"github.com/XiaoMi/Gaea/provider"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -146,10 +147,10 @@ func (s *AdminServer) Close() error {
 func (s *AdminServer) registerURL() {
 	adminGroup := s.engine.Group("/api/proxy", gin.BasicAuth(gin.Accounts{s.adminUser: s.adminPassword}))
 	adminGroup.GET("/ping", s.ping)
-	adminGroup.PUT("/config/prepare/:name", s.prepareConfig)
-	adminGroup.PUT("/config/commit/:name", s.commitConfig)
+	adminGroup.PUT("/impl/prepare/:name", s.prepareConfig)
+	adminGroup.PUT("/impl/commit/:name", s.commitConfig)
 	adminGroup.PUT("/namespace/delete/:name", s.deleteNamespace)
-	adminGroup.GET("/config/fingerprint", s.configFingerprint)
+	adminGroup.GET("/impl/fingerprint", s.configFingerprint)
 
 	adminGroup.GET("/stats/sessionsqlfingerprint/:namespace", s.getNamespaceSessionSQLFingerprint)
 	adminGroup.GET("/stats/backendsqlfingerprint/:namespace", s.getNamespaceBackendSQLFingerprint)
@@ -236,11 +237,11 @@ func generateToken(protoType, addr string) (string, error) {
 }
 
 func (s *AdminServer) registerProxy() error {
-	if s.configType == models.ConfigFile {
+	if s.configType == provider.ConfigFile {
 		return nil
 	}
-	client := models.NewClient(models.ConfigEtcd, s.coordinatorAddr, s.coordinatorUsername, s.coordinatorPassword, s.coordinatorRoot)
-	store := models.NewStore(client)
+	client := provider.NewClient(provider.ConfigEtcd, s.coordinatorAddr, s.coordinatorUsername, s.coordinatorPassword, s.coordinatorRoot)
+	store := provider.NewStore(client)
 	defer store.Close()
 	if err := store.CreateProxy(s.model); err != nil {
 		return err
@@ -249,11 +250,11 @@ func (s *AdminServer) registerProxy() error {
 }
 
 func (s *AdminServer) unregisterProxy() error {
-	if s.configType == models.ConfigFile {
+	if s.configType == provider.ConfigFile {
 		return nil
 	}
-	client := models.NewClient(models.ConfigEtcd, s.coordinatorAddr, s.coordinatorUsername, s.coordinatorPassword, s.coordinatorRoot)
-	store := models.NewStore(client)
+	client := provider.NewClient(provider.ConfigEtcd, s.coordinatorAddr, s.coordinatorUsername, s.coordinatorPassword, s.coordinatorRoot)
+	store := provider.NewStore(client)
 	defer store.Close()
 	if err := store.DeleteProxy(s.model.Token); err != nil {
 		return err
@@ -271,11 +272,11 @@ func (s *AdminServer) prepareConfig(c *gin.Context) {
 		c.JSON(selfDefinedInternalError, "missing namespace name")
 		return
 	}
-	client := models.NewClient(models.ConfigEtcd, s.coordinatorAddr, s.coordinatorUsername, s.coordinatorPassword, s.coordinatorRoot)
+	client := provider.NewClient(provider.ConfigEtcd, s.coordinatorAddr, s.coordinatorUsername, s.coordinatorPassword, s.coordinatorRoot)
 	defer client.Close()
 	err := s.proxy.ReloadNamespacePrepare(name, client)
 	if err != nil {
-		log.Warnf("prepare config of namespace: %s failed, err: %v", name, err)
+		log.Warnf("prepare impl of namespace: %s failed, err: %v", name, err)
 		c.JSON(selfDefinedInternalError, err.Error())
 		return
 	}

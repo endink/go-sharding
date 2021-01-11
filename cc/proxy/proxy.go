@@ -79,7 +79,7 @@ func newProxyClient(host, user, password string) (*APIClient, error) {
 	return c, nil
 }
 
-// PrepareConfig prepare phase of config change
+// PrepareConfig prepare phase of impl change
 func PrepareConfig(host, name string, cfg *models.CCConfig) error {
 	c, err := newProxyClient(host, cfg.ProxyUserName, cfg.ProxyPassword)
 	if err != nil {
@@ -89,13 +89,13 @@ func PrepareConfig(host, name string, cfg *models.CCConfig) error {
 
 	err = c.PrepareConfig(name)
 	if err != nil {
-		ControllerLogger.Fatalf("prepare proxy config failed, %v", err)
+		ControllerLogger.Fatalf("prepare proxy impl failed, %v", err)
 		return err
 	}
 	return nil
 }
 
-// CommitConfig commit phase of config change
+// CommitConfig commit phase of impl change
 func CommitConfig(host, name string, cfg *models.CCConfig) error {
 	c, err := newProxyClient(host, cfg.ProxyUserName, cfg.ProxyPassword)
 	if err != nil {
@@ -104,7 +104,7 @@ func CommitConfig(host, name string, cfg *models.CCConfig) error {
 	}
 	err = c.CommitConfig(name)
 	if err != nil {
-		ControllerLogger.Fatalf("commit proxy config failed, %v", err)
+		ControllerLogger.Fatalf("commit proxy impl failed, %v", err)
 		return err
 	}
 	return nil
@@ -137,7 +137,7 @@ func QueryNamespaceSQLFingerprint(host, name string, cfg *models.CCConfig) (*SQL
 	return ret, err
 }
 
-// QueryProxyConfigFingerprint return config fingerprint of proxy
+// QueryProxyConfigFingerprint return impl fingerprint of proxy
 func QueryProxyConfigFingerprint(host string, cfg *models.CCConfig) (string, error) {
 	c, err := newProxyClient(host, cfg.ProxyUserName, cfg.ProxyPassword)
 	if err != nil {

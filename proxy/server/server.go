@@ -16,6 +16,7 @@ package server
 
 import (
 	"github.com/XiaoMi/Gaea/logging"
+	"github.com/XiaoMi/Gaea/provider"
 	"net"
 	"runtime"
 	"strconv"
@@ -186,11 +187,11 @@ func (s *Server) Close() error {
 	return nil
 }
 
-// ReloadNamespacePrepare config change prepare phase
-func (s *Server) ReloadNamespacePrepare(name string, client models.Client) error {
+// ReloadNamespacePrepare impl change prepare phase
+func (s *Server) ReloadNamespacePrepare(name string, client provider.ConfigProvider) error {
 	// get namespace conf from etcd
-	logging.DefaultLogger.Infof("prepare config of namespace: %s begin", name)
-	store := models.NewStore(client)
+	logging.DefaultLogger.Infof("prepare impl of namespace: %s begin", name)
+	store := provider.NewStore(client)
 	namespaceConfig, err := store.LoadNamespace(s.EncryptKey, name)
 	if err != nil {
 		return err
@@ -201,21 +202,21 @@ func (s *Server) ReloadNamespacePrepare(name string, client models.Client) error
 		return err
 	}
 
-	logging.DefaultLogger.Infof("prepare config of namespace: %s end", name)
+	logging.DefaultLogger.Infof("prepare impl of namespace: %s end", name)
 	return nil
 }
 
-// ReloadNamespaceCommit config change commit phase
+// ReloadNamespaceCommit impl change commit phase
 // commit namespace does not need lock
 func (s *Server) ReloadNamespaceCommit(name string) error {
-	logging.DefaultLogger.Infof("commit config of namespace: %s begin", name)
+	logging.DefaultLogger.Infof("commit impl of namespace: %s begin", name)
 
 	if err := s.manager.ReloadNamespaceCommit(name); err != nil {
 		logging.DefaultLogger.Warnf("Manager ReloadNamespaceCommit error: %v", err)
 		return err
 	}
 
-	logging.DefaultLogger.Infof("commit config of namespace: %s end", name)
+	logging.DefaultLogger.Infof("commit impl of namespace: %s end", name)
 	return nil
 }
 

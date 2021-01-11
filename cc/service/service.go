@@ -16,6 +16,7 @@ package service
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/provider"
 	"sync"
 
 	"github.com/XiaoMi/Gaea/cc/proxy"
@@ -31,16 +32,16 @@ func getCoordinatorRoot(cluster string) string {
 
 // ListNamespace return names of all namespace
 func ListNamespace(cfg *models.CCConfig, cluster string) ([]string, error) {
-	client := models.NewClient(models.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
-	mConn := models.NewStore(client)
+	client := provider.NewClient(provider.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
+	mConn := provider.NewStore(client)
 	defer mConn.Close()
 	return mConn.ListNamespace()
 }
 
 // QueryNamespace return information of namespace specified by names
 func QueryNamespace(names []string, cfg *models.CCConfig, cluster string) (data []*models.Namespace, err error) {
-	client := models.NewClient(models.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
-	mConn := models.NewStore(client)
+	client := provider.NewClient(provider.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
+	mConn := provider.NewStore(client)
 	defer mConn.Close()
 	for _, v := range names {
 		namespace, err := mConn.LoadNamespace(cfg.EncryptKey, v)
@@ -70,8 +71,8 @@ func ModifyNamespace(namespace *models.Namespace, cfg *models.CCConfig, cluster 
 	}
 
 	// sink namespace
-	client := models.NewClient(models.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
-	storeConn := models.NewStore(client)
+	client := provider.NewClient(provider.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
+	storeConn := provider.NewStore(client)
 	defer storeConn.Close()
 
 	if err := storeConn.UpdateNamespace(namespace); err != nil {
@@ -79,7 +80,7 @@ func ModifyNamespace(namespace *models.Namespace, cfg *models.CCConfig, cluster 
 		return err
 	}
 
-	// proxies ready to reload config
+	// proxies ready to reload impl
 	proxies, err := storeConn.ListProxyMonitorMetrics()
 	if err != nil {
 		proxy.ControllerLogger.Warnf("list proxies failed, %v", err)
@@ -107,8 +108,8 @@ func ModifyNamespace(namespace *models.Namespace, cfg *models.CCConfig, cluster 
 
 // DelNamespace delete namespace
 func DelNamespace(name string, cfg *models.CCConfig, cluster string) error {
-	client := models.NewClient(models.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
-	mConn := models.NewStore(client)
+	client := provider.NewClient(provider.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
+	mConn := provider.NewStore(client)
 	defer mConn.Close()
 
 	if err := mConn.DelNamespace(name); err != nil {
@@ -138,8 +139,8 @@ func SQLFingerprint(name string, cfg *models.CCConfig, cluster string) (slowSQLs
 	slowSQLs = make(map[string]string, 16)
 	errSQLs = make(map[string]string, 16)
 	// list proxy
-	client := models.NewClient(models.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
-	mConn := models.NewStore(client)
+	client := provider.NewClient(provider.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
+	mConn := provider.NewStore(client)
 	defer mConn.Close()
 	proxies, err := mConn.ListProxyMonitorMetrics()
 	if err != nil {
@@ -182,8 +183,8 @@ func SQLFingerprint(name string, cfg *models.CCConfig, cluster string) (slowSQLs
 // ProxyConfigFingerprint return fingerprints of all proxy
 func ProxyConfigFingerprint(cfg *models.CCConfig, cluster string) (r map[string]string, err error) {
 	// list proxy
-	client := models.NewClient(models.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
-	mConn := models.NewStore(client)
+	client := provider.NewClient(provider.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
+	mConn := provider.NewStore(client)
 	defer mConn.Close()
 	proxies, err := mConn.ListProxyMonitorMetrics()
 	if err != nil {
@@ -200,7 +201,7 @@ func ProxyConfigFingerprint(cfg *models.CCConfig, cluster string) (r map[string]
 			defer wg.Done()
 			md5, err := proxy.QueryProxyConfigFingerprint(host, cfg)
 			if err != nil {
-				proxy.ControllerLogger.Warnf("query config fingerprint of proxy failed, %s %v", host, err)
+				proxy.ControllerLogger.Warnf("query impl fingerprint of proxy failed, %s %v", host, err)
 			}
 			m := make(map[string]string, 1)
 			m[host] = md5
