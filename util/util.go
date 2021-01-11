@@ -86,11 +86,37 @@ func IsWindows() bool {
 
 }
 
-func FileExists(name string) bool {
-	if _, err := os.Stat(name); err != nil {
+func FolderExists(name string) bool {
+	info, err := os.Lstat(name)
+	if err != nil {
 		if os.IsNotExist(err) {
 			return false
 		}
 	}
-	return true
+	return info.IsDir()
+}
+
+func FileExists(name string) bool {
+	info, err := os.Lstat(name)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false
+		}
+	}
+	return !info.IsDir()
+}
+
+func IfBlank(value string, blankValue string) string {
+	if strings.TrimSpace(value) == "" {
+		return blankValue
+	}
+	return value
+}
+
+func IfBlankAndTrim(value string, blankValue string) string {
+	v := strings.TrimSpace(value)
+	if v == "" {
+		return blankValue
+	}
+	return v
 }

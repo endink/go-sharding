@@ -3,6 +3,7 @@ package provider
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 )
 
@@ -30,6 +31,10 @@ type registry struct {
 }
 
 func getFullName(tp Type, name string) string {
+	n := strings.TrimSpace(name)
+	if n == "" {
+		panic(errors.New("provider name can not be null"))
+	}
 	return fmt.Sprintf("%d:%s", int(tp), name)
 }
 
@@ -67,10 +72,11 @@ func (r *registry) Register(tp Type, provider Provider) error {
 }
 
 func (r *registry) LoadOrStore(tp Type, name string, creation func() Provider) (actual Provider, loaded bool) {
-	v, ok := r.TryLoad(tp, name)
+	fullName := getFullName(tp, name)
+	v, ok := r.TryLoad(tp, fullName)
 	if !ok {
 		v = creation()
-		r.mp.Store(name, v)
+		r.mp.Store(fullName, v)
 	}
 	return v, ok
 }

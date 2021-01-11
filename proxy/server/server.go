@@ -189,7 +189,7 @@ func (s *Server) Close() error {
 }
 
 // ReloadNamespacePrepare source change prepare phase
-func (s *Server) ReloadNamespacePrepare(name string, client config.SourceProvider) error {
+func (s *Server) ReloadNamespacePrepare(name string, client config.Source) error {
 	// get namespace conf from etcd
 	logging.DefaultLogger.Infof("prepare source of namespace: %s begin", name)
 	store := provider.NewStore(client)

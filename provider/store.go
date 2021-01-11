@@ -34,12 +34,12 @@ const (
 
 // Store means exported client to use
 type Store struct {
-	client config.SourceProvider
+	client config.Source
 	prefix string
 }
 
 // NewClient constructor to create client by case etcd/file/zk etc.
-func NewClient(configType, addr, username, password, root string) config.SourceProvider {
+func NewClient(configType, addr, username, password, root string) config.Source {
 	switch configType {
 	case ConfigFile:
 		c, err := source.NewEtcdConfig(root)
@@ -62,7 +62,7 @@ func NewClient(configType, addr, username, password, root string) config.SourceP
 }
 
 // NewStore constructor of Store
-func NewStore(client config.SourceProvider) *Store {
+func NewStore(client config.Source) *Store {
 	return &Store{
 		client: client,
 		prefix: client.BasePrefix(),

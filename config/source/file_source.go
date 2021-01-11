@@ -16,7 +16,9 @@ package source
 
 import (
 	"errors"
+	"github.com/XiaoMi/Gaea/config"
 	"github.com/XiaoMi/Gaea/logging"
+	cnf "go.uber.org/config"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -29,35 +31,19 @@ const (
 
 // File source provider for configuration
 type fileSource struct {
-	Prefix string
+}
+
+func (c *fileSource) GetName() string {
+	return config.FileProvider
+}
+
+func (c *fileSource) OnLoad(config cnf.Provider) error {
+	config.Get(cnf.Root)
 }
 
 // New constructor of etcdSource
-func NewFileSource(path string) (*fileSource, error) {
-	if strings.TrimSpace(path) == "" {
-		path = defaultFilePath
-	}
-	if err := checkDir(path); err != nil {
-		logging.DefaultLogger.Warnf("check file source directory failed, %v", err)
-		return nil, err
-	}
-	return &fileSource{Prefix: path}, nil
-}
+func NewFileSource() (config.Source, error) {
 
-func checkDir(path string) error {
-	if strings.TrimSpace(path) == "" {
-		return errors.New("invalid path")
-	}
-	stat, err := os.Stat(path)
-	if err != nil {
-		return err
-	}
-
-	if !stat.IsDir() {
-		return errors.New("invalid path, should be a directory")
-	}
-
-	return nil
 }
 
 // Close do nothing
@@ -107,9 +93,4 @@ func (c *fileSource) List(path string) ([]string, error) {
 	}
 
 	return r, nil
-}
-
-// BasePrefix return base prefix
-func (c *fileSource) BasePrefix() string {
-	return c.Prefix
 }

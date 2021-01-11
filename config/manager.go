@@ -11,11 +11,12 @@ import (
 
 var logger = logging.GetLogger("config")
 
-type BootConfig struct {
+type Manager struct {
 	Provider string
+	Source   Source
 }
 
-func LoadConfig() *BootConfig {
+func NewManager() *Manager {
 	var sources []config.YAMLOption
 
 	files := defaultFileLocations()
@@ -32,7 +33,7 @@ func LoadConfig() *BootConfig {
 		}
 	}
 
-	bootCnf := &BootConfig{
+	bootCnf := &Manager{
 		Provider: "file",
 	}
 
@@ -45,6 +46,12 @@ func LoadConfig() *BootConfig {
 		if err != nil {
 			logger.Warn("Load boot config file fault.", util.LineSeparator, err)
 		}
+	}
+
+	switch bootCnf.Provider {
+	case EtcdProvider:
+	default:
+
 	}
 
 	return bootCnf
