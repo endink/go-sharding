@@ -20,7 +20,7 @@ import (
 	"github.com/go-ini/ini"
 )
 
-// CCConfig means gaea cc impl
+// CCConfig means gaea cc source
 type CCConfig struct {
 	Addr          string `ini:"addr"`
 	AdminUserName string `ini:"admin_username"`
@@ -43,7 +43,7 @@ type CCConfig struct {
 	EncryptKey string `ini:"encrypt_key"`
 }
 
-// ParseCCConfig parser gaea cc impl from file
+// ParseCCConfig parser gaea cc source from file
 func ParseCCConfig(cfgFile string) (*CCConfig, error) {
 	cfg, err := ini.Load(cfgFile)
 
@@ -59,7 +59,7 @@ func ParseCCConfig(cfgFile string) (*CCConfig, error) {
 	return ccConfig, err
 }
 
-// Verify verify cc impl
+// Verify verify cc source
 func (cc *CCConfig) Verify() error {
 	return nil
 }

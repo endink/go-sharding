@@ -145,16 +145,16 @@ func prepareSessionExecutor() (*SessionExecutor, error) {
 
 func prepareNamespaceManager() (*Manager, error) {
 	proxyCfg := `
-; impl type, etcd/file, you can test gaea with file type, you shoud use etcd in production
+; source type, etcd/file, you can test gaea with file type, you shoud use etcd in production
 config_type=etcd
-;file impl path, 具体配置放到file_config_path的namespace目录下，该下级目录为固定目录
+;file source path, 具体配置放到file_config_path的namespace目录下，该下级目录为固定目录
 file_config_path=./etc/file
 ;coordinator addr
 coordinator_addr=http://127.0.0.1:2379
 ;远程配置(当前为etcd)根目录
 ;将会废弃该配置项，通过cluster name识别root
 coordinator_root=/gaea
-;etcd user impl
+;etcd user source
 username=root
 password=root
 ;environ
@@ -163,7 +163,7 @@ environ=local
 service_name=gaea_proxy
 ;gaea_proxy cluster name
 cluster_name=gaea
-;log impl
+;log source
 log_path=./logs
 log_level=Infof
 log_filename=gaea

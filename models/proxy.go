@@ -25,13 +25,13 @@ const (
 	defaultGaeaCluster = "gaea"
 )
 
-// Proxy means proxy structure of proxy impl
+// Proxy means proxy structure of proxy source
 type Proxy struct {
-	// impl type
-	ConfigType string `yaml:"impl-type"`
+	// source type
+	ConfigType string `yaml:"source-type"`
 
 	// 文件配置类型内容
-	FileConfigPath string `ini:"file-impl-path"`
+	FileConfigPath string `ini:"file-source-path"`
 
 	// etcd 相关配置
 	CoordinatorAddr string `yaml:"coordinator-addr"`
@@ -82,7 +82,7 @@ func DefaultProxy() *Proxy {
 	}
 }
 
-// ParseProxyConfigFromFile parser proxy impl from file
+// ParseProxyConfigFromFile parser proxy source from file
 func ParseProxyConfigFromFile(cfgFile string) (*Proxy, error) {
 	cfg, err := ini.Load(cfgFile)
 
@@ -92,7 +92,7 @@ func ParseProxyConfigFromFile(cfgFile string) (*Proxy, error) {
 
 	var proxyConfig = &Proxy{}
 	err = cfg.MapTo(proxyConfig)
-	// default impl type: etcd
+	// default source type: etcd
 	if proxyConfig.ConfigType == "" {
 		proxyConfig.ConfigType = provider.ConfigFile
 	}
@@ -106,7 +106,7 @@ func ParseProxyConfigFromFile(cfgFile string) (*Proxy, error) {
 	return proxyConfig, err
 }
 
-// Verify verify proxy impl
+// Verify verify proxy source
 func (p *Proxy) Verify() error {
 	return nil
 }

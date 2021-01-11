@@ -215,7 +215,7 @@ var MySQLErrName = map[uint16]string{
 	ErrTransCacheFull:                           "Multi-statement transaction required more than 'maxBinlogCacheSize' bytes of storage; increase this mysqld variable and try again",
 	ErrSlaveMustStop:                            "This operation cannot be performed with a running slave; run STOP SLAVE first",
 	ErrSlaveNotRunning:                          "This operation requires a running slave; configure slave and do START SLAVE",
-	ErrBadSlave:                                 "The server is not configured as slave; fix in impl file or with CHANGE MASTER TO",
+	ErrBadSlave:                                 "The server is not configured as slave; fix in source file or with CHANGE MASTER TO",
 	ErrMasterInfo:                               "Could not initialize master info structure; more error messages can be found in the MySQL error log",
 	ErrSlaveThread:                              "Could not create slave thread; check system resources",
 	ErrTooManyUserConnections:                   "User %-.64s already has more than 'maxUserConnections' active connections",

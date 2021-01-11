@@ -16,7 +16,7 @@ package models
 
 import "errors"
 
-// Slice means impl model of slice
+// Slice means source model of slice
 type Slice struct {
 	Name            string   `json:"name"`
 	UserName        string   `json:"user_name"`

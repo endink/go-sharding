@@ -1,10 +1,13 @@
-package provider
+package config
 
-import "time"
+import (
+	"github.com/XiaoMi/Gaea/provider"
+	"time"
+)
 
-// ConfigProvider client interface
-type ConfigProvider interface {
-	Provider
+// Configuration source provider
+type SourceProvider interface {
+	provider.Provider
 	OnLoad()
 	Create(path string, data []byte) error
 	Update(path string, data []byte) error

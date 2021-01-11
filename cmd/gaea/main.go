@@ -35,7 +35,7 @@ func main() {
 		defaultConfigFilePath = "gaea.ini"
 	}
 
-	var configFile = flag.String("impl", defaultConfigFilePath, "gaea impl file")
+	var configFile = flag.String("source", defaultConfigFilePath, "gaea source file")
 	var info = flag.Bool("info", false, "show info of gaea")
 	flag.Parse()
 
@@ -49,10 +49,10 @@ func main() {
 	if !util.FileExists(*configFile) {
 		cfg = models.DefaultProxy()
 	} else {
-		// init impl of gaea proxy
+		// init source of gaea proxy
 		c, err := models.ParseProxyConfigFromFile(*configFile)
 		if err != nil {
-			fmt.Printf("parse impl file error:%v\n", err.Error())
+			fmt.Printf("parse source file error:%v\n", err.Error())
 			return
 		}
 		cfg = c
@@ -94,7 +94,7 @@ func main() {
 				logging.DefaultLogger.Infof("Ignore broken pipe signal")
 			}
 			//} else if sig == syscall.SIGUSR1 {
-			//	log.Infof("Got update impl signal")
+			//	log.Infof("Got update source signal")
 			//}
 		}
 	}()

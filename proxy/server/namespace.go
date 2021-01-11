@@ -154,7 +154,7 @@ func NewNamespace(namespaceConfig *models.Namespace) (*Namespace, error) {
 		return nil, fmt.Errorf("init router of namespace: %s failed, err: %v", namespace.name, err)
 	}
 
-	// init global sequences impl
+	// init global sequences source
 	// 目前只支持基于mysql的序列号
 	sequences := sequence.NewSequenceManager()
 	for _, v := range namespaceConfig.GlobalSequences {
