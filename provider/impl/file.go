@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package file
+package impl
 
 import (
 	"errors"
@@ -23,13 +23,11 @@ import (
 	"time"
 )
 
-var log = logging.GetLogger("config-file")
-
 const (
 	defaultFilePath = "./etc/file"
 )
 
-// Client used to test with config from file
+// Client used to test with impl from file
 type Client struct {
 	Prefix string
 }
@@ -40,7 +38,7 @@ func New(path string) (*Client, error) {
 		path = defaultFilePath
 	}
 	if err := checkDir(path); err != nil {
-		log.Warnf("check file config directory failed, %v", err)
+		logging.DefaultLogger.Warnf("check file impl directory failed, %v", err)
 		return nil, err
 	}
 	return &Client{Prefix: path}, nil

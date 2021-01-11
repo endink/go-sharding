@@ -15,6 +15,7 @@
 package models
 
 import (
+	"github.com/XiaoMi/Gaea/provider"
 	"strings"
 
 	"github.com/go-ini/ini"
@@ -24,52 +25,47 @@ const (
 	defaultGaeaCluster = "gaea"
 )
 
-// Proxy means proxy structure of proxy config
+// Proxy means proxy structure of proxy impl
 type Proxy struct {
-	// config type
-	ConfigType string `ini:"config_type"`
+	// impl type
+	ConfigType string `yaml:"impl-type"`
 
 	// 文件配置类型内容
-	FileConfigPath string `ini:"file_config_path"`
+	FileConfigPath string `ini:"file-impl-path"`
 
 	// etcd 相关配置
-	CoordinatorAddr string `ini:"coordinator_addr"`
-	CoordinatorRoot string `ini:"coordinator_root"`
-	UserName        string `ini:"username"`
-	Password        string `ini:"password"`
+	CoordinatorAddr string `yaml:"coordinator-addr"`
+	CoordinatorRoot string `yaml:"coordinator-root"`
+	UserName        string `yaml:"username"`
+	Password        string `yaml:"password"`
 
 	// 服务相关信息
-	Environ string `ini:"environ"`
-	Service string `ini:"service_name"`
-	Cluster string `ini:"cluster_name"`
+	Environ string `yaml:"environ"`
+	Service string `yaml:"service-name"`
+	Cluster string `yaml:"cluster-name"`
 
-	LogPath     string `ini:"log_path"`
-	LogLevel    string `ini:"log_level"`
-	LogFileName string `ini:"log_filename"`
-	LogOutput   string `ini:"log_output"`
-
-	ProtoType      string `ini:"proto_type"`
-	ProxyAddr      string `ini:"proxy_addr"`
-	AdminAddr      string `ini:"admin_addr"`
-	AdminUser      string `ini:"admin_user"`
-	AdminPassword  string `ini:"admin_password"`
-	SlowSQLTime    int64  `ini:"slow_sql_time"`
-	SessionTimeout int    `ini:"session_timeout"`
+	ProtoType      string `yaml:"proto-type"`
+	ProxyAddr      string `yaml:"proxy-addr"`
+	AdminAddr      string `yaml:"admin-addr"`
+	AdminUser      string `yaml:"admin-user"`
+	AdminPassword  string `yaml:"admin-password"`
+	SlowSQLTime    int64  `yaml:"slow-sql_time"`
+	SessionTimeout int    `yaml:"session-timeout"`
 
 	// 监控配置
-	StatsEnabled  string `ini:"stats_enabled"`  // set true to enable stats
-	StatsInterval int    `ini:"stats_interval"` // set stats interval of connect pool
+	StatsEnabled  string `yaml:"stats-enabled"`  // set true to enable stats
+	StatsInterval int    `yaml:"stats-interval"` // set stats interval of connect pool
 
-	EncryptKey string `ini:"encrypt_key"`
+	EncryptKey string `ini:"encrypt-key"`
 }
 
 func DefaultProxy() *Proxy {
 	return &Proxy{
-		ConfigType:      ConfigFile,
+		ConfigType:      provider.ConfigFile,
 		FileConfigPath:  ".",
 		CoordinatorAddr: "http://127.0.0.1:2379",
-		UserName:        "test",
-		Password:        "test",
+		UserName:        "",
+		Password:        "",
 		Environ:         "online",
 		Service:         "sharding_proxy",
 		Cluster:         "sp_cluster",
@@ -86,7 +82,7 @@ func DefaultProxy() *Proxy {
 	}
 }
 
-// ParseProxyConfigFromFile parser proxy config from file
+// ParseProxyConfigFromFile parser proxy impl from file
 func ParseProxyConfigFromFile(cfgFile string) (*Proxy, error) {
 	cfg, err := ini.Load(cfgFile)
 
@@ -96,9 +92,9 @@ func ParseProxyConfigFromFile(cfgFile string) (*Proxy, error) {
 
 	var proxyConfig = &Proxy{}
 	err = cfg.MapTo(proxyConfig)
-	// default config type: etcd
+	// default impl type: etcd
 	if proxyConfig.ConfigType == "" {
-		proxyConfig.ConfigType = ConfigEtcd
+		proxyConfig.ConfigType = provider.ConfigFile
 	}
 	if proxyConfig.Cluster == "" && proxyConfig.CoordinatorRoot == "" {
 		proxyConfig.Cluster = defaultGaeaCluster
@@ -110,7 +106,7 @@ func ParseProxyConfigFromFile(cfgFile string) (*Proxy, error) {
 	return proxyConfig, err
 }
 
-// Verify verify proxy config
+// Verify verify proxy impl
 func (p *Proxy) Verify() error {
 	return nil
 }

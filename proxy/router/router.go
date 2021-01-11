@@ -54,7 +54,7 @@ func NewRouter(namespace *models.Namespace) (*Router, error) {
 			}
 		}
 
-		// get index of linked table config and handle it later
+		// get index of linked table impl and handle it later
 		if shard.Type == LinkedTableRuleType {
 			linkedRuleIndexes = append(linkedRuleIndexes, i)
 			continue

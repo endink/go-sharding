@@ -15,7 +15,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package etcdclient
+package impl
 
 import (
 	"context"
@@ -30,7 +30,6 @@ import (
 
 // ErrClosedEtcdClient means etcd client closed
 var ErrClosedEtcdClient = errors.New("use of closed etcd client")
-var log = logging.GetLogger("etcd")
 
 const (
 	defaultEtcdPrefix = "/gaea"
@@ -47,7 +46,7 @@ type EtcdClient struct {
 }
 
 // New constructor of EtcdClient
-func New(addr string, timeout time.Duration, username, passwd, root string) (*EtcdClient, error) {
+func NewEtcdConfig(addr string, timeout time.Duration, username, passwd, root string) (*EtcdClient, error) {
 	endpoints := strings.Split(addr, ",")
 	for i, s := range endpoints {
 		if s != "" && !strings.HasPrefix(s, "http://") {
@@ -146,13 +145,13 @@ func (c *EtcdClient) Create(path string, data []byte) error {
 	}
 	cntx, canceller := c.contextWithTimeout()
 	defer canceller()
-	log.Debugf("etcd create node %s", path)
+	logging.DefaultLogger.Debugf("etcd create node %s", path)
 	_, err := c.kapi.Set(cntx, path, string(data), &client.SetOptions{PrevExist: client.PrevNoExist})
 	if err != nil {
-		log.Debugf("etcd create node %s failed: %s", path, err)
+		logging.DefaultLogger.Debugf("etcd create node %s failed: %s", path, err)
 		return err
 	}
-	log.Debugf("etcd create node OK")
+	logging.DefaultLogger.Debugf("etcd create node OK")
 	return nil
 }
 
@@ -165,13 +164,13 @@ func (c *EtcdClient) Update(path string, data []byte) error {
 	}
 	cntx, canceller := c.contextWithTimeout()
 	defer canceller()
-	log.Debugf("etcd update node %s", path)
+	logging.DefaultLogger.Debugf("etcd update node %s", path)
 	_, err := c.kapi.Set(cntx, path, string(data), &client.SetOptions{PrevExist: client.PrevIgnore})
 	if err != nil {
-		log.Debugf("etcd update node %s failed: %s", path, err)
+		logging.DefaultLogger.Debugf("etcd update node %s failed: %s", path, err)
 		return err
 	}
-	log.Debugf("etcd update node OK")
+	logging.DefaultLogger.Debugf("etcd update node OK")
 	return nil
 }
 
@@ -184,13 +183,13 @@ func (c *EtcdClient) UpdateWithTTL(path string, data []byte, ttl time.Duration) 
 	}
 	cntx, canceller := c.contextWithTimeout()
 	defer canceller()
-	log.Debugf("etcd update node %s with ttl %d", path, ttl)
+	logging.DefaultLogger.Debugf("etcd update node %s with ttl %d", path, ttl)
 	_, err := c.kapi.Set(cntx, path, string(data), &client.SetOptions{PrevExist: client.PrevIgnore, TTL: ttl})
 	if err != nil {
-		log.Debugf("etcd update node %s failed: %s", path, err)
+		logging.DefaultLogger.Debugf("etcd update node %s failed: %s", path, err)
 		return err
 	}
-	log.Debugf("etcd update node OK")
+	logging.DefaultLogger.Debugf("etcd update node OK")
 	return nil
 }
 
@@ -203,13 +202,13 @@ func (c *EtcdClient) Delete(path string) error {
 	}
 	cntx, canceller := c.contextWithTimeout()
 	defer canceller()
-	log.Debugf("etcd delete node %s", path)
+	logging.DefaultLogger.Debugf("etcd delete node %s", path)
 	_, err := c.kapi.Delete(cntx, path, nil)
 	if err != nil && !isErrNoNode(err) {
-		log.Debugf("etcd delete node %s failed: %s", path, err)
+		logging.DefaultLogger.Debugf("etcd delete node %s failed: %s", path, err)
 		return err
 	}
-	log.Debugf("etcd delete node OK")
+	logging.DefaultLogger.Debugf("etcd delete node OK")
 	return nil
 }
 
@@ -222,7 +221,7 @@ func (c *EtcdClient) Read(path string) ([]byte, error) {
 	}
 	cntx, canceller := c.contextWithTimeout()
 	defer canceller()
-	log.Debugf("etcd read node %s", path)
+	logging.DefaultLogger.Debugf("etcd read node %s", path)
 	r, err := c.kapi.Get(cntx, path, nil)
 	if err != nil && !isErrNoNode(err) {
 		return nil, err
@@ -242,7 +241,7 @@ func (c *EtcdClient) List(path string) ([]string, error) {
 	}
 	cntx, canceller := c.contextWithTimeout()
 	defer canceller()
-	log.Debugf("etcd list node %s", path)
+	logging.DefaultLogger.Debugf("etcd list node %s", path)
 	r, err := c.kapi.Get(cntx, path, nil)
 	if err != nil && !isErrNoNode(err) {
 		return nil, err

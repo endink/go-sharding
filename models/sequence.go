@@ -14,7 +14,7 @@
 
 package models
 
-// GlobalSequence means config of global sequences with different types
+// GlobalSequence means impl of global sequences with different types
 type GlobalSequence struct {
 	DB        string `json:"db"`
 	Table     string `json:"table"`

@@ -16,6 +16,7 @@ package plan
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/parser"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
 	"strings"
@@ -565,10 +566,10 @@ func newEmptyResultset(info *SelectPlan, stmt *ast.SelectStmt) *mysql.Resultset 
 			if expr.AsName.String() != "" {
 				r.Fields[i].Name = hack.Slice(expr.AsName.String())
 
-				name, _ := util.NodeToStringWithoutQuote(expr.Expr)
+				name, _ := parser.NodeToStringWithoutQuote(expr.Expr)
 				r.Fields[i].OrgName = hack.Slice(name)
 			} else {
-				name, _ := util.NodeToStringWithoutQuote(expr.Expr)
+				name, _ := parser.NodeToStringWithoutQuote(expr.Expr)
 				r.Fields[i].Name = hack.Slice(name)
 			}
 		}

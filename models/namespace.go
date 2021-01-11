@@ -133,7 +133,7 @@ func (n *Namespace) verifyUsers() error {
 		}
 
 		if err := u.verify(); err != nil {
-			return fmt.Errorf("user config error, schema: %s, %v", n.Name, err)
+			return fmt.Errorf("user impl error, schema: %s, %v", n.Name, err)
 		}
 
 		//check repeat username
@@ -285,7 +285,7 @@ func (n *Namespace) verifyShardRules() error {
 		switch s.Type {
 		case ShardDefault:
 			return errors.New("[default-rule] duplicate, must only one")
-		// get index of linked table config and handle it later
+		// get index of linked table impl and handle it later
 		case ShardLinked:
 			linkedRuleShards = append(linkedRuleShards, s)
 		default:

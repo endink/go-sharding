@@ -94,6 +94,6 @@ var (
 	// ErrUserIsReadOnly user is readonly
 	ErrUserIsReadOnly = errors.New("user is readonly")
 
-	// ErrNamespaceNotPrepared commit namespace config without prepare
+	// ErrNamespaceNotPrepared commit namespace impl without prepare
 	ErrNamespaceNotPrepared = errors.New("namespace is not prepared")
 )
