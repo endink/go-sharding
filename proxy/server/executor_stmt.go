@@ -32,6 +32,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/XiaoMi/Gaea/core"
 	"math"
 	"strconv"
 
@@ -116,7 +117,7 @@ func (s *Stmt) GetRewriteSQL() (string, error) {
 	var offset = 0
 	var quote = false
 	for i := 0; i < s.paramCount; i++ {
-		quote, tmp = util.ItoString(s.args[i])
+		quote, tmp = core.ItoString(s.args[i])
 		tmp = escapeSQL(tmp)
 		pos = s.offsets[i]
 		if quote {

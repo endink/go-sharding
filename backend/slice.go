@@ -30,6 +30,7 @@ package backend
 
 import (
 	"context"
+	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/logging"
 	"strconv"
 	"strings"
@@ -38,7 +39,6 @@ import (
 	"github.com/XiaoMi/Gaea/core/errors"
 	"github.com/XiaoMi/Gaea/models"
 	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/util"
 )
 
 const (
@@ -154,7 +154,7 @@ func (s *Slice) ParseMaster(masterStr string) error {
 	if len(masterStr) == 0 {
 		return errors.ErrNoMasterDB
 	}
-	idleTimeout, err := util.Int2TimeDuration(s.Cfg.IdleTimeout)
+	idleTimeout, err := core.Int2TimeDuration(s.Cfg.IdleTimeout)
 	if err != nil {
 		return err
 	}
@@ -189,7 +189,7 @@ func (s *Slice) ParseSlave(slaves []string) error {
 			weight = 1
 		}
 		s.SlaveWeights = append(s.SlaveWeights, weight)
-		idleTimeout, err := util.Int2TimeDuration(s.Cfg.IdleTimeout)
+		idleTimeout, err := core.Int2TimeDuration(s.Cfg.IdleTimeout)
 		if err != nil {
 			return err
 		}
@@ -227,7 +227,7 @@ func (s *Slice) ParseStatisticSlave(statisticSlaves []string) error {
 			weight = 1
 		}
 		s.StatisticSlaveWeights = append(s.StatisticSlaveWeights, weight)
-		idleTimeout, err := util.Int2TimeDuration(s.Cfg.IdleTimeout)
+		idleTimeout, err := core.Int2TimeDuration(s.Cfg.IdleTimeout)
 		if err != nil {
 			return err
 		}

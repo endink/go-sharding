@@ -21,8 +21,8 @@ package source
 import (
 	"errors"
 	"github.com/XiaoMi/Gaea/config"
+	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/logging"
-	"github.com/XiaoMi/Gaea/util"
 	cnf "go.uber.org/config"
 	"strings"
 	"sync"
@@ -74,10 +74,10 @@ func (c *etcdSource) OnLoad(provider cnf.Provider) error {
 		Path:      defaultEtcdPath,
 	}
 	if err := provider.Get("etcd").Populate(etcdCnf); err == nil {
-		etcdCnf.Endpoints = util.IfBlankAndTrim(etcdCnf.Endpoints, defaultEtcdEndpoints)
-		etcdCnf.Path = util.IfBlankAndTrim(etcdCnf.Path, defaultEtcdPath)
+		etcdCnf.Endpoints = core.IfBlankAndTrim(etcdCnf.Endpoints, defaultEtcdEndpoints)
+		etcdCnf.Path = core.IfBlankAndTrim(etcdCnf.Path, defaultEtcdPath)
 	} else {
-		logger.Warn("Parse etcd config fault.", util.LineSeparator, err)
+		logger.Warn("Parse etcd config fault.", core.LineSeparator, err)
 	}
 
 	endpoints := strings.Split(etcdCnf.Endpoints, ",")

@@ -3,7 +3,6 @@ package config
 import (
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/logging"
-	"github.com/XiaoMi/Gaea/util"
 	"go.uber.org/config"
 	"os"
 	"path/filepath"
@@ -25,7 +24,7 @@ func NewManager() *Manager {
 	sb.WriteLine()
 	sb.WriteLine("Search configuration locations:")
 	for _, f := range files {
-		if util.FileExists(f) {
+		if core.FileExists(f) {
 			sources = append(sources, config.File(f))
 			sb.WriteLine("[Found]:", f)
 		} else {
@@ -44,7 +43,7 @@ func NewManager() *Manager {
 			err = yaml.Get("config").Populate(bootCnf)
 		}
 		if err != nil {
-			logger.Warn("Load boot config file fault.", util.LineSeparator, err)
+			logger.Warn("Load boot config file fault.", core.LineSeparator, err)
 		}
 	}
 
@@ -59,7 +58,7 @@ func NewManager() *Manager {
 
 func defaultFileLocations() []string {
 	files := make(map[string]bool, 3)
-	if !util.IsWindows() {
+	if !core.IsWindows() {
 		files["/etc/go-sharding/config.yaml"] = false
 		files["/etc/go-sharding/config.yml"] = false
 	}

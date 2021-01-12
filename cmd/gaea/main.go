@@ -18,7 +18,6 @@ import (
 	"flag"
 	"fmt"
 	"github.com/XiaoMi/Gaea/logging"
-	"github.com/XiaoMi/Gaea/util"
 	"os"
 	"os/signal"
 	"sync"
@@ -31,7 +30,7 @@ import (
 
 func main() {
 	var defaultConfigFilePath = "/etc/gaea.ini"
-	if util.IsWindows() {
+	if core.IsWindows() {
 		defaultConfigFilePath = "gaea.ini"
 	}
 
@@ -46,7 +45,7 @@ func main() {
 
 	fmt.Printf("Build Version Information:%s\n", core.Info.LongForm())
 	var cfg *models.Proxy
-	if !util.FileExists(*configFile) {
+	if !core.FileExists(*configFile) {
 		cfg = models.DefaultProxy()
 	} else {
 		// init source of gaea proxy

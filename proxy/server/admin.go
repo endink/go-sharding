@@ -16,6 +16,7 @@ package server
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/logging"
 	"github.com/XiaoMi/Gaea/provider"
 	"net"
@@ -209,7 +210,7 @@ func NewProxyInfo(cfg *models.Proxy, addr string) (*models.ProxyInfo, error) {
 	proxyInfo.Pid = os.Getpid()
 	proxyInfo.Pwd, _ = os.Getwd()
 	var o []byte
-	if util.IsWindows() {
+	if core.IsWindows() {
 		o = []byte("Windows")
 	} else {
 		o, err = exec.Command("uname", "-a").Output()

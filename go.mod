@@ -20,6 +20,7 @@ require (
 	go.uber.org/config v1.4.0
 	go.uber.org/multierr v1.5.0
 	go.uber.org/zap v1.16.0
+	golang.org/x/tools v0.0.0-20200325203130-f53864d0dba1
 	gopkg.in/ini.v1 v1.42.0
 
 )

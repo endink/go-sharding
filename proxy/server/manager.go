@@ -18,6 +18,7 @@ import (
 	"bytes"
 	"crypto/md5"
 	"fmt"
+	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/logging"
 	"github.com/XiaoMi/Gaea/parser"
 	"github.com/XiaoMi/Gaea/provider"
@@ -131,7 +132,7 @@ func loadAllNamespace(cfg *models.Proxy) (map[string]*models.Namespace, error) {
 // Manager contains namespace manager and user manager
 type Manager struct {
 	reloadPrepared sync2.AtomicBool
-	switchIndex    util.BoolIndex
+	switchIndex    core.BoolIndex
 	namespaces     [2]*NamespaceManager
 	users          [2]*UserManager
 	statistics     *StatisticManager

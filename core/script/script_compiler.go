@@ -25,13 +25,16 @@ import (
 	"github.com/d5/tengo/v2"
 )
 
+const resultVar = "_r"
+
 type Compiler interface {
-	AddVariable(name string, value interface{}) error
+	Var(name string, value interface{}) error
 	Compile() (CompiledScript, error)
 }
 
 type scriptParser struct {
 	script *tengo.Script
+	raw    *string
 }
 
 func (s *scriptParser) Compile() (CompiledScript, error) {
@@ -40,30 +43,29 @@ func (s *scriptParser) Compile() (CompiledScript, error) {
 		return nil, err
 	}
 	return &tengoScript{
-		compiled: c,
+		raw:       s.raw,
+		compiled:  c,
+		resultVar: resultVar,
 	}, nil
 }
 
-func (s *scriptParser) AddVariable(name string, value interface{}) error {
-	if tv, err := tengo.FromInterface(value); err != nil {
-		return fmt.Errorf("bad format value for script, variable name: %s, %s", name, err)
-	} else {
-		if err = s.script.Add(name, tv); err != nil {
-			return fmt.Errorf("add variable '%s' to compile fault, %s", name, err)
-		}
+func (s *scriptParser) Var(name string, value interface{}) error {
+	if err := s.script.Add(name, value); err != nil {
+		return fmt.Errorf("add variable '%s' to compile fault, %s", name, err)
 	}
 	return nil
 }
 
 func NewScriptParser(script string) (Compiler, error) {
-	content := fmt.Sprintf("_r:=%s", script)
+	content := fmt.Sprintf("%s:=%s", resultVar, script)
 	bytes := []byte(content)
 	s := tengo.NewScript(bytes)
 	if err := s.Add("range", RangeFunction); err != nil {
 		return nil, err
 	} else {
 		return &scriptParser{
-			script: tengo.NewScript(bytes),
+			raw:    &script,
+			script: s,
 		}, nil
 	}
 }

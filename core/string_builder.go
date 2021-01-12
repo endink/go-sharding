@@ -2,7 +2,6 @@ package core
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/util"
 	"strings"
 )
 
@@ -26,7 +25,7 @@ func (w *StringBuilder) WriteLine(value ...interface{}) {
 	for _, v := range value {
 		w.Write(v)
 	}
-	w.buffer.WriteString(util.LineSeparator)
+	w.buffer.WriteString(LineSeparator)
 }
 
 func (w *StringBuilder) Write(value interface{}) {
@@ -47,7 +46,7 @@ func (w *StringBuilder) Write(value interface{}) {
 
 func (w *StringBuilder) WriteLineF(format string, args ...interface{}) {
 	w.WriteFormat(format, args...)
-	w.buffer.WriteString(util.LineSeparator)
+	w.buffer.WriteString(LineSeparator)
 }
 
 func (w *StringBuilder) WriteFormat(format string, arg ...interface{}) {
