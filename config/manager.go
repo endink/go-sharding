@@ -34,6 +34,7 @@ import (
 
 const shardingTablesConfigPath = "rule.tables"
 const dataSourcesConfigPath = "sources"
+const defaultDataSourcesConfigPath = "default-source"
 
 type Manager interface {
 	GetSettings() *core.Settings
@@ -70,6 +71,8 @@ func (mgr *cnfManager) populateSettings(settings *core.Settings) error {
 	if err != nil {
 		return err
 	}
+
+	settings.DefaultDataSource = mgr.current.Get(defaultDataSourcesConfigPath).String()
 
 	tables := make(map[string]internal.TableSettings)
 	err = mgr.current.Get(shardingTablesConfigPath).Populate(tables)

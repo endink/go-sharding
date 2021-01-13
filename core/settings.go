@@ -19,8 +19,9 @@
 package core
 
 type Settings struct {
-	DataSources  map[string]*DataSource
-	ShardingRule *ShardingRule
+	DataSources       map[string]*DataSource
+	ShardingRule      *ShardingRule
+	DefaultDataSource string
 }
 
 type ShardingRule struct {

@@ -39,6 +39,8 @@ sources:
     username: root
     password: 
 
+default-source: ds0
+
 rule:  
   tables:
     t_order: 
