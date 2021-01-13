@@ -36,6 +36,8 @@ const shardingTablesConfigPath = "rule.tables"
 const dataSourcesConfigPath = "sources"
 const defaultDataSourcesConfigPath = "default-source"
 
+const noneStrategyName = "none"
+
 type Manager interface {
 	GetSettings() *core.Settings
 }
@@ -74,19 +76,26 @@ func (mgr *cnfManager) populateSettings(settings *core.Settings) error {
 
 	settings.DefaultDataSource = mgr.current.Get(defaultDataSourcesConfigPath).String()
 
-	tables := make(map[string]internal.TableSettings)
+	tables := make(map[string]*internal.TableSettings)
 	err = mgr.current.Get(shardingTablesConfigPath).Populate(tables)
 	if err != nil {
 		return err
 	}
 
 	shardingTables := make(map[string]*core.ShardingTable, len(tables))
+	set := make(map[string]struct{})
+
 	for n, t := range tables {
-		if st, err := mgr.buildShardingTable(n, t); err != nil {
-			return err
-		} else {
-			shardingTables[n] = st
+		if _, ok := set[n]; !ok {
+			set[n] = struct{}{}
+			if st, err := mgr.buildShardingTable(n, t); err != nil {
+				return err
+			} else {
+				shardingTables[n] = st
+			}
+			continue
 		}
+		return errors.New(fmt.Sprint("duplex table config: ", n))
 	}
 
 	settings.ShardingRule = &core.ShardingRule{
@@ -96,24 +105,22 @@ func (mgr *cnfManager) populateSettings(settings *core.Settings) error {
 	return nil
 }
 
-func (mgr *cnfManager) buildShardingTable(name string, settings internal.TableSettings) (*core.ShardingTable, error) {
+func (mgr *cnfManager) buildShardingTable(name string, settings *internal.TableSettings) (*core.ShardingTable, error) {
 	var err error
 	//验证配置格式
-	if err = validateTableSettings(name, settings); err != nil {
+	if err = validateShardingTableConfig(name, settings); err != nil {
 		return nil, err
 	}
 
 	sd := &core.ShardingTable{}
 	sd.Name = name
 	//加载分库策略
-	sn, props := getFirstKeyValue(settings.DbStrategy)
-	sd.DatabaseStrategy, err = mgr.buildShardingStrategy(sn, props)
+	sd.DatabaseStrategy, err = mgr.buildShardingStrategy(name, internal.DbStrategyProperty, settings.DbStrategy)
 	if err != nil {
 		return nil, err
 	}
 	//加载分表策略
-	sn, props = getFirstKeyValue(settings.TableStrategy)
-	sd.TableStrategy, err = mgr.buildShardingStrategy(sn, props)
+	sd.TableStrategy, err = mgr.buildShardingStrategy(name, internal.TableStrategyProperty, settings.TableStrategy)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +133,9 @@ func (mgr *cnfManager) buildShardingTable(name string, settings internal.TableSe
 	return sd, nil
 }
 
-func (mgr *cnfManager) buildShardingStrategy(name string, props map[string]string) (core.ShardingStrategy, error) {
+func (mgr *cnfManager) buildShardingStrategy(tableName string, propertyName string, settings interface{}) (core.ShardingStrategy, error) {
+	name := getStrategyName(settings)
+
 	p, ok := provider.DefaultRegistry().TryLoad(provider.StrategyFactory, name)
 	if !ok {
 		return nil, fmt.Errorf("strategy factory named '%s' is not registered", name)
@@ -135,6 +144,13 @@ func (mgr *cnfManager) buildShardingStrategy(name string, props map[string]strin
 	if !ok {
 		return nil, fmt.Errorf("provider named '%s' is not ShardingStrategyFactory", name)
 	}
+	props := make(map[string]string)
+	if name != noneStrategyName {
+		configPath := fmt.Sprint(shardingTablesConfigPath, ".", tableName, ".", propertyName, ".", name)
+		if err := mgr.current.Get(configPath).Populate(props); err != nil {
+			return nil, err
+		}
+	}
 	if strategy, err := f.CreateStrategy(props); err != nil {
 		return nil, errors.New(fmt.Sprint("create sharding strategy fault.", core.LineSeparator, err))
 	} else {
@@ -142,37 +158,54 @@ func (mgr *cnfManager) buildShardingStrategy(name string, props map[string]strin
 	}
 }
 
-func getFirstKeyValue(strategy map[string]map[string]string) (string, map[string]string) {
-	for name, value := range strategy {
-		return name, value
+func getStrategyName(strategy interface{}) string {
+	if s, ok := strategy.(string); ok {
+		return strings.TrimSpace(s)
 	}
-	panic(errors.New("map is null"))
+	m := strategy.(map[interface{}]interface{})
+	for key, _ := range m {
+		return fmt.Sprint(key)
+	}
+	return ""
 }
 
-func validateTableSettings(tableName string, settings internal.TableSettings) error {
-
-	if settings.DbStrategy == nil || len(settings.DbStrategy) == 0 {
-		return ErrDbStrategyConfigMissed
+func validateShardingTableConfig(tableName string, settings *internal.TableSettings) error {
+	if err := validateStrategyConfig(tableName, internal.DbStrategyProperty, settings.DbStrategy); err != nil {
+		return err
 	}
 
-	if settings.TableStrategy == nil || len(settings.TableStrategy) == 0 {
-		return ErrTableStrategyConfigMissed
-	}
-
-	if len(settings.DbStrategy) > 1 {
-		return fmt.Errorf("table '%s' configured more than 1 database sharding strategy ( config property: %s )", tableName, internal.DbStrategyProperty)
-	}
-
-	if len(settings.TableStrategy) > 1 {
-		return fmt.Errorf("table '%s' configured more than 1 table sharding strategy ( config property: %s )", tableName, internal.TableStrategyProperty)
+	if err := validateStrategyConfig(tableName, internal.TableStrategyProperty, settings.TableStrategy); err != nil {
+		return err
 	}
 	return nil
+}
+
+func validateStrategyConfig(tableName string, propertyName string, settings interface{}) error {
+
+	if settings == nil {
+		return fmt.Errorf("config property '%s' missed or null", propertyName)
+	}
+
+	if s, ok := settings.(string); ok {
+		if s == noneStrategyName {
+			return nil
+		}
+	}
+
+	if m, ok := settings.(map[interface{}]interface{}); ok {
+		if len(m) > 1 {
+			return fmt.Errorf("more than one sharding strategy configured for table: %s", propertyName)
+		}
+		return nil
+	}
+
+	return fmt.Errorf("table '%s' has bad config value for %s ( value: %s )", tableName, propertyName, fmt.Sprint(settings))
 }
 
 func buildDbResource(dbNodesExpression string) ([]*core.DatabaseResource, error) {
 	expr := strings.TrimSpace(dbNodesExpression)
 	if expr == "" {
-		return nil, ErrDataNodeConfigMissed
+		return make([]*core.DatabaseResource, 0, 0), nil
 	}
 
 	inline, err := script.NewInlineExpression(expr)

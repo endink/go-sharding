@@ -30,16 +30,18 @@ type inlineExpr struct {
 func (i *inlineExpr) Flat() ([]string, error) {
 	var current []string = nil
 	for _, s := range i.segments {
-		if list, err := s.script.ExecuteList(); err != nil {
-			return nil, err
-		} else {
-			segStrings := flatFill(s.prefix, list)
-			if current == nil {
-				current = segStrings
+		if s.script != nil {
+			if list, err := s.script.ExecuteList(); err != nil {
+				return nil, err
 			} else {
+				segStrings := flatFill(s.prefix, list)
 				current = outJoin(current, segStrings)
 			}
+		} else if s.prefix != "" {
+
+			current = append(current, s.prefix)
 		}
+
 	}
 	return current, nil
 }

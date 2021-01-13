@@ -25,7 +25,5 @@ import (
 )
 
 var (
-	ErrDataNodeConfigMissed      = errors.New(fmt.Sprintf("config property '%s' missed or null", internal.ResourcesProperty))
-	ErrDbStrategyConfigMissed    = errors.New(fmt.Sprintf("config property '%s' missed or null", internal.DbStrategyProperty))
-	ErrTableStrategyConfigMissed = errors.New(fmt.Sprintf("config property '%s' missed or null", internal.TableStrategyProperty))
+	ErrDataNodeConfigMissed = errors.New(fmt.Sprintf("config property '%s' missed or null", internal.ResourcesProperty))
 )

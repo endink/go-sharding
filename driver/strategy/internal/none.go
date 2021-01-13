@@ -20,6 +20,8 @@ package internal
 
 import "github.com/XiaoMi/Gaea/core"
 
+var NoneStrategy = &None{}
+
 type None struct {
 }
 

@@ -66,6 +66,9 @@ rule:
         inline:
           shardingColumn: order_id
           algorithmExpression: t_order_item${order_id % 2}  
+    t_order_item:
+      db-strategy: none
+      table-strategy: none
 `
 
 func newTestManager(yamlContent string, t *testing.T) Manager {

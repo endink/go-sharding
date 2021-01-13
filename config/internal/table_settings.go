@@ -25,7 +25,7 @@ const (
 )
 
 type TableSettings struct {
-	Resources     string                       `yaml:"resources"`
-	DbStrategy    map[string]map[string]string `yaml:"db-strategy"`
-	TableStrategy map[string]map[string]string `yaml:"table-strategy"`
+	Resources     string      `yaml:"resources"`
+	DbStrategy    interface{} `yaml:"db-strategy"`
+	TableStrategy interface{} `yaml:"table-strategy"`
 }
