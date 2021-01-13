@@ -36,7 +36,7 @@ const shardingTablesConfigPath = "rule.tables"
 const dataSourcesConfigPath = "sources"
 
 type Manager interface {
-	GetSettings() *Settings
+	GetSettings() *core.Settings
 }
 
 type cnfManager struct {
@@ -44,16 +44,16 @@ type cnfManager struct {
 	Source   Source
 	current  *config.Value
 
-	settings *Settings
+	settings *core.Settings
 	lock     sync.Mutex
 }
 
-func (mgr *cnfManager) GetSettings() *Settings {
+func (mgr *cnfManager) GetSettings() *core.Settings {
 	if mgr.settings == nil {
 		mgr.lock.Lock()
 		defer mgr.lock.Unlock()
 		if mgr.settings == nil {
-			s := NewSettings()
+			s := core.NewSettings()
 			err := mgr.populateSettings(s)
 			if err != nil {
 				logger.Error("populate config fault", core.LineSeparator, err)
@@ -64,7 +64,7 @@ func (mgr *cnfManager) GetSettings() *Settings {
 	return mgr.settings
 }
 
-func (mgr *cnfManager) populateSettings(settings *Settings) error {
+func (mgr *cnfManager) populateSettings(settings *core.Settings) error {
 	//解析物理数据库地址
 	err := mgr.current.Get(dataSourcesConfigPath).Populate(settings.DataSources)
 	if err != nil {
@@ -86,7 +86,7 @@ func (mgr *cnfManager) populateSettings(settings *Settings) error {
 		}
 	}
 
-	settings.ShardingRule = &ShardingRule{
+	settings.ShardingRule = &core.ShardingRule{
 		Tables: shardingTables,
 	}
 
