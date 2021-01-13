@@ -22,7 +22,7 @@ package core
 
 type ShardingTable struct {
 	Name             string
-	Resource         []*DatabaseResource
+	Resources        []*DatabaseResource
 	TableStrategy    ShardingStrategy
 	DatabaseStrategy ShardingStrategy
 }

@@ -115,11 +115,11 @@ func (mgr *cnfManager) buildShardingTable(name string, settings internal.TableSe
 		return nil, err
 	}
 
-	nodes, err := buildDbNodes(settings.Resources)
+	resources, err := buildDbResource(settings.Resources)
 	if err != nil {
 		return nil, err
 	}
-	sd.Resource = nodes
+	sd.Resources = resources
 	return sd, nil
 }
 
@@ -166,7 +166,7 @@ func validateTableSettings(tableName string, settings internal.TableSettings) er
 	return nil
 }
 
-func buildDbNodes(dbNodesExpression string) ([]*core.DatabaseResource, error) {
+func buildDbResource(dbNodesExpression string) ([]*core.DatabaseResource, error) {
 	expr := strings.TrimSpace(dbNodesExpression)
 	if expr == "" {
 		return nil, ErrDataNodeConfigMissed
