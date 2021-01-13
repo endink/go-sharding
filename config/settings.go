@@ -18,34 +18,19 @@
  *
  */
 
-package source
+package config
 
-import (
-	"testing"
+import "github.com/XiaoMi/Gaea/core"
 
-	"github.com/coreos/etcd/client"
-)
-
-func Test_isErrNoNode(t *testing.T) {
-	err := client.Error{}
-	err.Code = client.ErrorCodeKeyNotFound
-	if !isErrNoNode(err) {
-		t.Fatalf("test isErrNoNode failed, %v", err)
-	}
-	err.Code = client.ErrorCodeNotFile
-	if isErrNoNode(err) {
-		t.Fatalf("test isErrNoNode failed, %v", err)
-	}
+type Settings struct {
+	DataSources  map[string]core.DataSource    `yaml:"sources"`
+	ShardingRule map[string]core.ShardingTable `yaml:"rule"`
 }
 
-func Test_isErrNodeExists(t *testing.T) {
-	err := client.Error{}
-	err.Code = client.ErrorCodeNodeExist
-	if !isErrNodeExists(err) {
-		t.Fatalf("test isErrNodeExists failed, %v", err)
+func NewSettings() *Settings {
+	s := &Settings{
+		DataSources:  make(map[string]core.DataSource),
+		ShardingRule: make(map[string]core.ShardingTable),
 	}
-	err.Code = client.ErrorCodeNotFile
-	if isErrNodeExists(err) {
-		t.Fatalf("test isErrNodeExists failed, %v", err)
-	}
+	return s
 }

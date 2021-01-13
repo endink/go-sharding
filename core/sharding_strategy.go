@@ -18,5 +18,7 @@
 
 package core
 
-type DbStrategy interface {
+type ShardingStrategy interface {
+	ShardScalar(value *ShardingScalarValue)
+	ShardRange(value *ShardingRangeValue)
 }

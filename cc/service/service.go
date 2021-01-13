@@ -16,7 +16,7 @@ package service
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/provider"
+	"github.com/XiaoMi/Gaea/config"
 	"sync"
 
 	"github.com/XiaoMi/Gaea/cc/proxy"
@@ -32,16 +32,16 @@ func getCoordinatorRoot(cluster string) string {
 
 // ListNamespace return names of all namespace
 func ListNamespace(cfg *models.CCConfig, cluster string) ([]string, error) {
-	client := provider.NewClient(provider.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
-	mConn := provider.NewStore(client)
+	client := config.NewClient(config.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
+	mConn := config.NewStore(client)
 	defer mConn.Close()
 	return mConn.ListNamespace()
 }
 
 // QueryNamespace return information of namespace specified by names
 func QueryNamespace(names []string, cfg *models.CCConfig, cluster string) (data []*models.Namespace, err error) {
-	client := provider.NewClient(provider.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
-	mConn := provider.NewStore(client)
+	client := config.NewClient(config.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
+	mConn := config.NewStore(client)
 	defer mConn.Close()
 	for _, v := range names {
 		namespace, err := mConn.LoadNamespace(cfg.EncryptKey, v)
@@ -71,8 +71,8 @@ func ModifyNamespace(namespace *models.Namespace, cfg *models.CCConfig, cluster 
 	}
 
 	// sink namespace
-	client := provider.NewClient(provider.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
-	storeConn := provider.NewStore(client)
+	client := config.NewClient(config.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
+	storeConn := config.NewStore(client)
 	defer storeConn.Close()
 
 	if err := storeConn.UpdateNamespace(namespace); err != nil {
@@ -108,8 +108,8 @@ func ModifyNamespace(namespace *models.Namespace, cfg *models.CCConfig, cluster 
 
 // DelNamespace delete namespace
 func DelNamespace(name string, cfg *models.CCConfig, cluster string) error {
-	client := provider.NewClient(provider.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
-	mConn := provider.NewStore(client)
+	client := config.NewClient(config.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
+	mConn := config.NewStore(client)
 	defer mConn.Close()
 
 	if err := mConn.DelNamespace(name); err != nil {
@@ -139,8 +139,8 @@ func SQLFingerprint(name string, cfg *models.CCConfig, cluster string) (slowSQLs
 	slowSQLs = make(map[string]string, 16)
 	errSQLs = make(map[string]string, 16)
 	// list proxy
-	client := provider.NewClient(provider.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
-	mConn := provider.NewStore(client)
+	client := config.NewClient(config.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
+	mConn := config.NewStore(client)
 	defer mConn.Close()
 	proxies, err := mConn.ListProxyMonitorMetrics()
 	if err != nil {
@@ -183,8 +183,8 @@ func SQLFingerprint(name string, cfg *models.CCConfig, cluster string) (slowSQLs
 // ProxyConfigFingerprint return fingerprints of all proxy
 func ProxyConfigFingerprint(cfg *models.CCConfig, cluster string) (r map[string]string, err error) {
 	// list proxy
-	client := provider.NewClient(provider.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
-	mConn := provider.NewStore(client)
+	client := config.NewClient(config.ConfigEtcd, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, getCoordinatorRoot(cluster))
+	mConn := config.NewStore(client)
 	defer mConn.Close()
 	proxies, err := mConn.ListProxyMonitorMetrics()
 	if err != nil {

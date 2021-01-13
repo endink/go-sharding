@@ -61,13 +61,36 @@ func TestVar(t *testing.T) {
 	assert.Equal(t, 7, v)
 }
 
+func TestExeScalar(t *testing.T) {
+	r := runTestScriptScalar("3", t)
+	assert.Equal(t, "3", r)
+}
+
+func TestExeScalarForArrayReturn(t *testing.T) {
+	s := compileTestScript("[1,2,3]", t)
+	r, err := s.ExecuteScalar()
+	assert.Error(t, err, "array return should not allowed for scalar execution")
+	assert.Equal(t, "", r)
+}
+
 func runTestScript(script string, t *testing.T) []string {
 	return runTestScriptVar(script, nil, t)
 }
 
 func runTestScriptVar(script string, vars map[string]interface{}, t *testing.T) []string {
 	s := compileTestScriptVar(script, vars, t)
-	r, err := s.Run()
+	r, err := s.ExecuteList()
+	assert.Nil(t, err, "run script fault:", script)
+	return r
+}
+
+func runTestScriptScalar(script string, t *testing.T) string {
+	return runTestScriptVarScalar(script, nil, t)
+}
+
+func runTestScriptVarScalar(script string, vars map[string]interface{}, t *testing.T) string {
+	s := compileTestScriptVar(script, vars, t)
+	r, err := s.ExecuteScalar()
 	assert.Nil(t, err, "run script fault:", script)
 	return r
 }

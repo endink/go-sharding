@@ -18,34 +18,19 @@
  *
  */
 
-package source
+package strategy
 
-import (
-	"testing"
+import "github.com/XiaoMi/Gaea/core"
 
-	"github.com/coreos/etcd/client"
-)
+const InlineFactoryName = "inline"
 
-func Test_isErrNoNode(t *testing.T) {
-	err := client.Error{}
-	err.Code = client.ErrorCodeKeyNotFound
-	if !isErrNoNode(err) {
-		t.Fatalf("test isErrNoNode failed, %v", err)
-	}
-	err.Code = client.ErrorCodeNotFile
-	if isErrNoNode(err) {
-		t.Fatalf("test isErrNoNode failed, %v", err)
-	}
+type InlineFactory struct {
 }
 
-func Test_isErrNodeExists(t *testing.T) {
-	err := client.Error{}
-	err.Code = client.ErrorCodeNodeExist
-	if !isErrNodeExists(err) {
-		t.Fatalf("test isErrNodeExists failed, %v", err)
-	}
-	err.Code = client.ErrorCodeNotFile
-	if isErrNodeExists(err) {
-		t.Fatalf("test isErrNodeExists failed, %v", err)
-	}
+func (i *InlineFactory) GetName() string {
+	return InlineFactoryName
+}
+
+func (i *InlineFactory) CreateStrategy() core.ShardingStrategy {
+	panic("implement me")
 }

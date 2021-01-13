@@ -1,19 +1,21 @@
 /*
- * Copyright 2021. Go-Sharding Author All Rights Reserved.
  *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
+ *  * Copyright 2021. Go-Sharding Author All Rights Reserved.
+ *  *
+ *  *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  *  you may not use this file except in compliance with the License.
+ *  *  You may obtain a copy of the License at
+ *  *
+ *  *      http://www.apache.org/licenses/LICENSE-2.0
+ *  *
+ *  *  Unless required by applicable law or agreed to in writing, software
+ *  *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  *  See the License for the specific language governing permissions and
+ *  *  limitations under the License.
+ *  *
+ *  *  File author: Anders Xiao
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- *
- *  File author: Anders Xiao
  */
 
 package source
@@ -26,7 +28,7 @@ import (
 	"github.com/coreos/etcd/client"
 )
 
-func (c *etcdSource) contextWithTimeout() (context.Context, context.CancelFunc) {
+func (c *EtcdSource) contextWithTimeout() (context.Context, context.CancelFunc) {
 	if c.config.Timeout == time.Duration(0) {
 		return context.WithCancel(context.Background())
 	}
@@ -52,7 +54,7 @@ func isErrNodeExists(err error) bool {
 }
 
 // Mkdir create directory
-func (c *etcdSource) Mkdir(dir string) error {
+func (c *EtcdSource) Mkdir(dir string) error {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {
@@ -61,7 +63,7 @@ func (c *etcdSource) Mkdir(dir string) error {
 	return c.mkdir(dir)
 }
 
-func (c *etcdSource) mkdir(dir string) error {
+func (c *EtcdSource) mkdir(dir string) error {
 	if dir == "" || dir == "/" {
 		return nil
 	}
@@ -78,7 +80,7 @@ func (c *etcdSource) mkdir(dir string) error {
 }
 
 // Create create path with data
-func (c *etcdSource) Create(path string, data []byte) error {
+func (c *EtcdSource) Create(path string, data []byte) error {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {
@@ -97,7 +99,7 @@ func (c *etcdSource) Create(path string, data []byte) error {
 }
 
 // Update update path with data
-func (c *etcdSource) Update(path string, data []byte) error {
+func (c *EtcdSource) Update(path string, data []byte) error {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {
@@ -116,7 +118,7 @@ func (c *etcdSource) Update(path string, data []byte) error {
 }
 
 // UpdateWithTTL update path with data and ttl
-func (c *etcdSource) UpdateWithTTL(path string, data []byte, ttl time.Duration) error {
+func (c *EtcdSource) UpdateWithTTL(path string, data []byte, ttl time.Duration) error {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {
@@ -135,7 +137,7 @@ func (c *etcdSource) UpdateWithTTL(path string, data []byte, ttl time.Duration) 
 }
 
 // Delete delete path
-func (c *etcdSource) Delete(path string) error {
+func (c *EtcdSource) Delete(path string) error {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {
@@ -154,7 +156,7 @@ func (c *etcdSource) Delete(path string) error {
 }
 
 // Read read path data
-func (c *etcdSource) Read(path string) ([]byte, error) {
+func (c *EtcdSource) Read(path string) ([]byte, error) {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {
@@ -174,7 +176,7 @@ func (c *etcdSource) Read(path string) ([]byte, error) {
 }
 
 // List list path, return slice of all paths
-func (c *etcdSource) List(path string) ([]string, error) {
+func (c *EtcdSource) List(path string) ([]string, error) {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {
@@ -198,7 +200,7 @@ func (c *etcdSource) List(path string) ([]string, error) {
 }
 
 // Watch watch path
-func (c *etcdSource) Watch(path string, ch chan string) error {
+func (c *EtcdSource) Watch(path string, ch chan string) error {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {

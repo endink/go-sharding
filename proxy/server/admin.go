@@ -16,9 +16,9 @@ package server
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/config"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/logging"
-	"github.com/XiaoMi/Gaea/provider"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -238,11 +238,11 @@ func generateToken(protoType, addr string) (string, error) {
 }
 
 func (s *AdminServer) registerProxy() error {
-	if s.configType == provider.ConfigFile {
+	if s.configType == config.ConfigFile {
 		return nil
 	}
-	client := provider.NewClient(provider.ConfigEtcd, s.coordinatorAddr, s.coordinatorUsername, s.coordinatorPassword, s.coordinatorRoot)
-	store := provider.NewStore(client)
+	client := config.NewClient(config.ConfigEtcd, s.coordinatorAddr, s.coordinatorUsername, s.coordinatorPassword, s.coordinatorRoot)
+	store := config.NewStore(client)
 	defer store.Close()
 	if err := store.CreateProxy(s.model); err != nil {
 		return err
@@ -251,11 +251,11 @@ func (s *AdminServer) registerProxy() error {
 }
 
 func (s *AdminServer) unregisterProxy() error {
-	if s.configType == provider.ConfigFile {
+	if s.configType == config.ConfigFile {
 		return nil
 	}
-	client := provider.NewClient(provider.ConfigEtcd, s.coordinatorAddr, s.coordinatorUsername, s.coordinatorPassword, s.coordinatorRoot)
-	store := provider.NewStore(client)
+	client := config.NewClient(config.ConfigEtcd, s.coordinatorAddr, s.coordinatorUsername, s.coordinatorPassword, s.coordinatorRoot)
+	store := config.NewStore(client)
 	defer store.Close()
 	if err := store.DeleteProxy(s.model.Token); err != nil {
 		return err
@@ -273,7 +273,7 @@ func (s *AdminServer) prepareConfig(c *gin.Context) {
 		c.JSON(selfDefinedInternalError, "missing namespace name")
 		return
 	}
-	client := provider.NewClient(provider.ConfigEtcd, s.coordinatorAddr, s.coordinatorUsername, s.coordinatorPassword, s.coordinatorRoot)
+	client := config.NewClient(config.ConfigEtcd, s.coordinatorAddr, s.coordinatorUsername, s.coordinatorPassword, s.coordinatorRoot)
 	defer client.Close()
 	err := s.proxy.ReloadNamespacePrepare(name, client)
 	if err != nil {

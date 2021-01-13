@@ -241,7 +241,7 @@ func (cc *Session) Run() {
 			buf := make([]byte, size)
 			buf = buf[:runtime.Stack(buf, false)]
 
-			logging.DefaultLogger.Warnf("[server] Session Run panic error, error: %s, stack: %s", err.Error(), string(buf))
+			logging.DefaultLogger.Warnf("[server] Session ExecuteList panic error, error: %s, stack: %s", err.Error(), string(buf))
 		}
 		cc.Close()
 		cc.proxy.tw.Remove(cc)

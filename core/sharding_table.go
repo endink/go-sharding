@@ -21,5 +21,5 @@
 package core
 
 type ShardingTable struct {
-	DbNodes string
+	DbNodes string `yaml:"db-nodes"`
 }

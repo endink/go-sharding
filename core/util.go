@@ -32,12 +32,6 @@ var LineSeparator string = "\n"
 
 var Nothing = struct{}{}
 
-func init() {
-	if IsWindows() {
-		LineSeparator = "\r\n"
-	}
-}
-
 // BoolIndex rolled array switch mark
 type BoolIndex struct {
 	index int32

@@ -15,18 +15,18 @@
 package models
 
 import (
-	"github.com/XiaoMi/Gaea/provider"
+	"github.com/XiaoMi/Gaea/config"
 	"testing"
 )
 
-func newTestStore() *provider.Store {
-	c := provider.NewClient(provider.ConfigEtcd, "127.0.0.1:2381", "test", "test", "")
-	return provider.NewStore(c)
+func newTestStore() *config.Store {
+	c := config.NewClient(config.ConfigEtcd, "127.0.0.1:2381", "test", "test", "")
+	return config.NewStore(c)
 }
 
 func TestNewStore(t *testing.T) {
-	c := provider.NewClient(provider.ConfigEtcd, "127.0.0.1:2381", "test", "test", "")
-	store := provider.NewStore(c)
+	c := config.NewClient(config.ConfigEtcd, "127.0.0.1:2381", "test", "test", "")
+	store := config.NewStore(c)
 	defer store.Close()
 	if store == nil {
 		t.Fatalf("test NewStore failed")

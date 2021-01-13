@@ -15,7 +15,6 @@
 package models
 
 import (
-	"github.com/XiaoMi/Gaea/provider"
 	"strings"
 
 	"github.com/go-ini/ini"
@@ -23,6 +22,7 @@ import (
 
 const (
 	defaultGaeaCluster = "gaea"
+	ConfigFile         = "file"
 )
 
 // Proxy means proxy structure of proxy source
@@ -61,7 +61,7 @@ type Proxy struct {
 
 func DefaultProxy() *Proxy {
 	return &Proxy{
-		ConfigType:      provider.ConfigFile,
+		ConfigType:      ConfigFile,
 		FileConfigPath:  ".",
 		CoordinatorAddr: "http://127.0.0.1:2379",
 		UserName:        "",
@@ -94,7 +94,7 @@ func ParseProxyConfigFromFile(cfgFile string) (*Proxy, error) {
 	err = cfg.MapTo(proxyConfig)
 	// default source type: etcd
 	if proxyConfig.ConfigType == "" {
-		proxyConfig.ConfigType = provider.ConfigFile
+		proxyConfig.ConfigType = ConfigFile
 	}
 	if proxyConfig.Cluster == "" && proxyConfig.CoordinatorRoot == "" {
 		proxyConfig.Cluster = defaultGaeaCluster

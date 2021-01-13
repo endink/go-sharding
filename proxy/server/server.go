@@ -17,7 +17,6 @@ package server
 import (
 	"github.com/XiaoMi/Gaea/config"
 	"github.com/XiaoMi/Gaea/logging"
-	"github.com/XiaoMi/Gaea/provider"
 	"net"
 	"runtime"
 	"strconv"
@@ -192,7 +191,7 @@ func (s *Server) Close() error {
 func (s *Server) ReloadNamespacePrepare(name string, client config.Source) error {
 	// get namespace conf from etcd
 	logging.DefaultLogger.Infof("prepare source of namespace: %s begin", name)
-	store := provider.NewStore(client)
+	store := config.NewStore(client)
 	namespaceConfig, err := store.LoadNamespace(s.EncryptKey, name)
 	if err != nil {
 		return err

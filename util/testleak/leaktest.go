@@ -48,7 +48,7 @@ func interestingGoroutines() (gs []string) {
 			strings.Contains(stack, "ddl.(*ddl).start") ||
 			strings.Contains(stack, "ddl.(*delRange).startEmulator") ||
 			strings.Contains(stack, "domain.NewDomain") ||
-			strings.Contains(stack, "testing.(*T).Run") ||
+			strings.Contains(stack, "testing.(*T).ExecuteList") ||
 			strings.Contains(stack, "domain.(*Domain).LoadPrivilegeLoop") ||
 			strings.Contains(stack, "domain.(*Domain).UpdateTableStatsLoop") ||
 			strings.Contains(stack, "testing.Main(") ||

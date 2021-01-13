@@ -18,34 +18,10 @@
  *
  */
 
-package source
+package core
 
-import (
-	"testing"
-
-	"github.com/coreos/etcd/client"
-)
-
-func Test_isErrNoNode(t *testing.T) {
-	err := client.Error{}
-	err.Code = client.ErrorCodeKeyNotFound
-	if !isErrNoNode(err) {
-		t.Fatalf("test isErrNoNode failed, %v", err)
-	}
-	err.Code = client.ErrorCodeNotFile
-	if isErrNoNode(err) {
-		t.Fatalf("test isErrNoNode failed, %v", err)
-	}
-}
-
-func Test_isErrNodeExists(t *testing.T) {
-	err := client.Error{}
-	err.Code = client.ErrorCodeNodeExist
-	if !isErrNodeExists(err) {
-		t.Fatalf("test isErrNodeExists failed, %v", err)
-	}
-	err.Code = client.ErrorCodeNotFile
-	if isErrNodeExists(err) {
-		t.Fatalf("test isErrNodeExists failed, %v", err)
+func init() {
+	if IsWindows() {
+		LineSeparator = "\r\n"
 	}
 }

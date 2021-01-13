@@ -30,7 +30,7 @@ type inlineExpr struct {
 func (i *inlineExpr) Flat() ([]string, error) {
 	var current []string = nil
 	for _, s := range i.segments {
-		if list, err := s.script.Run(); err != nil {
+		if list, err := s.script.ExecuteList(); err != nil {
 			return nil, err
 		} else {
 			segStrings := flatFill(s.prefix, list)

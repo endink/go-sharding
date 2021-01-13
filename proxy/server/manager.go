@@ -18,10 +18,10 @@ import (
 	"bytes"
 	"crypto/md5"
 	"fmt"
+	"github.com/XiaoMi/Gaea/config"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/logging"
 	"github.com/XiaoMi/Gaea/parser"
-	"github.com/XiaoMi/Gaea/provider"
 	"go.uber.org/zap"
 	"net/http"
 	"sort"
@@ -60,12 +60,12 @@ func LoadAndCreateManager(cfg *models.Proxy) (*Manager, error) {
 func loadAllNamespace(cfg *models.Proxy) (map[string]*models.Namespace, error) {
 	// get names of all namespace
 	root := cfg.CoordinatorRoot
-	if cfg.ConfigType == provider.ConfigFile {
+	if cfg.ConfigType == config.ConfigFile {
 		root = cfg.FileConfigPath
 	}
 
-	client := provider.NewClient(cfg.ConfigType, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, root)
-	store := provider.NewStore(client)
+	client := config.NewClient(cfg.ConfigType, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, root)
+	store := config.NewStore(client)
 	defer store.Close()
 	var err error
 	var names []string
@@ -82,8 +82,8 @@ func loadAllNamespace(cfg *models.Proxy) (map[string]*models.Namespace, error) {
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go func() {
-			client := provider.NewClient(cfg.ConfigType, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, root)
-			store := provider.NewStore(client)
+			client := config.NewClient(cfg.ConfigType, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, root)
+			store := config.NewStore(client)
 			defer store.Close()
 			defer wg.Done()
 			for name := range nameC {

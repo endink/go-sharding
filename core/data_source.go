@@ -19,7 +19,7 @@
 package core
 
 type DataSource struct {
-	Address  string
-	Username string
-	Password string
+	Endpoint string `yaml:"endpoint"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
 }

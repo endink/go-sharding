@@ -1,26 +1,27 @@
 /*
- * Copyright 2021. Go-Sharding Author All Rights Reserved.
  *
- *  Licensed under the Apache License, Version 2.0 (the "License");
- *  you may not use this file except in compliance with the License.
- *  You may obtain a copy of the License at
+ *  * Copyright 2021. Go-Sharding Author All Rights Reserved.
+ *  *
+ *  *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  *  you may not use this file except in compliance with the License.
+ *  *  You may obtain a copy of the License at
+ *  *
+ *  *      http://www.apache.org/licenses/LICENSE-2.0
+ *  *
+ *  *  Unless required by applicable law or agreed to in writing, software
+ *  *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  *  See the License for the specific language governing permissions and
+ *  *  limitations under the License.
+ *  *
+ *  *  File author: Anders Xiao
  *
- *      http://www.apache.org/licenses/LICENSE-2.0
- *
- *  Unless required by applicable law or agreed to in writing, software
- *  distributed under the License is distributed on an "AS IS" BASIS,
- *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- *  See the License for the specific language governing permissions and
- *  limitations under the License.
- *
- *  File author: Anders Xiao
  */
 
 package source
 
 import (
 	"errors"
-	"github.com/XiaoMi/Gaea/config"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/logging"
 	cnf "go.uber.org/config"
@@ -31,10 +32,12 @@ import (
 	"github.com/coreos/etcd/client"
 )
 
+const EtcdConfigProvider = "etcd"
+
+var etcdLogger = logging.GetLogger("config-etcd")
+
 // ErrClosedEtcdClient means etcd client closed
 var ErrClosedEtcdClient = errors.New("use of closed etcd client")
-
-var logger = logging.GetLogger("config")
 
 const (
 	defaultEtcdPath      = "/sharding-proxy"
@@ -42,7 +45,7 @@ const (
 )
 
 // etcdSource etcd client
-type etcdSource struct {
+type EtcdSource struct {
 	sync.Mutex
 	kapi   client.KeysAPI
 	closed bool
@@ -57,15 +60,11 @@ type etcdConfig struct {
 	Path      string
 }
 
-func (c *etcdSource) GetName() string {
-	return config.EtcdProvider
+func (c *EtcdSource) GetName() string {
+	return EtcdConfigProvider
 }
 
-func NewEtcdSource() config.Source {
-	return &etcdSource{}
-}
-
-func (c *etcdSource) OnLoad(provider cnf.Provider) error {
+func (c *EtcdSource) Load(provider cnf.Provider) (cnf.Value, error) {
 	etcdCnf := &etcdConfig{
 		Endpoints: defaultEtcdEndpoints,
 		Username:  "",
@@ -77,7 +76,7 @@ func (c *etcdSource) OnLoad(provider cnf.Provider) error {
 		etcdCnf.Endpoints = core.IfBlankAndTrim(etcdCnf.Endpoints, defaultEtcdEndpoints)
 		etcdCnf.Path = core.IfBlankAndTrim(etcdCnf.Path, defaultEtcdPath)
 	} else {
-		logger.Warn("Parse etcd config fault.", core.LineSeparator, err)
+		etcdLogger.Warn("Parse etcd config fault.", core.LineSeparator, err)
 	}
 
 	endpoints := strings.Split(etcdCnf.Endpoints, ",")
@@ -98,16 +97,16 @@ func (c *etcdSource) OnLoad(provider cnf.Provider) error {
 	}
 
 	if etcdClient, err := client.New(clientCnf); err != nil {
-		return err
+		return cnf.Value{}, err
 	} else {
 		c.kapi = client.NewKeysAPI(etcdClient)
 		c.config = etcdCnf
 	}
-	return nil
+	return cnf.Value{}, nil
 }
 
 // Close close etcd client
-func (c *etcdSource) Close() error {
+func (c *EtcdSource) Close() error {
 	c.Lock()
 	defer c.Unlock()
 	if c.closed {

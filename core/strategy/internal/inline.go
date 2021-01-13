@@ -18,34 +18,23 @@
  *
  */
 
-package source
+package internal
 
 import (
-	"testing"
-
-	"github.com/coreos/etcd/client"
+	"github.com/XiaoMi/Gaea/core"
 )
 
-func Test_isErrNoNode(t *testing.T) {
-	err := client.Error{}
-	err.Code = client.ErrorCodeKeyNotFound
-	if !isErrNoNode(err) {
-		t.Fatalf("test isErrNoNode failed, %v", err)
-	}
-	err.Code = client.ErrorCodeNotFile
-	if isErrNoNode(err) {
-		t.Fatalf("test isErrNoNode failed, %v", err)
-	}
+type Inline struct {
 }
 
-func Test_isErrNodeExists(t *testing.T) {
-	err := client.Error{}
-	err.Code = client.ErrorCodeNodeExist
-	if !isErrNodeExists(err) {
-		t.Fatalf("test isErrNodeExists failed, %v", err)
-	}
-	err.Code = client.ErrorCodeNotFile
-	if isErrNodeExists(err) {
-		t.Fatalf("test isErrNodeExists failed, %v", err)
-	}
+func (i *Inline) GetName() string {
+	panic("implement me")
+}
+
+func (i *Inline) ShardScalar(value *core.ShardingScalarValue) {
+	panic("implement me")
+}
+
+func (i *Inline) ShardRange(value *core.ShardingRangeValue) {
+	panic("implement me")
 }
