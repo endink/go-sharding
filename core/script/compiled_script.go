@@ -101,7 +101,35 @@ func invalidReturnTypeError(raw string, v *tengo.Variable, allowArray bool) erro
 		v.ValueType()))
 }
 
-func ParseScript(script string, variables map[string]interface{}) (CompiledScript, error) {
+func ParseScript(script string) (CompiledScript, error) {
+	return ParseScriptVar(script, nil)
+}
+
+func ExeScriptScalar(script string, variables map[string]interface{}) (string, error) {
+	if s, err := ParseScriptVar(script, variables); err != nil {
+		return "", err
+	} else {
+		if r, err := s.ExecuteScalar(); err != nil {
+			return "", err
+		} else {
+			return r, nil
+		}
+	}
+}
+
+func ExeScriptList(script string, variables map[string]interface{}) ([]string, error) {
+	if s, err := ParseScriptVar(script, variables); err != nil {
+		return nil, err
+	} else {
+		if r, err := s.ExecuteList(); err != nil {
+			return nil, err
+		} else {
+			return r, nil
+		}
+	}
+}
+
+func ParseScriptVar(script string, variables map[string]interface{}) (CompiledScript, error) {
 	if parser, err := NewScriptParser(script); err != nil {
 		return nil, err
 	} else {

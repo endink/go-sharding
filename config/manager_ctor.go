@@ -47,6 +47,7 @@ func NewManager() (Manager, error) {
 	var yaml *config.YAML
 	if len(sources) > 0 {
 		var err error
+		sources = append(sources, config.Permissive())
 		yaml, err = config.NewYAML(sources...)
 		if err != nil {
 			logger.Warn("Load boot config file fault.", core.LineSeparator, err)

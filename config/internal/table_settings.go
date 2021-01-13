@@ -16,13 +16,16 @@
  *  File author: Anders Xiao
  */
 
-//配置参考：https://shardingsphere.apache.org/document/legacy/4.x/document/cn/manual/sharding-jdbc/configuration/config-yaml/
+package internal
 
-package core
+const (
+	DbNodeProperty        = "db-nodes"
+	DbStrategyProperty    = "db-strategy"
+	TableStrategyProperty = "table-strategy"
+)
 
-type ShardingTable struct {
-	Name             string
-	DbNodes          []*DatabaseNode
-	TableStrategy    ShardingStrategy
-	DatabaseStrategy ShardingStrategy
+type TableSettings struct {
+	DbNodes       string                       `yaml:"db-nodes"`
+	DbStrategy    map[string]map[string]string `yaml:"db-strategy"`
+	TableStrategy map[string]map[string]string `yaml:"table-strategy"`
 }

@@ -16,13 +16,21 @@
  *  File author: Anders Xiao
  */
 
-//配置参考：https://shardingsphere.apache.org/document/legacy/4.x/document/cn/manual/sharding-jdbc/configuration/config-yaml/
+package internal
 
-package core
+import "github.com/XiaoMi/Gaea/core"
 
-type ShardingTable struct {
-	Name             string
-	DbNodes          []*DatabaseNode
-	TableStrategy    ShardingStrategy
-	DatabaseStrategy ShardingStrategy
+type None struct {
+}
+
+func (i *None) GetName() string {
+	panic("implement me")
+}
+
+func (i *None) ShardScalar(value *core.ShardingScalarValue) {
+	panic("implement me")
+}
+
+func (i *None) ShardRange(value *core.ShardingRangeValue) {
+	panic("implement me")
 }

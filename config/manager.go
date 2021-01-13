@@ -21,10 +21,19 @@
 package config
 
 import (
+	"errors"
+	"fmt"
+	"github.com/XiaoMi/Gaea/config/internal"
 	"github.com/XiaoMi/Gaea/core"
+	"github.com/XiaoMi/Gaea/core/provider"
+	"github.com/XiaoMi/Gaea/core/script"
 	"go.uber.org/config"
+	"strings"
 	"sync"
 )
+
+const shardingTablesConfigPath = "rule.tables"
+const dataSourcesConfigPath = "sources"
 
 type Manager interface {
 	GetSettings() *Settings
@@ -56,9 +65,142 @@ func (mgr *cnfManager) GetSettings() *Settings {
 }
 
 func (mgr *cnfManager) populateSettings(settings *Settings) error {
-	if err := mgr.current.Populate(settings); err != nil {
+	//解析物理数据库地址
+	err := mgr.current.Get(dataSourcesConfigPath).Populate(settings.DataSources)
+	if err != nil {
 		return err
 	}
 
+	tables := make(map[string]internal.TableSettings)
+	err = mgr.current.Get(shardingTablesConfigPath).Populate(tables)
+	if err != nil {
+		return err
+	}
+
+	shardingTables := make(map[string]*core.ShardingTable, len(tables))
+	for n, t := range tables {
+		if st, err := mgr.buildShardingTable(n, t); err != nil {
+			return err
+		} else {
+			shardingTables[n] = st
+		}
+	}
+
+	settings.ShardingRule = &ShardingRule{
+		Tables: shardingTables,
+	}
+
 	return nil
+}
+
+func (mgr *cnfManager) buildShardingTable(name string, settings internal.TableSettings) (*core.ShardingTable, error) {
+	var err error
+	//验证配置格式
+	if err = validateTableSettings(name, settings); err != nil {
+		return nil, err
+	}
+
+	sd := &core.ShardingTable{}
+	sd.Name = name
+	//加载分库策略
+	sn, props := getFirstKeyValue(settings.DbStrategy)
+	sd.DatabaseStrategy, err = mgr.buildShardingStrategy(sn, props)
+	if err != nil {
+		return nil, err
+	}
+	//加载分表策略
+	sn, props = getFirstKeyValue(settings.TableStrategy)
+	sd.TableStrategy, err = mgr.buildShardingStrategy(sn, props)
+	if err != nil {
+		return nil, err
+	}
+
+	nodes, err := buildDbNodes(settings.DbNodes)
+	if err != nil {
+		return nil, err
+	}
+	sd.DbNodes = nodes
+	return sd, nil
+}
+
+func (mgr *cnfManager) buildShardingStrategy(name string, props map[string]string) (core.ShardingStrategy, error) {
+	p, ok := provider.DefaultRegistry().TryLoad(provider.StrategyFactory, name)
+	if !ok {
+		return nil, fmt.Errorf("strategy factory named '%s' is not registered", name)
+	}
+	f, ok := p.(core.ShardingStrategyFactory)
+	if !ok {
+		return nil, fmt.Errorf("provider named '%s' is not ShardingStrategyFactory", name)
+	}
+	if strategy, err := f.CreateStrategy(props); err != nil {
+		return nil, errors.New(fmt.Sprint("create sharding strategy fault.", core.LineSeparator, err))
+	} else {
+		return strategy, nil
+	}
+}
+
+func getFirstKeyValue(strategy map[string]map[string]string) (string, map[string]string) {
+	for name, value := range strategy {
+		return name, value
+	}
+	panic(errors.New("map is null"))
+}
+
+func validateTableSettings(tableName string, settings internal.TableSettings) error {
+
+	if settings.DbStrategy == nil || len(settings.DbStrategy) == 0 {
+		return fmt.Errorf("table '%s' database sharding strategy was not configured", tableName)
+	}
+
+	if settings.TableStrategy == nil || len(settings.TableStrategy) == 0 {
+		return fmt.Errorf("table '%s' table sharding strategy was not configured", tableName)
+	}
+
+	if len(settings.DbStrategy) > 1 {
+		return fmt.Errorf("table '%s' configured more than 1 database sharding strategy", tableName)
+	}
+
+	if len(settings.TableStrategy) > 1 {
+		return fmt.Errorf("table '%s' configured more than 1 table sharding strategy", tableName)
+	}
+	return nil
+}
+
+func buildDbNodes(dbNodesExpression string) ([]*core.DatabaseNode, error) {
+	expr := strings.TrimSpace(dbNodesExpression)
+	if expr == "" {
+		return nil, ErrDataNodeConfigMissed
+	}
+
+	inline, err := script.NewInlineExpression(expr)
+	if err != nil {
+		return nil, errors.New(fmt.Sprint("bad database node expression: ", expr, core.LineSeparator, err))
+	}
+
+	ns, err := inline.Flat()
+	if err != nil {
+		return nil, errors.New(fmt.Sprint("bad database node expression: ", expr, core.LineSeparator, err))
+	}
+
+	nodes := make(map[string][]string, len(ns))
+	for _, name := range ns {
+		schemaAndTable := strings.Split(name, ".")
+		if len(schemaAndTable) != 2 {
+			return nil, errors.New(fmt.Sprint("bad database node expression: ", expr, ", the separator (.) between schema and table name missed", core.LineSeparator, err))
+		}
+		schema := schemaAndTable[0]
+		table := schemaAndTable[1]
+		nodes[schema] = append(nodes[schema], table)
+	}
+	dbNodes := make([]*core.DatabaseNode, len(nodes))
+	index := 0
+	for name, tables := range nodes {
+		dbNode := &core.DatabaseNode{
+			Name:   name,
+			Tables: core.DistinctSlice(tables),
+		}
+		dbNodes[index] = dbNode
+		index++
+	}
+	return dbNodes, nil
 }

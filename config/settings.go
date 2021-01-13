@@ -23,14 +23,20 @@ package config
 import "github.com/XiaoMi/Gaea/core"
 
 type Settings struct {
-	DataSources  map[string]core.DataSource    `yaml:"sources"`
-	ShardingRule map[string]core.ShardingTable `yaml:"rule"`
+	DataSources  map[string]*core.DataSource
+	ShardingRule *ShardingRule
+}
+
+type ShardingRule struct {
+	Tables map[string]*core.ShardingTable
 }
 
 func NewSettings() *Settings {
 	s := &Settings{
-		DataSources:  make(map[string]core.DataSource),
-		ShardingRule: make(map[string]core.ShardingTable),
+		DataSources: make(map[string]*core.DataSource),
+		ShardingRule: &ShardingRule{
+			Tables: make(map[string]*core.ShardingTable),
+		},
 	}
 	return s
 }

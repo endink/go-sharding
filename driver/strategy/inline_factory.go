@@ -20,7 +20,10 @@
 
 package strategy
 
-import "github.com/XiaoMi/Gaea/core"
+import (
+	"github.com/XiaoMi/Gaea/core"
+	"github.com/XiaoMi/Gaea/driver/strategy/internal"
+)
 
 const InlineFactoryName = "inline"
 
@@ -31,6 +34,6 @@ func (i *InlineFactory) GetName() string {
 	return InlineFactoryName
 }
 
-func (i *InlineFactory) CreateStrategy() core.ShardingStrategy {
-	panic("implement me")
+func (i *InlineFactory) CreateStrategy(props map[string]string) (core.ShardingStrategy, error) {
+	return &internal.Inline{}, nil
 }

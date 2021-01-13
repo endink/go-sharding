@@ -16,13 +16,22 @@
  *  File author: Anders Xiao
  */
 
-//配置参考：https://shardingsphere.apache.org/document/legacy/4.x/document/cn/manual/sharding-jdbc/configuration/config-yaml/
+package strategy
 
-package core
+import (
+	"github.com/XiaoMi/Gaea/core"
+	"github.com/XiaoMi/Gaea/driver/strategy/internal"
+)
 
-type ShardingTable struct {
-	Name             string
-	DbNodes          []*DatabaseNode
-	TableStrategy    ShardingStrategy
-	DatabaseStrategy ShardingStrategy
+const NoneFactoryName = "none"
+
+type NoneFactory struct {
+}
+
+func (i *NoneFactory) GetName() string {
+	return NoneFactoryName
+}
+
+func (i *NoneFactory) CreateStrategy(props map[string]string) (core.ShardingStrategy, error) {
+	return &internal.None{}, nil
 }

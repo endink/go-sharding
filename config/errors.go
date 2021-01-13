@@ -16,13 +16,16 @@
  *  File author: Anders Xiao
  */
 
-//配置参考：https://shardingsphere.apache.org/document/legacy/4.x/document/cn/manual/sharding-jdbc/configuration/config-yaml/
+package config
 
-package core
+import (
+	"errors"
+	"fmt"
+	"github.com/XiaoMi/Gaea/config/internal"
+)
 
-type ShardingTable struct {
-	Name             string
-	DbNodes          []*DatabaseNode
-	TableStrategy    ShardingStrategy
-	DatabaseStrategy ShardingStrategy
-}
+var (
+	ErrDataNodeConfigMissed      = errors.New(fmt.Sprintf("config property '%s' missed or null", internal.DbNodeProperty))
+	ErrDbStrategyConfigMissed    = errors.New(fmt.Sprintf("config property '%s' missed or null", internal.DbStrategyProperty))
+	ErrTableStrategyConfigMissed = errors.New(fmt.Sprintf("config property '%s' missed or null", internal.TableStrategyProperty))
+)

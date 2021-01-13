@@ -24,5 +24,5 @@ import "github.com/XiaoMi/Gaea/core/provider"
 
 type ShardingStrategyFactory interface {
 	provider.Provider
-	CreateStrategy() ShardingStrategy
+	CreateStrategy(props map[string]string) (ShardingStrategy, error)
 }

@@ -16,13 +16,14 @@
  *  File author: Anders Xiao
  */
 
-//配置参考：https://shardingsphere.apache.org/document/legacy/4.x/document/cn/manual/sharding-jdbc/configuration/config-yaml/
+package driver
 
-package core
+import (
+	"github.com/XiaoMi/Gaea/core/provider"
+	"github.com/XiaoMi/Gaea/driver/strategy"
+)
 
-type ShardingTable struct {
-	Name             string
-	DbNodes          []*DatabaseNode
-	TableStrategy    ShardingStrategy
-	DatabaseStrategy ShardingStrategy
+func init() {
+	_ = provider.DefaultRegistry().Register(provider.StrategyFactory, &strategy.InlineFactory{})
+	_ = provider.DefaultRegistry().Register(provider.StrategyFactory, &strategy.NoneFactory{})
 }

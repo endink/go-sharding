@@ -21,9 +21,7 @@
 package config
 
 import (
-	"github.com/XiaoMi/Gaea/config/source"
 	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/core/provider"
 	"github.com/XiaoMi/Gaea/logging"
 	"os"
 	"path/filepath"
@@ -51,9 +49,4 @@ func DefaultConfigFileLocations() []string {
 		i++
 	}
 	return result
-}
-
-func init() {
-	_ = provider.DefaultRegistry().Register(provider.ConfigSource, &source.FileSource{})
-	_ = provider.DefaultRegistry().Register(provider.ConfigSource, &source.EtcdSource{})
 }

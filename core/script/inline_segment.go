@@ -137,7 +137,7 @@ func flushSegment(context *splitContext) error {
 	if !seg.isBlank() {
 		trim := strings.TrimSpace(seg.rawScript)
 		if trim != "" {
-			if s, err := ParseScript(trim, context.variables); err != nil {
+			if s, err := ParseScriptVar(trim, context.variables); err != nil {
 				return err
 			} else {
 				seg.script = s

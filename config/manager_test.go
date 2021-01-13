@@ -21,6 +21,7 @@
 package config
 
 import (
+	_ "github.com/XiaoMi/Gaea/driver"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/config"
 	"strings"
@@ -30,23 +31,23 @@ import (
 const TestYAML = `
 sources:
   ds0: 
-    address: localhost:3306
+    endpoint: localhost:3306
     username: root
     password: 
   ds1:
-    address: localhost:3306
+    endpoint: localhost:3306
     username: root
     password: 
 
 rule:  
   tables:
     t_order: 
-      actualDataNodes: ds${0..1}.t_order${0..1}
-      databaseStrategy:
+      db-nodes: ds${range(0,1)}.t_order${[0,1]}
+      db-strategy:
         inline:
           shardingColumn: user_id
           algorithmExpression: ds${user_id % 2}
-      tableStrategy: 
+      table-strategy: 
         inline:
           shardingColumn: order_id
           algorithmExpression: t_order${order_id % 2}
@@ -54,24 +55,36 @@ rule:
         type: SNOWFLAKE
         column: order_id
     t_order_item:
-      actualDataNodes: ds${0..1}.t_order_item${0..1}
-      databaseStrategy:
+      db-nodes: ds${range(0,1)}.t_order_item${range(0,1)}
+      db-strategy:
         inline:
           shardingColumn: user_id
           algorithmExpression: ds${user_id % 2}
-      tableStrategy:
+      table-strategy:
         inline:
           shardingColumn: order_id
           algorithmExpression: t_order_item${order_id % 2}  
 `
 
-func TestNewManager(t *testing.T) {
-	r := strings.NewReader(TestYAML)
+func newTestManager(yamlContent string, t *testing.T) Manager {
+	r := strings.NewReader(yamlContent)
 	opt := config.Source(r)
-
-	yml, err := config.NewYAML(opt)
+	permissive := config.Permissive()
+	yml, err := config.NewYAML(opt, permissive)
 	assert.Nil(t, err, "yml bad format")
 
-	_, err = NewManagerFromYAML(yml)
+	m, err := NewManagerFromYAML(yml)
 	assert.Nil(t, err, "create config manager fault")
+	return m
+}
+
+func TestNewManager(t *testing.T) {
+	newTestManager(TestYAML, t)
+}
+
+func TestLoadSettings(t *testing.T) {
+	m := newTestManager(TestYAML, t)
+	settings := m.GetSettings()
+
+	assert.Equal(t, 2, len(settings.DataSources))
 }
