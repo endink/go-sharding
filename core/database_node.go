@@ -18,7 +18,7 @@
 
 package core
 
-type DatabaseNode struct {
+type DatabaseResource struct {
 	Name   string
 	Tables []string
 }

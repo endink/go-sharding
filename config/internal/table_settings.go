@@ -19,13 +19,13 @@
 package internal
 
 const (
-	DbNodeProperty        = "db-nodes"
+	ResourcesProperty     = "resources"
 	DbStrategyProperty    = "db-strategy"
 	TableStrategyProperty = "table-strategy"
 )
 
 type TableSettings struct {
-	DbNodes       string                       `yaml:"db-nodes"`
+	Resources     string                       `yaml:"resources"`
 	DbStrategy    map[string]map[string]string `yaml:"db-strategy"`
 	TableStrategy map[string]map[string]string `yaml:"table-strategy"`
 }

@@ -42,7 +42,7 @@ sources:
 rule:  
   tables:
     t_order: 
-      db-nodes: ds${range(0,1)}.t_order${[0,1]}
+      resources: ds${range(0,1)}.t_order${[0,1]}
       db-strategy:
         inline:
           shardingColumn: user_id
@@ -55,7 +55,7 @@ rule:
         type: SNOWFLAKE
         column: order_id
     t_order_item:
-      db-nodes: ds${range(0,1)}.t_order_item${range(0,1)}
+      resources: ds${range(0,1)}.t_order_item${range(0,1)}
       db-strategy:
         inline:
           shardingColumn: user_id

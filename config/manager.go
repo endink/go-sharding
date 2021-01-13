@@ -115,11 +115,11 @@ func (mgr *cnfManager) buildShardingTable(name string, settings internal.TableSe
 		return nil, err
 	}
 
-	nodes, err := buildDbNodes(settings.DbNodes)
+	nodes, err := buildDbNodes(settings.Resources)
 	if err != nil {
 		return nil, err
 	}
-	sd.DbNodes = nodes
+	sd.Resource = nodes
 	return sd, nil
 }
 
@@ -149,24 +149,24 @@ func getFirstKeyValue(strategy map[string]map[string]string) (string, map[string
 func validateTableSettings(tableName string, settings internal.TableSettings) error {
 
 	if settings.DbStrategy == nil || len(settings.DbStrategy) == 0 {
-		return fmt.Errorf("table '%s' database sharding strategy was not configured", tableName)
+		return ErrDbStrategyConfigMissed
 	}
 
 	if settings.TableStrategy == nil || len(settings.TableStrategy) == 0 {
-		return fmt.Errorf("table '%s' table sharding strategy was not configured", tableName)
+		return ErrTableStrategyConfigMissed
 	}
 
 	if len(settings.DbStrategy) > 1 {
-		return fmt.Errorf("table '%s' configured more than 1 database sharding strategy", tableName)
+		return fmt.Errorf("table '%s' configured more than 1 database sharding strategy ( config property: %s )", tableName, internal.DbStrategyProperty)
 	}
 
 	if len(settings.TableStrategy) > 1 {
-		return fmt.Errorf("table '%s' configured more than 1 table sharding strategy", tableName)
+		return fmt.Errorf("table '%s' configured more than 1 table sharding strategy ( config property: %s )", tableName, internal.TableStrategyProperty)
 	}
 	return nil
 }
 
-func buildDbNodes(dbNodesExpression string) ([]*core.DatabaseNode, error) {
+func buildDbNodes(dbNodesExpression string) ([]*core.DatabaseResource, error) {
 	expr := strings.TrimSpace(dbNodesExpression)
 	if expr == "" {
 		return nil, ErrDataNodeConfigMissed
@@ -192,10 +192,10 @@ func buildDbNodes(dbNodesExpression string) ([]*core.DatabaseNode, error) {
 		table := schemaAndTable[1]
 		nodes[schema] = append(nodes[schema], table)
 	}
-	dbNodes := make([]*core.DatabaseNode, len(nodes))
+	dbNodes := make([]*core.DatabaseResource, len(nodes))
 	index := 0
 	for name, tables := range nodes {
-		dbNode := &core.DatabaseNode{
+		dbNode := &core.DatabaseResource{
 			Name:   name,
 			Tables: core.DistinctSlice(tables),
 		}
