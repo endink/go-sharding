@@ -24,6 +24,9 @@ import (
 )
 
 func outJoin(prefix []string, suffix []string) []string {
+	if len(prefix) == 0 {
+		return suffix
+	}
 	bucket := make(map[string]struct{})
 	for _, p := range prefix {
 		for _, v := range suffix {

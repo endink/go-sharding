@@ -66,7 +66,7 @@ rule:
         inline:
           shardingColumn: order_id
           algorithmExpression: t_order_item${order_id % 2}  
-    t_order_item:
+    t_product:
       db-strategy: none
       table-strategy: none
 `
