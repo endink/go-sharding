@@ -24,6 +24,10 @@ import (
 	"strings"
 )
 
+type inlineSegmentGroup struct {
+	segments []*inlineSegment
+}
+
 type inlineSegment struct {
 	rawScript string
 	prefix    string
@@ -41,11 +45,13 @@ func (seg inlineSegment) isBlank() bool {
 	return strings.TrimSpace(seg.prefix) == "" && strings.TrimSpace(seg.rawScript) == ""
 }
 
-func splitInlineExpression(exp string) ([]*inlineSegment, error) {
+func splitSegments(exp string) ([]*inlineSegmentGroup, error) {
 	isScript := false
 	scriptStart := false
 	expLen := len(exp)
 	includeSplitter := false
+
+	groups := make([]*inlineSegmentGroup, 0)
 
 	syntaxError := func(message string, index int) error {
 		var sb = core.NewStringBuilder()
@@ -59,7 +65,6 @@ func splitInlineExpression(exp string) ([]*inlineSegment, error) {
 	context := &splitContext{
 		prefix:    &strings.Builder{},
 		rawScript: &strings.Builder{},
-		variables: make(map[string]interface{}),
 	}
 
 	prefix := context.prefix
@@ -107,11 +112,21 @@ func splitInlineExpression(exp string) ([]*inlineSegment, error) {
 		case '}':
 			if isScript {
 				isScript = false
-				if err = flushSegment(context); err != nil {
+				if err = context.flushSegment(); err != nil {
 					return nil, syntaxError(err.Error(), i)
 				}
 			} else {
 				return nil, syntaxError("should not appear symbol '}'", i)
+			}
+		case ',':
+			if !isScript {
+				if g, err := context.flushGroup(); err != nil {
+					return nil, syntaxError(err.Error(), i)
+				} else {
+					groups = append(groups, g)
+				}
+			} else {
+				rawScript.WriteByte(char)
 			}
 		default:
 			if isScript {
@@ -123,16 +138,30 @@ func splitInlineExpression(exp string) ([]*inlineSegment, error) {
 
 	}
 
-	if err = flushSegment(context); err != nil {
+	if g, err := context.flushGroup(); err != nil {
 		return nil, syntaxError(err.Error(), expLen)
+	} else {
+		groups = append(groups, g)
 	}
-	return context.segments, nil
+	return groups, nil
 }
 
-func flushSegment(context *splitContext) error {
+func (context *splitContext) flushGroup() (*inlineSegmentGroup, error) {
+	if err := context.flushSegment(); err != nil {
+		return nil, err
+	} else {
+		g := &inlineSegmentGroup{
+			segments: context.segments,
+		}
+		context.segments = nil
+		return g, nil
+	}
+}
+
+func (context *splitContext) flushSegment() error {
 	seg := &inlineSegment{
-		prefix:    context.prefix.String(),
-		rawScript: context.rawScript.String(),
+		prefix:    strings.TrimSpace(context.prefix.String()),
+		rawScript: strings.TrimSpace(context.rawScript.String()),
 	}
 	if !seg.isBlank() {
 		trim := strings.TrimSpace(seg.rawScript)

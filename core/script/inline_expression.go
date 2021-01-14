@@ -24,32 +24,45 @@ type InlineExpression interface {
 
 type inlineExpr struct {
 	expression string
-	segments   []*inlineSegment
+	segments   []*inlineSegmentGroup
 }
 
 func (i *inlineExpr) Flat() ([]string, error) {
-	var current []string
-	for _, s := range i.segments {
-		if s.script != nil {
-			if list, err := s.script.ExecuteList(); err != nil {
-				return nil, err
-			} else {
-				segStrings := flatFill(s.prefix, list)
-				current = outJoin(current, segStrings)
-			}
-		} else {
-			if s.prefix != "" {
-				current = append(current, s.prefix)
-			}
-		}
+	set := make(map[string]struct{})
 
+	for _, g := range i.segments {
+		var current []string
+		for _, s := range g.segments {
+			if s.script != nil {
+				if list, err := s.script.ExecuteList(); err != nil {
+					return nil, err
+				} else {
+					segStrings := flatFill(s.prefix, list)
+					current = outJoin(current, segStrings)
+				}
+			} else {
+				if s.prefix != "" {
+					current = append(current, s.prefix)
+				}
+			}
+
+		}
+		for _, c := range current {
+			set[c] = struct{}{}
+		}
 	}
-	return current, nil
+
+	list := make([]string, 0, len(set))
+	for key, _ := range set {
+		list = append(list, key)
+	}
+	return list, nil
 }
 
 func NewInlineExpression(expression string) (InlineExpression, error) {
 	expr := &inlineExpr{expression: expression}
-	if segments, err := splitInlineExpression(expression); err != nil {
+
+	if segments, err := splitSegments(expression); err != nil {
 		return nil, err
 	} else {
 		expr.segments = segments

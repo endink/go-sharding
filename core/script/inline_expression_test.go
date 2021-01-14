@@ -26,6 +26,14 @@ import (
 	"testing"
 )
 
+func TestFlatNoScript(t *testing.T) {
+	expr := "ds_1,ds_2, ds_3"
+	list := FlatInlineExpression(expr, t)
+	assert.Equal(t, 3, len(list))
+
+	assert.True(t, core.StringSliceEqual(list, []string{"ds_1", "ds_2", "ds_3"}))
+}
+
 func TestFlatOneDepth(t *testing.T) {
 	expr := "ds_${range(1,3)}"
 	list := FlatInlineExpression(expr, t)
@@ -45,6 +53,18 @@ func TestFlatThirdDepth(t *testing.T) {
 	expr := "ds_${range(1,3)}_t${range(2,3)}_b${[5,6,7,8]}"
 	list := FlatInlineExpression(expr, t)
 	assert.Equal(t, 24, len(list))
+}
+
+func TestMultiFlatThirdDepth(t *testing.T) {
+	expr := "ds_${range(1,3)}_t${range(2,3)}_b${[5,6,7,8]},es_${range(2,4)}_t${range(2,3)}_b${[5,6,7,8]}, ts_${range(3,5)}_t${range(2,3)}_b${[5,6,7,8]}"
+	list := FlatInlineExpression(expr, t)
+	assert.Equal(t, 72, len(list))
+}
+
+func TestDuplexMultiFlatThirdDepth(t *testing.T) {
+	expr := "ds_${range(1,3)}_t${range(2,3)}_b${[5,6,7,8]}, ds_${range(3,4)}_t${range(2,3)}_b${[5,6,7,8]}"
+	list := FlatInlineExpression(expr, t)
+	assert.Equal(t, 32, len(list))
 }
 
 func printSorted(list []string) {

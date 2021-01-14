@@ -69,12 +69,10 @@ func (mgr *cnfManager) GetSettings() *core.Settings {
 
 func (mgr *cnfManager) populateSettings(settings *core.Settings) error {
 	//解析物理数据库地址
-	err := mgr.current.Get(dataSourcesConfigPath).Populate(settings.DataSources)
+	err := mgr.buildDataSource(settings)
 	if err != nil {
 		return err
 	}
-
-	settings.DefaultDataSource = mgr.current.Get(defaultDataSourcesConfigPath).String()
 
 	tables := make(map[string]*internal.TableSettings)
 	err = mgr.current.Get(shardingTablesConfigPath).Populate(tables)
@@ -102,6 +100,33 @@ func (mgr *cnfManager) populateSettings(settings *core.Settings) error {
 		Tables: shardingTables,
 	}
 
+	return nil
+}
+
+func (mgr *cnfManager) buildDataSource(settings *core.Settings) error {
+	err := mgr.current.Get(dataSourcesConfigPath).Populate(settings.DataSources)
+	if err != nil {
+		return err
+	}
+
+	for name, ds := range settings.DataSources {
+		ds.Endpoint = strings.TrimSpace(ds.Endpoint)
+		if strings.TrimSpace(ds.Endpoint) == "" {
+			return fmt.Errorf("enpoint configuration missed in source '%s'", name)
+		}
+
+		ds.Username = strings.TrimSpace(ds.Username)
+		if strings.TrimSpace(ds.Username) == "" {
+			return fmt.Errorf("username configuration missed in source '%s'", name)
+		}
+	}
+
+	source := mgr.current.Get(defaultDataSourcesConfigPath).String()
+	if _, ok := settings.DataSources[source]; !ok {
+		return fmt.Errorf("default source '%s' is not configured in sources", source)
+	}
+
+	settings.DefaultDataSource = source
 	return nil
 }
 
@@ -202,10 +227,10 @@ func validateStrategyConfig(tableName string, propertyName string, settings inte
 	return fmt.Errorf("table '%s' has bad config value for %s ( value: %s )", tableName, propertyName, fmt.Sprint(settings))
 }
 
-func buildDbResource(dbNodesExpression string) ([]*core.DatabaseResource, error) {
+func buildDbResource(dbNodesExpression string) (map[string][]string, error) {
 	expr := strings.TrimSpace(dbNodesExpression)
 	if expr == "" {
-		return make([]*core.DatabaseResource, 0, 0), nil
+		return make(map[string][]string, 0), nil
 	}
 
 	inline, err := script.NewInlineExpression(expr)
@@ -228,15 +253,5 @@ func buildDbResource(dbNodesExpression string) ([]*core.DatabaseResource, error)
 		table := schemaAndTable[1]
 		nodes[schema] = append(nodes[schema], table)
 	}
-	dbNodes := make([]*core.DatabaseResource, len(nodes))
-	index := 0
-	for name, tables := range nodes {
-		dbNode := &core.DatabaseResource{
-			Name:   name,
-			Tables: core.DistinctSlice(tables),
-		}
-		dbNodes[index] = dbNode
-		index++
-	}
-	return dbNodes, nil
+	return nodes, nil
 }
