@@ -26,3 +26,15 @@ type ShardingTable struct {
 	TableStrategy    ShardingStrategy
 	DatabaseStrategy ShardingStrategy
 }
+
+func NoShardingTable(tableName string) *ShardingTable {
+	return &ShardingTable{
+		Name:          tableName,
+		TableStrategy: NoneShardingStrategy,
+	}
+}
+
+//指示是否需要进行分片
+func (t *ShardingTable) IsSharding() bool {
+	return t.TableStrategy != NoneShardingStrategy && t.DatabaseStrategy != NoneShardingStrategy
+}

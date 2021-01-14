@@ -18,14 +18,19 @@
 
 package core
 
-type ShardingScalarValue struct {
-	Table  string
-	Column string
-	Value  interface{}
+var NoneShardingStrategy = &noneShardingStrategy{}
+
+type noneShardingStrategy struct {
 }
 
-type ShardingRangeValue struct {
-	Table  string
-	Column string
-	Value  Range
+func (i *noneShardingStrategy) GetName() string {
+	panic("implement me")
+}
+
+func (i *noneShardingStrategy) ShardScalar(value *ShardingScalarValue) {
+	panic("implement me")
+}
+
+func (i *noneShardingStrategy) ShardRange(value *ShardingRangeValue) {
+	panic("implement me")
 }

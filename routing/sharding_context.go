@@ -16,22 +16,39 @@
  *  File author: Anders Xiao
  */
 
-package strategy
+package routing
 
 import (
 	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/driver/strategy/internal"
+	"strings"
 )
 
-const NoneFactoryName = "none"
-
-type NoneFactory struct {
+type ShardingContext struct {
+	Settings *core.Settings
+	schemaL  string
 }
 
-func (i *NoneFactory) GetName() string {
-	return NoneFactoryName
+func NewShardingContext(settings *core.Settings) *ShardingContext {
+	r := &ShardingContext{
+		Settings: settings,
+		schemaL:  strings.ToLower(settings.Server.Schema),
+	}
+	return r
 }
 
-func (i *NoneFactory) CreateStrategy(_ core.Properties) (core.ShardingStrategy, error) {
-	return internal.NoneStrategy, nil
+func (ctx *ShardingContext) GetSchema() string {
+	return ctx.Settings.Server.Schema
+}
+
+func (ctx *ShardingContext) IsShardingTable(tableName string) bool {
+	_, ok := ctx.Settings.ShardingRule.Tables[tableName]
+	return ok
+}
+
+func (ctx *ShardingContext) GetShardingTable(tableName string) *core.ShardingTable {
+	if r, ok := ctx.Settings.ShardingRule.Tables[tableName]; ok {
+		return r
+	} else {
+		return core.NoShardingTable(tableName)
+	}
 }

@@ -32,10 +32,12 @@ const TestYAML = `
 sources:
   ds0: 
     endpoint: localhost:3306
+    schema: test_db
     username: root
     password: 
   ds1:
     endpoint: localhost:3306
+    schema: test_db
     username: root
     password: 
 
@@ -69,6 +71,12 @@ rule:
     t_product:
       db-strategy: none
       table-strategy: none
+
+server: 
+  port: 13308
+  username: root
+  password: root2
+  schema: test
 `
 
 func newTestManager(yamlContent string, t *testing.T) Manager {

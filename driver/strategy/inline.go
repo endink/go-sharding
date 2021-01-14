@@ -16,16 +16,26 @@
  *  File author: Anders Xiao
  */
 
-package core
+package strategy
 
-type ShardingScalarValue struct {
-	Table  string
-	Column string
-	Value  interface{}
+import (
+	"github.com/XiaoMi/Gaea/core"
+	"github.com/XiaoMi/Gaea/core/script"
+)
+
+type Inline struct {
+	Columns    []string
+	Expression script.InlineExpression
 }
 
-type ShardingRangeValue struct {
-	Table  string
-	Column string
-	Value  Range
+func (i *Inline) GetName() string {
+	panic("implement me")
+}
+
+func (i *Inline) ShardScalar(value *core.ShardingScalarValue) {
+	panic("implement me")
+}
+
+func (i *Inline) ShardRange(value *core.ShardingRangeValue) {
+	panic("implement me")
 }

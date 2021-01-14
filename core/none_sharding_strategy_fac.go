@@ -18,14 +18,15 @@
 
 package core
 
-type ShardingScalarValue struct {
-	Table  string
-	Column string
-	Value  interface{}
+const NoneFactoryName = "none"
+
+type noneShardingStrategyFactory struct {
 }
 
-type ShardingRangeValue struct {
-	Table  string
-	Column string
-	Value  Range
+func (i *noneShardingStrategyFactory) GetName() string {
+	return NoneFactoryName
+}
+
+func (i *noneShardingStrategyFactory) CreateStrategy(_ Properties) (ShardingStrategy, error) {
+	return NoneShardingStrategy, nil
 }

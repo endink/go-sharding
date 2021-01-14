@@ -16,23 +16,10 @@
  *  File author: Anders Xiao
  */
 
-package internal
+package plan
 
-import "github.com/XiaoMi/Gaea/core"
+type basePlan struct{}
 
-var NoneStrategy = &None{}
-
-type None struct {
-}
-
-func (i *None) GetName() string {
-	panic("implement me")
-}
-
-func (i *None) ShardScalar(value *core.ShardingScalarValue) {
-	panic("implement me")
-}
-
-func (i *None) ShardRange(value *core.ShardingRangeValue) {
-	panic("implement me")
+func (*basePlan) Size() int {
+	return 1
 }

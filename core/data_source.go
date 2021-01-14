@@ -22,4 +22,5 @@ type DataSource struct {
 	Endpoint string `yaml:"endpoint"`
 	Username string `yaml:"username"`
 	Password string `yaml:"password"`
+	Schema   string `yaml:"schema"`
 }

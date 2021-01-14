@@ -16,16 +16,12 @@
  *  File author: Anders Xiao
  */
 
-package core
+package plan
 
-type ShardingScalarValue struct {
-	Table  string
-	Column string
-	Value  interface{}
-}
+import "github.com/XiaoMi/Gaea/core"
 
-type ShardingRangeValue struct {
-	Table  string
-	Column string
-	Value  Range
+type ShardingTableRecord struct {
+	Sharding *core.ShardingTable
+	IsAlias  bool
+	Alias    string
 }

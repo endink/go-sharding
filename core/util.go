@@ -170,3 +170,7 @@ func ValidateIdentifier(identifier string) error {
 	}
 	return nil
 }
+
+func TrimAndLower(v string) string {
+	return strings.ToLower(strings.TrimSpace(v))
+}

@@ -19,11 +19,14 @@
 package driver
 
 import (
+	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/core/provider"
 	"github.com/XiaoMi/Gaea/driver/strategy"
 )
 
+var _ core.ShardingStrategy = &strategy.Inline{}
+var _ core.ShardingStrategyFactory = &strategy.InlineFactory{}
+
 func init() {
 	_ = provider.DefaultRegistry().Register(provider.StrategyFactory, &strategy.InlineFactory{})
-	_ = provider.DefaultRegistry().Register(provider.StrategyFactory, &strategy.NoneFactory{})
 }

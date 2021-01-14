@@ -18,14 +18,9 @@
 
 package core
 
-type ShardingScalarValue struct {
-	Table  string
-	Column string
-	Value  interface{}
-}
-
-type ShardingRangeValue struct {
-	Table  string
-	Column string
-	Value  Range
+type ServerProps struct {
+	Port     int    `yaml:"port"`
+	Username string `yaml:"username"`
+	Password string `yaml:"password"`
+	Schema   string `yaml:"schema"`
 }

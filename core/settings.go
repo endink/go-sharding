@@ -21,7 +21,8 @@ package core
 type Settings struct {
 	DataSources       map[string]*DataSource
 	ShardingRule      *ShardingRule
-	DefaultDataSource string
+	DefaultDataSource *DataSource
+	Server            *ServerProps
 }
 
 type ShardingRule struct {
@@ -33,6 +34,12 @@ func NewSettings() *Settings {
 		DataSources: make(map[string]*DataSource),
 		ShardingRule: &ShardingRule{
 			Tables: make(map[string]*ShardingTable),
+		},
+		Server: &ServerProps{
+			Port:     13306,
+			Username: "root",
+			Password: "root",
+			Schema:   "sharding-db",
 		},
 	}
 	return s

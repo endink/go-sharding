@@ -20,8 +20,14 @@
 
 package core
 
+import "github.com/XiaoMi/Gaea/core/provider"
+
+var _ ShardingStrategy = &noneShardingStrategy{}
+var _ ShardingStrategyFactory = &noneShardingStrategyFactory{}
+
 func init() {
 	if IsWindows() {
 		LineSeparator = "\r\n"
 	}
+	_ = provider.DefaultRegistry().Register(provider.StrategyFactory, &noneShardingStrategyFactory{})
 }

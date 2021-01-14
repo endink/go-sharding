@@ -28,6 +28,7 @@ import (
 	"github.com/XiaoMi/Gaea/core/provider"
 	"github.com/XiaoMi/Gaea/core/script"
 	"go.uber.org/config"
+	"net"
 	"strings"
 	"sync"
 )
@@ -35,6 +36,7 @@ import (
 const shardingTablesConfigPath = "rule.tables"
 const dataSourcesConfigPath = "sources"
 const defaultDataSourcesConfigPath = "default-source"
+const serverConfigPath = "server"
 
 var ErrSourcesConfigMissed = errors.New(fmt.Sprintf("config property '%s' missed or null", dataSourcesConfigPath))
 
@@ -109,6 +111,34 @@ func (mgr *cnfManager) populateSettings(settings *core.Settings) error {
 	return nil
 }
 
+func (mgr *cnfManager) buildProxy(settings *core.Settings) error {
+	svr := settings.Server
+	err := mgr.current.Get(serverConfigPath).Populate(svr)
+	if err != nil {
+		return err
+	}
+	if svr.Port <= 0 || svr.Port > 65535 {
+		return errors.New("bad port value in server config ( must between 1 and 65535)")
+	}
+
+	svr.Username = strings.TrimSpace(svr.Username)
+	if svr.Username == "" {
+		return errors.New("username configuration missed for server")
+	}
+	if err = core.ValidateIdentifier(svr.Username); err != nil {
+		return fmt.Errorf("invalid username '%s' for server configuration", svr.Username)
+	}
+
+	svr.Schema = strings.TrimSpace(svr.Schema)
+	if svr.Username == "" {
+		return errors.New("schema configuration missed for server")
+	}
+	if err = core.ValidateIdentifier(svr.Schema); err != nil {
+		return fmt.Errorf("invalid schema '%s' for server configuration", svr.Schema)
+	}
+	return nil
+}
+
 func (mgr *cnfManager) buildDataSource(settings *core.Settings) error {
 	err := mgr.current.Get(dataSourcesConfigPath).Populate(settings.DataSources)
 	if err != nil {
@@ -121,22 +151,45 @@ func (mgr *cnfManager) buildDataSource(settings *core.Settings) error {
 
 	for name, ds := range settings.DataSources {
 		ds.Endpoint = strings.TrimSpace(ds.Endpoint)
-		if strings.TrimSpace(ds.Endpoint) == "" {
+		if ds.Endpoint == "" {
 			return fmt.Errorf("enpoint configuration missed in source '%s'", name)
 		}
 
+		_, _, err = net.SplitHostPort(ds.Endpoint)
+		if err != nil {
+			return fmt.Errorf("bad enpoint format for source '%s'", name)
+		}
+
 		ds.Username = strings.TrimSpace(ds.Username)
-		if strings.TrimSpace(ds.Username) == "" {
+		if ds.Username == "" {
 			return fmt.Errorf("username configuration missed in source '%s'", name)
+		}
+		if err = core.ValidateIdentifier(ds.Username); err != nil {
+			return fmt.Errorf("invalid username in source '%s'", name)
+		}
+
+		ds.Schema = core.TrimAndLower(ds.Schema)
+		if ds.Schema == "" {
+			return fmt.Errorf("schema configuration missed in source '%s'", name)
+		}
+		if err = core.ValidateIdentifier(ds.Schema); err != nil {
+			return fmt.Errorf("invalid schema in source '%s'", name)
 		}
 	}
 
+	lowerMap := make(map[string]*core.DataSource, len(settings.DataSources))
+	for s, source := range settings.DataSources {
+		lowerMap[core.TrimAndLower(s)] = source
+	}
+	settings.DataSources = lowerMap
+
 	source := mgr.current.Get(defaultDataSourcesConfigPath).String()
-	if _, ok := settings.DataSources[source]; !ok {
-		return fmt.Errorf("default source '%s' is not configured in sources", source)
+	if s, ok := settings.DataSources[core.TrimAndLower(source)]; !ok {
+		return fmt.Errorf("default source '%s' is not configured in source list", source)
+	} else {
+		settings.DefaultDataSource = s
 	}
 
-	settings.DefaultDataSource = source
 	return nil
 }
 
@@ -262,8 +315,8 @@ func buildDbResource(dbNodesExpression string) (map[string][]string, error) {
 		if len(schemaAndTable) != 2 {
 			return nil, errors.New(fmt.Sprint("bad resource expression: ", expr, ", the separator (.) between schema and table name missed", core.LineSeparator, err))
 		}
-		schema := schemaAndTable[0]
-		table := schemaAndTable[1]
+		schema := core.TrimAndLower(schemaAndTable[0])
+		table := core.TrimAndLower(schemaAndTable[1])
 		if err = core.ValidateIdentifier(schema); err != nil {
 			return nil, errors.New(fmt.Sprint("bad database name in resource expression: ", expr, core.LineSeparator, err))
 		}
