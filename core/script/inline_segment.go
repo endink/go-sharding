@@ -37,7 +37,7 @@ type inlineSegment struct {
 type splitContext struct {
 	prefix    *strings.Builder
 	rawScript *strings.Builder
-	variables map[string]interface{}
+	variables []*Variable
 	segments  []*inlineSegment
 }
 
@@ -45,7 +45,7 @@ func (seg inlineSegment) isBlank() bool {
 	return strings.TrimSpace(seg.prefix) == "" && strings.TrimSpace(seg.rawScript) == ""
 }
 
-func splitSegments(exp string) ([]*inlineSegmentGroup, error) {
+func splitSegments(exp string, variables ...*Variable) ([]*inlineSegmentGroup, error) {
 	isScript := false
 	scriptStart := false
 	expLen := len(exp)
@@ -65,6 +65,7 @@ func splitSegments(exp string) ([]*inlineSegmentGroup, error) {
 	context := &splitContext{
 		prefix:    &strings.Builder{},
 		rawScript: &strings.Builder{},
+		variables: variables,
 	}
 
 	prefix := context.prefix
@@ -166,7 +167,7 @@ func (context *splitContext) flushSegment() error {
 	if !seg.isBlank() {
 		trim := strings.TrimSpace(seg.rawScript)
 		if trim != "" {
-			if s, err := ParseScriptVar(trim, context.variables); err != nil {
+			if s, err := ParseScript(trim, context.variables...); err != nil {
 				return err
 			} else {
 				seg.script = s

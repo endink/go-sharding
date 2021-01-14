@@ -21,9 +21,11 @@ package core
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"runtime"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"time"
 )
@@ -140,14 +142,31 @@ func StringSliceEqual(a, b []string) bool {
 	return true
 }
 
-func DistinctSlice(slice []string) []string {
+func DistinctSliceAndTrim(slice []string) []string {
 	result := make([]string, 0, len(slice))
 	temp := map[string]struct{}{}
 	for _, item := range slice {
-		if _, ok := temp[item]; !ok {
-			temp[item] = struct{}{}
-			result = append(result, item)
+		trim := strings.TrimSpace(item)
+		if trim != "" {
+			if _, ok := temp[trim]; !ok {
+				temp[item] = struct{}{}
+				result = append(result, trim)
+			}
 		}
 	}
 	return result
+}
+
+var identityRegex *regexp.Regexp
+var identityRegexOnce sync.Once
+
+//验证由字母数字下划线组成的标识符，且必须以字母开头
+func ValidateIdentifier(identifier string) error {
+	identityRegexOnce.Do(func() {
+		identityRegex, _ = regexp.Compile(`^[A-Za-z]+[A-Za-z0-9_-]*$`)
+	})
+	if !identityRegex.MatchString(identifier) {
+		return fmt.Errorf("identifier must starts with a letter and letters, numbers, underline(_), minus(-) are allowed, given value: %s", identifier)
+	}
+	return nil
 }

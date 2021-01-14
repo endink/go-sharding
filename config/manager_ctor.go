@@ -50,7 +50,7 @@ func NewManager() (Manager, error) {
 		sources = append(sources, config.Permissive())
 		yaml, err = config.NewYAML(sources...)
 		if err != nil {
-			logger.Warn("Load boot config file fault.", core.LineSeparator, err)
+			logger.Warn("Build boot config file fault.", core.LineSeparator, err)
 		}
 	}
 
@@ -83,6 +83,9 @@ func NewManagerFromYAML(yaml *config.YAML) (Manager, error) {
 		return nil, err
 	} else {
 		bootCnf.current = &v
+	}
+	if err = bootCnf.initialize(); err != nil {
+		return nil, err
 	}
 
 	return bootCnf, nil

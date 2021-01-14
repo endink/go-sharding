@@ -23,6 +23,7 @@ package strategy
 import (
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/driver/strategy/internal"
+	"strings"
 )
 
 const InlineFactoryName = "inline"
@@ -34,6 +35,14 @@ func (i *InlineFactory) GetName() string {
 	return InlineFactoryName
 }
 
-func (i *InlineFactory) CreateStrategy(props map[string]string) (core.ShardingStrategy, error) {
-	return &internal.Inline{}, nil
+func (i *InlineFactory) CreateStrategy(props core.Properties) (core.ShardingStrategy, error) {
+	builder := &internal.InlineBuilder{}
+	err := props.PopulateValue(builder)
+	if err != nil {
+		return nil, err
+	}
+	builder.Expression = strings.TrimSpace(builder.Expression)
+	builder.ShardingColumns = strings.TrimSpace(builder.ShardingColumns)
+
+	return builder.Build()
 }

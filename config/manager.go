@@ -36,6 +36,8 @@ const shardingTablesConfigPath = "rule.tables"
 const dataSourcesConfigPath = "sources"
 const defaultDataSourcesConfigPath = "default-source"
 
+var ErrSourcesConfigMissed = errors.New(fmt.Sprintf("config property '%s' missed or null", dataSourcesConfigPath))
+
 const noneStrategyName = "none"
 
 type Manager interface {
@@ -51,7 +53,7 @@ type cnfManager struct {
 	lock     sync.Mutex
 }
 
-func (mgr *cnfManager) GetSettings() *core.Settings {
+func (mgr *cnfManager) initialize() error {
 	if mgr.settings == nil {
 		mgr.lock.Lock()
 		defer mgr.lock.Unlock()
@@ -59,11 +61,15 @@ func (mgr *cnfManager) GetSettings() *core.Settings {
 			s := core.NewSettings()
 			err := mgr.populateSettings(s)
 			if err != nil {
-				logger.Error("populate config fault", core.LineSeparator, err)
+				return errors.New(fmt.Sprint("populate config fault", core.LineSeparator, err))
 			}
 			mgr.settings = s
 		}
 	}
+	return nil
+}
+
+func (mgr *cnfManager) GetSettings() *core.Settings {
 	return mgr.settings
 }
 
@@ -107,6 +113,10 @@ func (mgr *cnfManager) buildDataSource(settings *core.Settings) error {
 	err := mgr.current.Get(dataSourcesConfigPath).Populate(settings.DataSources)
 	if err != nil {
 		return err
+	}
+
+	if len(settings.DataSources) == 0 {
+		return ErrSourcesConfigMissed
 	}
 
 	for name, ds := range settings.DataSources {
@@ -169,11 +179,14 @@ func (mgr *cnfManager) buildShardingStrategy(tableName string, propertyName stri
 	if !ok {
 		return nil, fmt.Errorf("provider named '%s' is not ShardingStrategyFactory", name)
 	}
-	props := make(map[string]string)
+
+	props := core.EmptyProperties
+	var err error
 	if name != noneStrategyName {
 		configPath := fmt.Sprint(shardingTablesConfigPath, ".", tableName, ".", propertyName, ".", name)
-		if err := mgr.current.Get(configPath).Populate(props); err != nil {
-			return nil, err
+		v := mgr.current.Get(configPath)
+		if props, err = core.NewProperties(&v); err != nil {
+			return nil, errors.New(fmt.Sprint("invalid properties config for table ", tableName, core.LineSeparator, err))
 		}
 	}
 	if strategy, err := f.CreateStrategy(props); err != nil {
@@ -235,22 +248,29 @@ func buildDbResource(dbNodesExpression string) (map[string][]string, error) {
 
 	inline, err := script.NewInlineExpression(expr)
 	if err != nil {
-		return nil, errors.New(fmt.Sprint("bad database node expression: ", expr, core.LineSeparator, err))
+		return nil, errors.New(fmt.Sprint("bad resource expression: ", expr, core.LineSeparator, err))
 	}
 
 	ns, err := inline.Flat()
 	if err != nil {
-		return nil, errors.New(fmt.Sprint("bad database node expression: ", expr, core.LineSeparator, err))
+		return nil, errors.New(fmt.Sprint("bad resource expression: ", expr, core.LineSeparator, err))
 	}
 
 	nodes := make(map[string][]string, len(ns))
 	for _, name := range ns {
 		schemaAndTable := strings.Split(name, ".")
 		if len(schemaAndTable) != 2 {
-			return nil, errors.New(fmt.Sprint("bad database node expression: ", expr, ", the separator (.) between schema and table name missed", core.LineSeparator, err))
+			return nil, errors.New(fmt.Sprint("bad resource expression: ", expr, ", the separator (.) between schema and table name missed", core.LineSeparator, err))
 		}
 		schema := schemaAndTable[0]
 		table := schemaAndTable[1]
+		if err = core.ValidateIdentifier(schema); err != nil {
+			return nil, errors.New(fmt.Sprint("bad database name in resource expression: ", expr, core.LineSeparator, err))
+		}
+		if err = core.ValidateIdentifier(table); err != nil {
+			return nil, errors.New(fmt.Sprint("bad table name in resource expression: ", expr, core.LineSeparator, err))
+		}
+
 		nodes[schema] = append(nodes[schema], table)
 	}
 	return nodes, nil

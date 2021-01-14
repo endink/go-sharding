@@ -20,9 +20,11 @@
 
 package core
 
-import "github.com/XiaoMi/Gaea/core/provider"
+import (
+	"github.com/XiaoMi/Gaea/core/provider"
+)
 
 type ShardingStrategyFactory interface {
 	provider.Provider
-	CreateStrategy(props map[string]string) (ShardingStrategy, error)
+	CreateStrategy(props Properties) (ShardingStrategy, error)
 }

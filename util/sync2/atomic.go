@@ -22,7 +22,7 @@ import (
 	"time"
 )
 
-// AtomicInt32 is a wrapper with a simpler interface around atomic.(Add|Store|Load|CompareAndSwap)Int32 functions.
+// AtomicInt32 is a wrapper with a simpler interface around atomic.(Add|Store|Build|CompareAndSwap)Int32 functions.
 type AtomicInt32 struct {
 	int32
 }
@@ -52,7 +52,7 @@ func (i *AtomicInt32) CompareAndSwap(oldval, newval int32) (swapped bool) {
 	return atomic.CompareAndSwapInt32(&i.int32, oldval, newval)
 }
 
-// AtomicInt64 is a wrapper with a simpler interface around atomic.(Add|Store|Load|CompareAndSwap)Int64 functions.
+// AtomicInt64 is a wrapper with a simpler interface around atomic.(Add|Store|Build|CompareAndSwap)Int64 functions.
 type AtomicInt64 struct {
 	int64
 }
@@ -82,7 +82,7 @@ func (i *AtomicInt64) CompareAndSwap(oldval, newval int64) (swapped bool) {
 	return atomic.CompareAndSwapInt64(&i.int64, oldval, newval)
 }
 
-// AtomicDuration is a wrapper with a simpler interface around atomic.(Add|Store|Load|CompareAndSwap)Int64 functions.
+// AtomicDuration is a wrapper with a simpler interface around atomic.(Add|Store|Build|CompareAndSwap)Int64 functions.
 type AtomicDuration struct {
 	int64
 }

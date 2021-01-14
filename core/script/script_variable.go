@@ -18,26 +18,9 @@
  *
  */
 
-package internal
+package script
 
-import (
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/core/script"
-)
-
-type Inline struct {
-	Columns    []string
-	Expression script.InlineExpression
-}
-
-func (i *Inline) GetName() string {
-	panic("implement me")
-}
-
-func (i *Inline) ShardScalar(value *core.ShardingScalarValue) {
-	panic("implement me")
-}
-
-func (i *Inline) ShardRange(value *core.ShardingRangeValue) {
-	panic("implement me")
+type Variable struct {
+	Name  string
+	Value interface{}
 }

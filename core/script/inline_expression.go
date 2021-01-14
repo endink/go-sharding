@@ -19,21 +19,40 @@
 package script
 
 type InlineExpression interface {
-	Flat() ([]string, error)
+	Flat(variables ...*Variable) ([]string, error)
+	FlatScalar(variables ...*Variable) (string, error)
 }
 
 type inlineExpr struct {
 	expression string
 	segments   []*inlineSegmentGroup
+	vars       []*Variable
 }
 
-func (i *inlineExpr) Flat() ([]string, error) {
+func (i *inlineExpr) FlatScalar(variables ...*Variable) (string, error) {
+	if list, err := i.Flat(variables...); err != nil {
+		return "", nil
+	} else {
+		for _, s := range list {
+			return s, nil
+		}
+	}
+	return "", nil
+}
+
+func (i *inlineExpr) Flat(variables ...*Variable) ([]string, error) {
 	set := make(map[string]struct{})
+	var list []string
 
 	for _, g := range i.segments {
 		var current []string
 		for _, s := range g.segments {
 			if s.script != nil {
+				for _, va := range variables {
+					if err := s.script.SetVar(va.Name, va.Value); err != nil {
+						return nil, err
+					}
+				}
 				if list, err := s.script.ExecuteList(); err != nil {
 					return nil, err
 				} else {
@@ -48,21 +67,23 @@ func (i *inlineExpr) Flat() ([]string, error) {
 
 		}
 		for _, c := range current {
-			set[c] = struct{}{}
+			if _, ok := set[c]; !ok {
+				set[c] = struct{}{}
+				list = append(list, c)
+			}
+
 		}
 	}
-
-	list := make([]string, 0, len(set))
-	for key, _ := range set {
-		list = append(list, key)
+	if list == nil {
+		list = make([]string, 0)
 	}
 	return list, nil
 }
 
-func NewInlineExpression(expression string) (InlineExpression, error) {
-	expr := &inlineExpr{expression: expression}
+func NewInlineExpression(expression string, variables ...*Variable) (InlineExpression, error) {
+	expr := &inlineExpr{expression: expression, vars: variables}
 
-	if segments, err := splitSegments(expression); err != nil {
+	if segments, err := splitSegments(expression, variables...); err != nil {
 		return nil, err
 	} else {
 		expr.segments = segments

@@ -11,12 +11,17 @@ import (
 type CompiledScript interface {
 	ExecuteList() ([]string, error)
 	ExecuteScalar() (string, error)
+	SetVar(name string, value interface{}) error
 }
 
 type tengoScript struct {
 	raw       *string
 	compiled  *tengo.Compiled
 	resultVar string
+}
+
+func (script *tengoScript) SetVar(name string, value interface{}) error {
+	return script.compiled.Set(name, value)
 }
 
 func (script *tengoScript) ExecuteScalar() (string, error) {
@@ -101,12 +106,8 @@ func invalidReturnTypeError(raw string, v *tengo.Variable, allowArray bool) erro
 		v.ValueType()))
 }
 
-func ParseScript(script string) (CompiledScript, error) {
-	return ParseScriptVar(script, nil)
-}
-
-func ExeScriptScalar(script string, variables map[string]interface{}) (string, error) {
-	if s, err := ParseScriptVar(script, variables); err != nil {
+func ExeScriptScalar(script string, variables ...*Variable) (string, error) {
+	if s, err := ParseScript(script, variables...); err != nil {
 		return "", err
 	} else {
 		if r, err := s.ExecuteScalar(); err != nil {
@@ -117,8 +118,8 @@ func ExeScriptScalar(script string, variables map[string]interface{}) (string, e
 	}
 }
 
-func ExeScriptList(script string, variables map[string]interface{}) ([]string, error) {
-	if s, err := ParseScriptVar(script, variables); err != nil {
+func ExeScriptList(script string, variables ...*Variable) ([]string, error) {
+	if s, err := ParseScript(script, variables...); err != nil {
 		return nil, err
 	} else {
 		if r, err := s.ExecuteList(); err != nil {
@@ -129,13 +130,13 @@ func ExeScriptList(script string, variables map[string]interface{}) ([]string, e
 	}
 }
 
-func ParseScriptVar(script string, variables map[string]interface{}) (CompiledScript, error) {
+func ParseScript(script string, variables ...*Variable) (CompiledScript, error) {
 	if parser, err := NewScriptParser(script); err != nil {
 		return nil, err
 	} else {
 		if variables != nil {
-			for name, value := range variables {
-				if err := parser.Var(name, value); err != nil {
+			for _, variable := range variables {
+				if err := parser.Var(variable.Name, variable.Value); err != nil {
 					return nil, err
 				}
 			}

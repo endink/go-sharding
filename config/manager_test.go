@@ -47,12 +47,12 @@ rule:
       resources: ds${range(0,1)}.t_order${[0,1]}
       db-strategy:
         inline:
-          shardingColumn: user_id
-          algorithmExpression: ds${user_id % 2}
+          sharding-columns: user_id
+          expression: ds${user_id % 2}
       table-strategy: 
         inline:
-          shardingColumn: order_id
-          algorithmExpression: t_order${order_id % 2}
+          sharding-columns: order_id
+          expression: t_order${order_id % 2}
       keyGenerator:
         type: SNOWFLAKE
         column: order_id
@@ -60,12 +60,12 @@ rule:
       resources: ds${range(0,1)}.t_order_item${range(0,1)}
       db-strategy:
         inline:
-          shardingColumn: user_id
-          algorithmExpression: ds${user_id % 2}
+          sharding-columns: user_id
+          expression: ds${user_id % 2}
       table-strategy:
         inline:
-          shardingColumn: order_id
-          algorithmExpression: t_order_item${order_id % 2}  
+          sharding-columns: order_id
+          expression: t_order_item${order_id % 2}  
     t_product:
       db-strategy: none
       table-strategy: none

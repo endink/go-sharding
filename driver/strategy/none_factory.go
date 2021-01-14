@@ -32,6 +32,6 @@ func (i *NoneFactory) GetName() string {
 	return NoneFactoryName
 }
 
-func (i *NoneFactory) CreateStrategy(_ map[string]string) (core.ShardingStrategy, error) {
+func (i *NoneFactory) CreateStrategy(_ core.Properties) (core.ShardingStrategy, error) {
 	return internal.NoneStrategy, nil
 }
