@@ -21,7 +21,6 @@ package plan
 import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/proxy/router"
 	"github.com/XiaoMi/Gaea/routing"
 	"github.com/pingcap/parser/ast"
 )
