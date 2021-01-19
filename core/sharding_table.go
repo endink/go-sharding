@@ -23,6 +23,7 @@ package core
 type ShardingTable struct {
 	Name             string
 	Resources        map[string][]string
+	ShardingColumns  []string
 	TableStrategy    ShardingStrategy
 	DatabaseStrategy ShardingStrategy
 }
@@ -32,6 +33,15 @@ func NoShardingTable(tableName string) *ShardingTable {
 		Name:          tableName,
 		TableStrategy: NoneShardingStrategy,
 	}
+}
+
+func (t *ShardingTable) HasColumn(column string) bool {
+	for _, column := range t.ShardingColumns {
+		if TrimAndLower(column) == column {
+
+		}
+	}
+	return false
 }
 
 //指示是否需要进行分片

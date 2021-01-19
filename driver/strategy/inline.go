@@ -28,14 +28,10 @@ type Inline struct {
 	Expression script.InlineExpression
 }
 
-func (i *Inline) GetName() string {
+func (i Inline) ShardScalar(sourceNames []string, value *core.ShardingScalarValue) string {
 	panic("implement me")
 }
 
-func (i *Inline) ShardScalar(value *core.ShardingScalarValue) {
-	panic("implement me")
-}
-
-func (i *Inline) ShardRange(value *core.ShardingRangeValue) {
+func (i Inline) ShardRange(sourceNames []string, value *core.ShardingRangeValue) []string {
 	panic("implement me")
 }

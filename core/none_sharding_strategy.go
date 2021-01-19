@@ -23,14 +23,10 @@ var NoneShardingStrategy = &noneShardingStrategy{}
 type noneShardingStrategy struct {
 }
 
-func (i *noneShardingStrategy) GetName() string {
+func (n noneShardingStrategy) ShardScalar(sourceNames []string, value *ShardingScalarValue) string {
 	panic("implement me")
 }
 
-func (i *noneShardingStrategy) ShardScalar(value *ShardingScalarValue) {
-	panic("implement me")
-}
-
-func (i *noneShardingStrategy) ShardRange(value *ShardingRangeValue) {
+func (n noneShardingStrategy) ShardRange(sourceNames []string, value *ShardingRangeValue) []string {
 	panic("implement me")
 }

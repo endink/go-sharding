@@ -18,16 +18,24 @@
  *
  */
 
-package planner
+package core
 
 import (
-	_ "github.com/XiaoMi/Gaea/driver"
-	"testing"
+	"github.com/XiaoMi/Gaea/mysql"
+	"github.com/XiaoMi/Gaea/util"
 )
 
-func TestCtor(t *testing.T) {
-	tester := NewPlanTester(t, "select * from a where id = 3")
+// Executor TODO: move to package executor
+type Executor interface {
 
-	p := NewSelectPlan(tester.PlanContext)
-	p.buildPlan()
+	// 执行分片或非分片单条SQL
+	ExecuteSQL(ctx *util.RequestContext, slice, db, sql string) (*mysql.Result, error)
+
+	// 执行分片SQL
+	ExecuteSQLs(*util.RequestContext, map[string]map[string][]string) ([]*mysql.Result, error)
+
+	// 用于执行INSERT时设置last insert id
+	SetLastInsertID(uint64)
+
+	GetLastInsertID() uint64
 }

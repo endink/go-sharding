@@ -27,6 +27,7 @@ import (
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/core/provider"
 	"github.com/XiaoMi/Gaea/core/script"
+	"github.com/scylladb/go-set/strset"
 	"go.uber.org/config"
 	"net"
 	"strings"
@@ -213,12 +214,38 @@ func (mgr *cnfManager) buildShardingTable(name string, settings *internal.TableS
 		return nil, err
 	}
 
+	//加载候选数据库和表
 	resources, err := buildDbResource(settings.Resources)
 	if err != nil {
 		return nil, err
 	}
 	sd.Resources = resources
+
+	columns, err := buildShardingColumns(name, settings.ShardingColumns)
+	if err != nil {
+		return nil, err
+	}
+	sd.ShardingColumns = columns
+
 	return sd, nil
+}
+
+func buildShardingColumns(table string, shardingColumnExpr string) ([]string, error) {
+	values := core.TrimAndLower(shardingColumnExpr)
+	if len(values) > 0 {
+		nameArray := strings.Split(values, ",")
+		set := strset.NewWithSize(len(nameArray))
+		for _, n := range nameArray {
+			name := core.TrimAndLower(n)
+			if n != "" {
+				set.Add(name)
+			}
+		}
+		if set.Size() > 0 {
+			return set.List(), nil
+		}
+	}
+	return nil, fmt.Errorf("configuration property '%s' missed for table '%s'", table, internal.ShardingColumnsProperty)
 }
 
 func (mgr *cnfManager) buildShardingStrategy(tableName string, propertyName string, settings interface{}) (core.ShardingStrategy, error) {

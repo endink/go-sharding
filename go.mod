@@ -5,6 +5,7 @@ go 1.15
 require (
 	github.com/coreos/etcd v3.3.13+incompatible
 	github.com/d5/tengo/v2 v2.6.2
+	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/emirpasic/gods v1.12.0
 	github.com/gin-contrib/gzip v0.0.1
 	github.com/gin-gonic/gin v1.5.0
@@ -15,6 +16,7 @@ require (
 	github.com/pingcap/parser v0.0.0-20200623164729-3a18f1e5dceb
 	github.com/pingcap/tidb v1.1.0-beta.0.20200630082100-328b6d0a955c
 	github.com/prometheus/client_golang v1.5.1
+	github.com/scylladb/go-set v1.0.2
 	github.com/smartystreets/goconvey v0.0.0-20190222223459-a17d461953aa // indirect
 	github.com/stretchr/testify v1.5.1
 	go.uber.org/config v1.4.0

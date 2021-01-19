@@ -16,6 +16,9 @@ package plan
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/core"
+	"github.com/XiaoMi/Gaea/parser"
+	"github.com/XiaoMi/Gaea/util/hack"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/opcode"
 
@@ -59,14 +62,14 @@ func NewSelectPlan(sql string, r *router.Router) *SelectPlan {
 }
 
 // ExecuteIn implement Plan
-func (s *SelectPlan) ExecuteIn(reqCtx *util.RequestContext, sess Executor) (*mysql.Result, error) {
+func (s *SelectPlan) ExecuteIn(reqCtx *util.RequestContext, sess core.Executor) (*mysql.Result, error) {
 	sqls := s.GetSQLs()
 	if sqls == nil {
 		return nil, fmt.Errorf("SQL has not generated")
 	}
 
 	if len(sqls) == 0 {
-		r := newEmptyResultset(s, s.GetStmt())
+		r := s.newEmptyResultset(s.GetStmt())
 		ret := &mysql.Result{
 			Resultset: r,
 		}
@@ -1010,4 +1013,36 @@ func handleLimit(p *SelectPlan, stmt *ast.SelectStmt) error {
 		stmt.Limit = newLimit
 	}
 	return nil
+}
+
+// copy from newEmptyResultset
+// 注意去掉补充的列
+func (p *SelectPlan) newEmptyResultset(stmt *ast.SelectStmt) *mysql.Resultset {
+	r := new(mysql.Resultset)
+
+	fieldLen := len(stmt.Fields.Fields)
+	fieldLen -= p.columnCount - p.originColumnCount
+
+	r.Fields = make([]*mysql.Field, fieldLen)
+	for i, expr := range stmt.Fields.Fields {
+		r.Fields[i] = &mysql.Field{}
+		if expr.WildCard != nil {
+			r.Fields[i].Name = []byte("*")
+		} else {
+			if expr.AsName.String() != "" {
+				r.Fields[i].Name = hack.Slice(expr.AsName.String())
+
+				name, _ := parser.NodeToStringWithoutQuote(expr.Expr)
+				r.Fields[i].OrgName = hack.Slice(name)
+			} else {
+				name, _ := parser.NodeToStringWithoutQuote(expr.Expr)
+				r.Fields[i].Name = hack.Slice(name)
+			}
+		}
+	}
+
+	r.Values = make([][]interface{}, 0)
+	r.RowDatas = make([]mysql.RowData, 0)
+
+	return r
 }

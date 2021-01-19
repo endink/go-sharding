@@ -139,8 +139,8 @@ func (t *TableAliasStmtInfo) GetSettedRuleFromColumnInfo(db, table, column strin
 func (t *TableAliasStmtInfo) getSettedRuleByColumnName(column string) (*ShardingTableRecord, bool, error) {
 	ret := &ShardingTableRecord{}
 	for _, r := range t.tableRules {
-		if r.GetShardingColumn() == column {
-			if ret.Sharding != nil {
+		if r.HasColumn(column) {
+			if ret.Sharding == nil {
 				ret.Sharding = r
 			} else {
 				//多次出现分片列

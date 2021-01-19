@@ -63,7 +63,6 @@ func loadAllNamespace(cfg *models.Proxy) (map[string]*models.Namespace, error) {
 	if cfg.ConfigType == config.ConfigFile {
 		root = cfg.FileConfigPath
 	}
-
 	client := config.NewClient(cfg.ConfigType, cfg.CoordinatorAddr, cfg.UserName, cfg.Password, root)
 	store := config.NewStore(client)
 	defer store.Close()
