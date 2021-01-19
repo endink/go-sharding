@@ -19,8 +19,6 @@ import (
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
-
-	"github.com/XiaoMi/Gaea/proxy/router"
 )
 
 // ColumnNameExprDecorator decorate ColumnNameExpr to rewrite table name
@@ -63,52 +61,25 @@ func (c *ColumnNameDecorator) GetColumnInfo() (string, string, string) {
 
 // Restore implement ast.Node
 func (c *ColumnNameDecorator) Restore(ctx *format.RestoreCtx) error {
-	tableIndex, err := c.result.GetCurrentTableIndex()
+	db, table, err := c.result.GetCurrent()
 	if err != nil {
 		return err
 	}
 
-	ruleType := c.rule.GetType()
-
-	// kingshard不需改写库名, mycat需要改写
-	if c.origin.Schema.O != "" {
-		if ruleType == router.GlobalTableRuleType {
-			dbName, err := c.rule.GetDatabaseNameByTableIndex(tableIndex)
-			if err != nil {
-				return fmt.Errorf("get mycat database name error: %v", err)
-			}
-			ctx.WriteName(dbName)
-			ctx.WritePlain(".")
-		} else if router.IsMycatShardingRule(ruleType) {
-			dbName, err := c.rule.GetDatabaseNameByTableIndex(tableIndex)
-			if err != nil {
-				return fmt.Errorf("get mycat database name error: %v", err)
-			}
-			ctx.WriteName(dbName)
-			ctx.WritePlain(".")
-		} else {
-			ctx.WriteName(c.origin.Schema.String())
-			ctx.WritePlain(".")
-		}
+	if c.rule.IsSharding() {
+		ctx.WriteName(db)
+		ctx.WritePlain(".")
+	} else {
+		ctx.WriteName(c.origin.Schema.String())
+		ctx.WritePlain(".")
 	}
 
-	// kingshard需要改写表名, mycat不需要改写, 全局表不需要改写
-	if c.origin.Table.O != "" {
-		if ruleType == router.GlobalTableRuleType {
-			ctx.WriteName(c.origin.Table.String())
-			ctx.WritePlain(".")
-		} else if router.IsMycatShardingRule(ruleType) {
-			ctx.WriteName(c.origin.Table.String())
-			ctx.WritePlain(".")
-		} else {
-			if c.isAlias {
-				ctx.WriteName(c.origin.Table.String())
-				ctx.WritePlain(".")
-			} else {
-				ctx.WriteName(fmt.Sprintf("%s_%04d", c.origin.Table.String(), tableIndex))
-				ctx.WritePlain(".")
-			}
-		}
+	if c.isAlias || !c.rule.IsSharding() {
+		ctx.WriteName(c.origin.Table.String())
+		ctx.WritePlain(".")
+	} else {
+		ctx.WriteName(table)
+		ctx.WritePlain(".")
 	}
 
 	// 列名不需要改写

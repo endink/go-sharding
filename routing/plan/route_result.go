@@ -106,15 +106,29 @@ func (r *RouteResult) Union(databases []string, tables []string) {
 	}
 }
 
-// GetShardIndexes get shard indexes
-//func (r *RouteResult) GetShardIndexes() []int {
-//	return r.indexes
-//}
+func (r *RouteResult) GetCurrent() (database string, table string, err error) {
+	db, err := r.GetCurrentDatabase()
+	if err != nil {
+		return "", "", err
+	}
+	t, err := r.GetCurrentTable()
+	if err != nil {
+		return "", "", err
+	}
+	return db, t, nil
+}
+
+func (r *RouteResult) GetCurrentTable() (string, error) {
+	if r.currentTable == "" {
+		return r.currentDb, fmt.Errorf("table index out of range in route result")
+	}
+	return r.currentTable, nil
+}
 
 // GetCurrentTableIndex get current table index
-func (r *RouteResult) GetCurrentTable() (string, error) {
+func (r *RouteResult) GetCurrentDatabase() (string, error) {
 	if r.currentDb == "" {
-		return r.currentDb, fmt.Errorf("table index out of range in route result")
+		return r.currentDb, fmt.Errorf("database index out of range in route result")
 	}
 	return r.currentDb, nil
 }

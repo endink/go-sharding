@@ -19,9 +19,6 @@ import (
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
-
-	"github.com/XiaoMi/Gaea/proxy/router"
-	"github.com/pingcap/errors"
 )
 
 // TableNameDecorator decorate TableName
@@ -48,49 +45,29 @@ func NewTableNameDecorator(n *ast.TableName, sharding *core.ShardingTable) (*Tab
 
 // Restore implement ast.Node
 func (t *TableNameDecorator) Restore(ctx *format.RestoreCtx) error {
-	tableIndex, err := t.result.GetCurrentTableIndex()
+	db, table, err := t.result.GetCurrent()
 	if err != nil {
 		return err
 	}
 
-	ruleType := t.rule.GetType()
-
 	if t.origin.Schema.String() != "" {
-		if ruleType == router.GlobalTableRuleType {
-			dbName, err := t.rule.GetDatabaseNameByTableIndex(tableIndex)
-			if err != nil {
-				return fmt.Errorf("get mycat database name error: %v", err)
-			}
-			ctx.WriteName(dbName)
+		if t.sharding.IsSharding() {
+			ctx.WriteName(db)
 			ctx.WritePlain(".")
-		} else if router.IsMycatShardingRule(ruleType) {
-			dbName, err := t.rule.GetDatabaseNameByTableIndex(tableIndex)
-			if err != nil {
-				return fmt.Errorf("get mycat database name error: %v", err)
-			}
-			ctx.WriteName(dbName)
-			ctx.WritePlain(".")
+			ctx.WriteName(table)
 		} else {
 			ctx.WriteName(t.origin.Schema.String())
 			ctx.WritePlain(".")
+			ctx.WriteName(t.origin.Name.String())
 		}
 	}
 
-	// kingshard需要改写表名, mycat不需要改写, 全局表需要改写
-	if ruleType == router.GlobalTableRuleType {
-		ctx.WriteName(t.origin.Name.String())
-	} else if router.IsMycatShardingRule(ruleType) {
-		ctx.WriteName(t.origin.Name.String())
-	} else {
-		ctx.WriteName(fmt.Sprintf("%s_%04d", t.origin.Name.String(), tableIndex))
-	}
-
-	for _, value := range t.origin.IndexHints {
-		ctx.WritePlain(" ")
-		if err := value.Restore(ctx); err != nil {
-			return errors.Annotate(err, "An error occurred while splicing IndexHints")
-		}
-	}
+	//for _, value := range t.origin.IndexHints {
+	//	ctx.WritePlain(" ")
+	//	if err := value.Restore(ctx); err != nil {
+	//		return errors.Annotate(err, "An error occurred while splicing IndexHints")
+	//	}
+	//}
 	return nil
 }
 
