@@ -31,12 +31,12 @@ type ColumnNameExprDecorator struct {
 type ColumnNameDecorator struct {
 	origin  *ast.ColumnName
 	rule    *core.ShardingTable
-	result  *RouteResult
+	result  RouteResult
 	isAlias bool
 }
 
 // CreateColumnNameExprDecorator create ColumnNameExprDecorator
-func CreateColumnNameExprDecorator(n *ast.ColumnNameExpr, rule *core.ShardingTable, isAlias bool, result *RouteResult) *ColumnNameExprDecorator {
+func CreateColumnNameExprDecorator(n *ast.ColumnNameExpr, rule *core.ShardingTable, isAlias bool, result RouteResult) *ColumnNameExprDecorator {
 	columnName := createColumnNameDecorator(n.Name, rule, isAlias, result)
 	return &ColumnNameExprDecorator{
 		ColumnNameExpr: n,
@@ -44,7 +44,7 @@ func CreateColumnNameExprDecorator(n *ast.ColumnNameExpr, rule *core.ShardingTab
 	}
 }
 
-func createColumnNameDecorator(n *ast.ColumnName, table *core.ShardingTable, isAlias bool, result *RouteResult) *ColumnNameDecorator {
+func createColumnNameDecorator(n *ast.ColumnName, table *core.ShardingTable, isAlias bool, result RouteResult) *ColumnNameDecorator {
 	ret := &ColumnNameDecorator{
 		origin:  n,
 		rule:    table,

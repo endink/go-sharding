@@ -18,14 +18,58 @@
 
 package core
 
+import "fmt"
+
+type ShardingValue interface {
+	fmt.Stringer
+	GetTable() string
+	GetColumn() string
+}
+
 type ShardingScalarValue struct {
 	Table  string
 	Column string
 	Value  interface{}
 }
 
+func NewShardingValue(table string, column string, value interface{}) *ShardingScalarValue {
+	return &ShardingScalarValue{
+		Table:  table,
+		Column: column,
+		Value:  value,
+	}
+}
+
+func (s *ShardingScalarValue) GetTable() string {
+	return s.Table
+}
+
+func (s *ShardingScalarValue) GetColumn() string {
+	return s.Column
+}
+
+func (s *ShardingScalarValue) String() string {
+	return fmt.Sprintf("%s.%s:%s", s.Table, s.Column, s.Value)
+}
+
+func (s *ShardingScalarValue) ValueEquals(other *ShardingScalarValue) bool {
+	return other != nil && s.Column == other.Value && s.Table == other.Table && s.Value == other.Value
+}
+
 type ShardingRangeValue struct {
 	Table  string
 	Column string
 	Value  Range
+}
+
+func (s *ShardingRangeValue) GetTable() string {
+	return s.Table
+}
+
+func (s *ShardingRangeValue) GetColumn() string {
+	return s.Column
+}
+
+func (s *ShardingRangeValue) String() string {
+	return fmt.Sprintf("%s.%s:%s", s.Table, s.Column, RangeToString(s.Value))
 }

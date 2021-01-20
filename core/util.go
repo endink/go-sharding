@@ -225,3 +225,21 @@ func Difference(slice1, slice2 []string) []string {
 	}
 	return nn
 }
+
+func RangeToString(r Range) string {
+	if r == nil {
+		return "~"
+	} else {
+		min := ""
+		if r.HasLower() {
+			min = fmt.Sprint(r.LowerBound())
+		}
+
+		max := ""
+		if r.HasUpper() {
+			min = fmt.Sprint(r.UpperBound())
+		}
+
+		return fmt.Sprintf("%s~%s", min, max)
+	}
+}

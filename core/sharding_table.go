@@ -20,12 +20,15 @@
 
 package core
 
+import "github.com/scylladb/go-set/strset"
+
 type ShardingTable struct {
 	Name             string
-	Resources        map[string][]string
 	ShardingColumns  []string
 	TableStrategy    ShardingStrategy
 	DatabaseStrategy ShardingStrategy
+	resources        map[string][]string //key: database, value: tables
+	allTables        []string
 }
 
 func NoShardingTable(tableName string) *ShardingTable {
@@ -33,6 +36,31 @@ func NoShardingTable(tableName string) *ShardingTable {
 		Name:          tableName,
 		TableStrategy: NoneShardingStrategy,
 	}
+}
+
+func (t *ShardingTable) SetResources(resources map[string][]string) {
+	r := resources
+	if r == nil {
+		r = make(map[string][]string, 0)
+	}
+
+	set := strset.New()
+	for _, tables := range r {
+		set.Add(tables...)
+	}
+
+	t.allTables = set.List()
+	t.resources = r
+}
+
+//get physical database and tables
+func (t *ShardingTable) GetResources() map[string][]string {
+	return t.resources
+}
+
+//get all of the configured tables
+func (t *ShardingTable) GetAllTables() []string {
+	return t.allTables
 }
 
 func (t *ShardingTable) HasColumn(column string) bool {

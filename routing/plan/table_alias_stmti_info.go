@@ -29,14 +29,16 @@ import (
 // INSERT也可以使用表别名, 但是由于只存在一个表, 可以直接去掉, 因此不需要.
 type TableAliasStmtInfo struct {
 	*StmtInfo
-	tableAlias map[string]string // key = table alias, value = table
+	tableAlias  map[string]string // key = table alias, value = table
+	routeResult RouteResult
 }
 
 // NewTableAliasStmtInfo means table alias StmtInfo
 func NewTableAliasStmtInfo(sql string, ctx *routing.ShardingContext) *TableAliasStmtInfo {
 	return &TableAliasStmtInfo{
-		StmtInfo:   NewStmtInfo(sql, ctx),
-		tableAlias: make(map[string]string),
+		StmtInfo:    NewStmtInfo(sql, ctx),
+		tableAlias:  make(map[string]string),
+		routeResult: NewRouteResult(),
 	}
 }
 
@@ -194,7 +196,7 @@ func (t *TableAliasStmtInfo) RecordSubqueryTableAlias(alias string) (*core.Shard
 		return nil, fmt.Errorf("no explicit table exist except subquery")
 	}
 
-	table := "gaea_subquery_" + alias
+	table := "sharding_" + alias
 	if err := t.setTableAlias(table, alias); err != nil {
 		return nil, fmt.Errorf("set subquery table alias error: %v", err)
 	}

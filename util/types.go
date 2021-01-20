@@ -15,6 +15,8 @@
 package util
 
 import (
+	"errors"
+	"github.com/XiaoMi/Gaea/core"
 	"github.com/pingcap/parser/format"
 	"strings"
 
@@ -27,9 +29,17 @@ var EscapeRestoreFlags = format.RestoreStringSingleQuotes | format.RestoreString
 // GetValueExprResult copy from ValueExpr.Restore()
 // TODO: 分表列是否需要支持等值比较NULL
 func GetValueExprResult(n *driver.ValueExpr) (interface{}, error) {
+	return GetValueExprResultEx(n, true, "")
+}
+
+func GetValueExprResultEx(n *driver.ValueExpr, allowNull bool, nullErrorMsg string) (interface{}, error) {
 	switch n.Kind() {
 	case types.KindNull:
-		return nil, nil // TODO: null str or nil?
+		if !allowNull {
+			return nil, errors.New(core.IfBlankAndTrim(nullErrorMsg, "column value can not be null"))
+		} else {
+			return nil, nil
+		}
 	case types.KindInt64:
 		return n.GetInt64(), nil
 	case types.KindUint64:

@@ -219,7 +219,7 @@ func (mgr *cnfManager) buildShardingTable(name string, settings *internal.TableS
 	if err != nil {
 		return nil, err
 	}
-	sd.Resources = resources
+	sd.SetResources(resources)
 
 	columns, err := buildShardingColumns(name, settings.ShardingColumns)
 	if err != nil {

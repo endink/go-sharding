@@ -19,6 +19,6 @@
 package core
 
 type ShardingStrategy interface {
-	ShardScalar(sourceNames []string, value *ShardingScalarValue) string
+	ShardScalar(sourceNames []string, value *ShardingScalarValue) (string, error)
 	ShardRange(sourceNames []string, value *ShardingRangeValue) []string
 }

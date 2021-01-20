@@ -1,31 +1,34 @@
-// Copyright 2019 The Gaea Authors. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+ *
+ *  * Copyright 2021. Go-Sharding Author All Rights Reserved.
+ *  *
+ *  *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  *  you may not use this file except in compliance with the License.
+ *  *  You may obtain a copy of the License at
+ *  *
+ *  *      http://www.apache.org/licenses/LICENSE-2.0
+ *  *
+ *  *  Unless required by applicable law or agreed to in writing, software
+ *  *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  *  See the License for the specific language governing permissions and
+ *  *  limitations under the License.
+ *  *
+ *  *  File author: Anders Xiao
+ *
+ */
 
 package plan
 
 import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/proxy/router"
+	"github.com/XiaoMi/Gaea/util"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
 	"github.com/pingcap/parser/types"
-	"io"
-	"sort"
-
-	"github.com/XiaoMi/Gaea/util"
 	driver "github.com/pingcap/tidb/types/parser_driver"
+	"io"
 )
 
 // type check
@@ -39,32 +42,32 @@ type PatternInExprDecorator struct {
 	List []ast.ExprNode
 	Not  bool
 
-	tableIndexes  []int
-	indexValueMap map[int][]ast.ExprNode // tableIndex - valueList
+	tables      []string
+	tableValues map[string][]ast.ExprNode // table - columnValue
 
 	rule   *core.ShardingTable
-	result *RouteResult
+	result RouteResult
 }
 
 // CreatePatternInExprDecorator create PatternInExprDecorator
 // 必须先检查是否需要装饰
-func CreatePatternInExprDecorator(n *ast.PatternInExpr, rule *core.ShardingTable, isAlias bool, result *RouteResult) (*PatternInExprDecorator, error) {
+func CreatePatternInExprDecorator(n *ast.PatternInExpr, rule *core.ShardingTable, isAlias bool, result RouteResult) (*PatternInExprDecorator, error) {
 	columnNameExpr := n.Expr.(*ast.ColumnNameExpr)
 	columnNameExprDecorator := CreateColumnNameExprDecorator(columnNameExpr, rule, isAlias, result)
 
-	tableIndexes, indexValueMap, err := getPatternInRouteResult(columnNameExpr.Name, n.Not, rule, n.List)
+	tables, valueMap, err := getPatternInRouteResult(columnNameExpr.Name, n.Not, rule, n.List)
 	if err != nil {
 		return nil, fmt.Errorf("getPatternInRouteResult error: %v", err)
 	}
 
 	ret := &PatternInExprDecorator{
-		Expr:          columnNameExprDecorator,
-		List:          n.List,
-		Not:           n.Not,
-		rule:          rule,
-		result:        result,
-		tableIndexes:  tableIndexes,
-		indexValueMap: indexValueMap,
+		Expr:        columnNameExprDecorator,
+		List:        n.List,
+		Not:         n.Not,
+		rule:        rule,
+		result:      result,
+		tables:      tables,
+		tableValues: valueMap,
 	}
 
 	return ret, nil
@@ -74,13 +77,16 @@ func CreatePatternInExprDecorator(n *ast.PatternInExpr, rule *core.ShardingTable
 // 如果是分片条件, 则构建值到索引的映射.
 // 例如, 1,2,3,4分别映射到索引0,2则[]int = [0,2], map=[0:[1,2], 2:[3,4]]
 // 如果是全路由, 则每个分片都要返回所有的值.
-func getPatternInRouteResult(n *ast.ColumnName, isNotIn bool, rule *core.ShardingTable, values []ast.ExprNode) ([]int, map[int][]ast.ExprNode, error) {
+func getPatternInRouteResult(n *ast.ColumnName,
+	isNotIn bool,
+	rule *core.ShardingTable,
+	values []ast.ExprNode) ([]string, map[string][]ast.ExprNode, error) {
 	// 如果是全局表, 则返回广播路由
-	if rule.GetType() == router.GlobalTableRuleType {
-		indexes := rule.GetSubTableIndexes()
-		valueMap := getBroadcastValueMap(indexes, values)
-		return indexes, valueMap, nil
-	}
+	//if rule.GetType() == router.GlobalTableRuleType {
+	//	indexes := rule.GetSubTableIndexes()
+	//	valueMap := getBroadcastValueMap(indexes, values)
+	//	return indexes, valueMap, nil
+	//}
 
 	if err := checkValueType(values); err != nil {
 		return nil, nil, fmt.Errorf("check value error: %v", err)
@@ -89,35 +95,37 @@ func getPatternInRouteResult(n *ast.ColumnName, isNotIn bool, rule *core.Shardin
 	column := n.Name.L
 
 	if isNotIn {
-		indexes := rule.GetSubTableIndexes()
-		valueMap := getBroadcastValueMap(indexes, values)
-		return indexes, valueMap, nil
+		tables := rule.GetAllTables()
+		valueMap := getBroadcastValueMap(tables, values)
+		return tables, valueMap, nil
 	}
-	if rule.GetShardingColumn() != column {
-		indexes := rule.GetSubTableIndexes()
-		valueMap := getBroadcastValueMap(indexes, values)
-		return indexes, valueMap, nil
+	if !rule.HasColumn(column) {
+		tables := rule.GetAllTables()
+		valueMap := getBroadcastValueMap(tables, values)
+		return tables, valueMap, nil
 	}
 
-	var indexes []int
-	valueMap := make(map[int][]ast.ExprNode)
+	var usedTables []string
+	valueMap := make(map[string][]ast.ExprNode)
+	nullErr := fmt.Sprintf("sharding column '%s' value can not be null", column)
 	for _, vi := range values {
 		v, _ := vi.(*driver.ValueExpr)
-		value, err := util.GetValueExprResult(v)
+		value, err := util.GetValueExprResultEx(v, false, nullErr)
 		if err != nil {
 			return nil, nil, err
 		}
-		idx, err := rule.FindTableIndex(value)
+		//idx, err := rule.FindTableIndex(value)
+		shardingValue := core.NewShardingValue(rule.Name, column, value)
+		t, err := rule.TableStrategy.ShardScalar(rule.GetAllTables(), shardingValue)
 		if err != nil {
 			return nil, nil, err
 		}
-		if _, ok := valueMap[idx]; !ok {
-			indexes = append(indexes, idx)
+		if _, ok := valueMap[t]; !ok {
+			usedTables = append(usedTables, t)
 		}
-		valueMap[idx] = append(valueMap[idx], vi)
+		valueMap[t] = append(valueMap[t], vi)
 	}
-	sort.Ints(indexes)
-	return indexes, valueMap, nil
+	return usedTables, valueMap, nil
 }
 
 // 所有的值类型必须为*driver.ValueExpr
@@ -130,22 +138,22 @@ func checkValueType(values []ast.ExprNode) error {
 	return nil
 }
 
-func getBroadcastValueMap(subTableIndexes []int, nodes []ast.ExprNode) map[int][]ast.ExprNode {
-	ret := make(map[int][]ast.ExprNode)
-	for _, idx := range subTableIndexes {
-		ret[idx] = append(ret[idx], nodes...)
+func getBroadcastValueMap(tables []string, nodes []ast.ExprNode) map[string][]ast.ExprNode {
+	ret := make(map[string][]ast.ExprNode)
+	for _, t := range tables {
+		ret[t] = append(ret[t], nodes...)
 	}
 	return ret
 }
 
 // GetCurrentRouteResult get route result of current decorator
-func (p *PatternInExprDecorator) GetCurrentRouteResult() []int {
-	return p.tableIndexes
+func (p *PatternInExprDecorator) GetCurrentRouteResult() []string {
+	return p.tables
 }
 
 // Restore implement ast.Node
 func (p *PatternInExprDecorator) Restore(ctx *format.RestoreCtx) error {
-	tableIndex, err := p.result.GetCurrentTableIndex()
+	table, err := p.result.GetCurrentTable()
 	if err != nil {
 		return err
 	}
@@ -160,7 +168,7 @@ func (p *PatternInExprDecorator) Restore(ctx *format.RestoreCtx) error {
 	}
 
 	ctx.WritePlain("(")
-	for i, expr := range p.indexValueMap[tableIndex] {
+	for i, expr := range p.tableValues[table] {
 		if i != 0 {
 			ctx.WritePlain(",")
 		}

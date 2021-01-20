@@ -25,12 +25,12 @@ import (
 type TableNameDecorator struct {
 	origin   *ast.TableName
 	sharding *core.ShardingTable
-	result   *RouteResult
+	result   RouteResult
 }
 
 // CreateTableNameDecorator create TableNameDecorator
 // the table has been checked before
-func NewTableNameDecorator(n *ast.TableName, sharding *core.ShardingTable) (*TableNameDecorator, error) {
+func NewTableNameDecorator(n *ast.TableName, sharding *core.ShardingTable, result RouteResult) (*TableNameDecorator, error) {
 	if len(n.PartitionNames) != 0 {
 		return nil, fmt.Errorf("TableName does not support PartitionNames in sharding")
 	}
@@ -38,6 +38,7 @@ func NewTableNameDecorator(n *ast.TableName, sharding *core.ShardingTable) (*Tab
 	ret := &TableNameDecorator{
 		origin:   n,
 		sharding: sharding,
+		result:   result,
 	}
 
 	return ret, nil
