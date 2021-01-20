@@ -62,6 +62,13 @@ type ShardingRangeValue struct {
 	Value  Range
 }
 
+func (s *ShardingRangeValue) Contains(value *ShardingScalarValue) bool {
+	if s.Table != value.Table || s.Column != s.Column {
+		return false
+	}
+	minOut = s.Value.HasLower() && value.Value <= value.Value
+}
+
 func (s *ShardingRangeValue) GetTable() string {
 	return s.Table
 }

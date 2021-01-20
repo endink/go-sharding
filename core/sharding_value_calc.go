@@ -24,6 +24,12 @@ import (
 	"github.com/emirpasic/gods/lists/arraylist"
 )
 
+type action int
+const(
+	actionDelete action = iota
+	actionAdd
+)
+
 type ShardingValueCalc interface {
 }
 
@@ -37,6 +43,10 @@ type shardingValueCalc struct {
 	values *arraylist.List //合并值，交集的含义
 }
 
+type actionItem {
+	action
+}
+
 func (calc *shardingValueCalc) And(value ShardingValue) {
 	if value != nil {
 		switch v := value.(type) {
@@ -44,12 +54,15 @@ func (calc *shardingValueCalc) And(value ShardingValue) {
 			if calc.values.Size() == 0 {
 				calc.values.Add(value)
 			} else {
+				actions:= make(map[ShardingValue]action)
 				calc.values.Find(func(i int, cv interface{}) {
 					switch existValue := cv.(type) {
 					case *ShardingScalarValue:
 						if existValue != v {
-
+							actions[existValue] = actionDelete
 						}
+					case *ShardingRangeValue:
+
 					}
 				})
 			}

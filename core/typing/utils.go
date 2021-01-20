@@ -18,10 +18,30 @@
  *
  */
 
-package core
+package typing
 
-import "log"
+import (
+	"errors"
+	"fmt"
+	"github.com/XiaoMi/Gaea/core"
+	"reflect"
+)
 
-func hookExit() {
-	log.Print()
+type RangeAction string
+
+const (
+	RangeActionContains  RangeAction = "Contains"
+	RangeActionIntersect RangeAction = "Intersect"
+	RangeActionUnion     RangeAction = "Union"
+)
+
+func InvalidRangeValueType(action RangeAction, value interface{}, p core.Range) error {
+	return errors.New(fmt.Sprint(
+		"range invoke with invalid type",
+		core.LineSeparator,
+		"action: ", action,
+		core.LineSeparator,
+		"range type:", reflect.TypeOf(p).Name(),
+		core.LineSeparator,
+		"value type: ", reflect.TypeOf(value).Name()))
 }

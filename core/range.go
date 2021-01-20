@@ -25,4 +25,6 @@ type Range interface {
 	UpperBound() interface{}
 	HasLower() bool
 	HasUpper() bool
+	Contains(value interface{}) (bool, error)
+	Intersect(value Range) (Range, error)
 }

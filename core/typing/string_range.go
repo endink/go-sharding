@@ -27,6 +27,15 @@ type StringRange struct {
 	HasU  bool
 }
 
+func (i *StringRange) Contains(value interface{}) (bool, error) {
+	if v, ok := value.(string); ok {
+		outMin := i.HasL && i.Lower > v
+		outMax := i.HasU && i.Upper < v
+		return !outMin && !outMax, nil
+	}
+	return false, InvalidRangeValueType(RangeActionContains, value, i)
+}
+
 func (i *StringRange) LowerBound() interface{} {
 	return i.Lower
 }
