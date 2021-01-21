@@ -96,7 +96,7 @@ func testContainsWithValue(t *testing.T, min interface{}, max interface{}, value
 	r, err := NewRange(min, max)
 	assert.Nil(t, err)
 
-	c, err := r.Contains(value)
+	c, err := r.ContainsValue(value)
 	assert.Nil(t, err)
 
 	if contains {
@@ -106,7 +106,7 @@ func testContainsWithValue(t *testing.T, min interface{}, max interface{}, value
 	}
 }
 
-func TestContains(t *testing.T) {
+func TestContainsValue(t *testing.T) {
 	testContainsWithValue(t, -100, 100, 99, true)
 	testContainsWithValue(t, -100, 100, 101, false)
 	testContainsWithValue(t, -100, 100, -101, false)

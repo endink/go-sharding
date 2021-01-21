@@ -34,7 +34,7 @@ type TableAliasStmtInfo struct {
 }
 
 // NewTableAliasStmtInfo means table alias StmtInfo
-func NewTableAliasStmtInfo(sql string, ctx *routing.ShardingContext) *TableAliasStmtInfo {
+func NewTableAliasStmtInfo(sql string, ctx *routing.Context) *TableAliasStmtInfo {
 	return &TableAliasStmtInfo{
 		StmtInfo:    NewStmtInfo(sql, ctx),
 		tableAlias:  make(map[string]string),
@@ -44,19 +44,19 @@ func NewTableAliasStmtInfo(sql string, ctx *routing.ShardingContext) *TableAlias
 
 // NeedCreateTableNameDecorator check if TableName with alias needs decorate
 // SELECT语句可能带有表别名, 需要记录表别名
-func (t *TableAliasStmtInfo) AddTableWithAlias(table *ast.TableName, alias string) (*core.ShardingTable, error) {
-	rule, err := t.AddTable(table)
+func (t *TableAliasStmtInfo) AddTableWithAlias(table *ast.TableName, alias string) (*core.ShardingTable, bool, error) {
+	st, ok, err := t.AddTable(table)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 
 	if alias != "" {
 		if err := t.setTableAlias(table.Name.L, alias); err != nil {
-			return nil, fmt.Errorf("set table alias error: %v", err)
+			return nil, false, fmt.Errorf("set table alias error: %v", err)
 		}
 	}
 
-	return rule, nil
+	return st, ok, nil
 }
 
 func (t *TableAliasStmtInfo) setTableAlias(table, alias string) error {

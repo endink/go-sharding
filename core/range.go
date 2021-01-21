@@ -30,7 +30,7 @@ import (
 type RangeAction string
 
 const (
-	RangeActionContains  RangeAction = "Contains"
+	RangeActionContains  RangeAction = "ContainsValue"
 	RangeActionIntersect RangeAction = "Intersect"
 	RangeActionUnion     RangeAction = "Union"
 )
@@ -41,15 +41,18 @@ type Range interface {
 	UpperBound() interface{}
 	HasLower() bool
 	HasUpper() bool
-	Contains(value interface{}) (bool, error)
+	ContainsValue(value interface{}) (bool, error)
+	Contains(value Range) (bool, error)
 	Intersect(value Range) (Range, error)
 	HasIntersection(v Range) (bool, error)
+	ValueKind() reflect.Kind
 }
 
 var (
-	ErrRangeBoundTypeNotSame     = errors.New("different types of boundary values cannot create range")
-	ErrRangeInvalidBound         = errors.New("the lower bound of the range cannot be greater than the upper bound")
-	ErrRangeBoundTypeUnsupported = errors.New("boundary value types for the range are not supported")
+	ErrRangeBoundTypeNotSame       = errors.New("different types of boundary values cannot create range")
+	ErrRangeInvalidBound           = errors.New("the lower bound of the range cannot be greater than the upper bound")
+	ErrRangeBoundTypeUnsupported   = errors.New("boundary value types for the range are not supported")
+	ErrNilRangeOperationNotAllowed = errors.New("the range used for the operation cannot be empty")
 )
 
 type defaultRange struct {
@@ -58,6 +61,16 @@ type defaultRange struct {
 	HasL  bool
 	HasU  bool
 	kind  reflect.Kind
+}
+
+func NewAtLeastRange(min interface{}) Range {
+	r, _ := NewRange(min, nil)
+	return r
+}
+
+func NewAtMostRange(max interface{}) Range {
+	r, _ := NewRange(nil, max)
+	return r
 }
 
 func NewRange(min interface{}, max interface{}) (Range, error) {
@@ -113,7 +126,43 @@ func (d *defaultRange) HasUpper() bool {
 	return d.HasU
 }
 
-func (d *defaultRange) Contains(value interface{}) (bool, error) {
+func (d *defaultRange) Contains(value Range) (bool, error) {
+	if value == nil {
+		return false, ErrNilRangeOperationNotAllowed
+	}
+	if !d.HasL && !d.HasU {
+		return true, nil
+	}
+
+	var lowerCompared, UpperCompared int
+	if d.HasLower() {
+		if !value.HasLower() {
+			return false, nil
+		}
+
+		if r, err := comparison.Compare(d.LowerBound(), value.LowerBound()); err != nil {
+			return false, err
+		} else {
+			lowerCompared = r
+		}
+	}
+
+	if d.HasUpper() {
+		if !value.HasUpper() {
+			return false, nil
+		}
+
+		if r, err := comparison.Compare(d.UpperBound(), value.UpperBound()); err != nil {
+			return false, err
+		} else {
+			UpperCompared = r
+		}
+	}
+
+	return lowerCompared <= 0 && UpperCompared >= 0, nil
+}
+
+func (d *defaultRange) ContainsValue(value interface{}) (bool, error) {
 	var outMin, outMax bool
 	if d.HasL {
 		r, err := comparison.Compare(d.Lower, value)
@@ -136,7 +185,7 @@ func (d *defaultRange) Contains(value interface{}) (bool, error) {
 
 func (d *defaultRange) HasIntersection(v Range) (bool, error) {
 	if v == nil {
-		return false, errors.New("the range used to intersect cannot be nil")
+		return false, ErrNilRangeOperationNotAllowed
 	}
 
 	if (!v.HasLower() && !v.HasUpper()) || (!d.HasLower() && !d.HasUpper()) {
@@ -161,26 +210,24 @@ func (d *defaultRange) HasIntersection(v Range) (bool, error) {
 func sortByLower(v Range, d Range) (Range, Range, error) {
 	var first, second Range
 
-	if v.HasLower() {
-		if !d.HasLower() {
-			first = d
-			second = v
-		} else {
-			r, err := comparison.Compare(v.LowerBound(), d.LowerBound())
-			if err != nil {
-				return nil, nil, err
-			}
-			if r < 0 {
-				first = v
-				second = d
-			} else {
-				first = d
-				second = v
-			}
-		}
-	} else {
+	if !d.HasLower() {
+		first = d
+		second = v
+	} else if !v.HasLower() {
 		first = v
 		second = d
+	} else {
+		r, err := comparison.Compare(v.LowerBound(), d.LowerBound())
+		if err != nil {
+			return nil, nil, err
+		}
+		if r < 0 {
+			first = v
+			second = d
+		} else {
+			first = d
+			second = v
+		}
 	}
 	return first, second, nil
 }
@@ -224,7 +271,17 @@ func (d *defaultRange) Intersect(v Range) (Range, error) {
 		newRange.HasU = true
 	}
 
+	if d.kind != reflect.Invalid {
+		newRange.kind = d.kind
+	} else if v.ValueKind() != reflect.Invalid {
+		newRange.kind = v.ValueKind()
+	}
+
 	return newRange, nil
+}
+
+func (d *defaultRange) ValueKind() reflect.Kind {
+	return d.kind
 }
 
 func (d *defaultRange) String() string {

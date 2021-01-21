@@ -17,6 +17,7 @@ package plan
 import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/parser"
+	"github.com/XiaoMi/Gaea/routing"
 	"github.com/XiaoMi/Gaea/util/hack"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/opcode"
@@ -51,9 +52,9 @@ type SelectPlan struct {
 
 // NewSelectPlan constructor of SelectPlan
 // db is the session db
-func NewSelectPlan(sql string, r *router.Router) *SelectPlan {
+func NewSelectPlan(sql string, ctx *routing.Context) *SelectPlan {
 	return &SelectPlan{
-		TableAliasStmtInfo: NewTableAliasStmtInfo(sql, r),
+		TableAliasStmtInfo: NewTableAliasStmtInfo(sql, ctx),
 		aggregateFuncs:     make(map[int]AggregateFuncMerger),
 		offset:             -1,
 		count:              -1,
@@ -469,17 +470,17 @@ func rewriteTableNameInTableSource(p *TableAliasStmtInfo, tableSource *ast.Table
 	}
 	alias := tableSource.AsName.L
 
-	shardingTable, err := p.AddTableWithAlias(tableName, alias)
+	shardingTable, ok, err := p.AddTableWithAlias(tableName, alias)
 	if err != nil {
 		return fmt.Errorf("check NeedCreateTableNameDecorator error: %v", err)
 	}
 
-	if !shardingTable.IsSharding() {
+	if !ok {
 		return nil
 	}
 
 	// 这是一个分片表或关联表, 创建一个TableName的装饰器, 并替换原有节点
-	d, err := NewTableNameDecorator(tableName, shardingTable)
+	d, err := NewTableNameDecorator(tableName, shardingTable, p.routeResult)
 	if err != nil {
 		return fmt.Errorf("create TableNameDecorator error: %v", err)
 	}

@@ -23,32 +23,29 @@ import (
 	"strings"
 )
 
-type ShardingContext struct {
+type Context struct {
 	Settings *core.Settings
 	schemaL  string
 }
 
-func NewShardingContext(settings *core.Settings) *ShardingContext {
-	r := &ShardingContext{
+func NewShardingContext(settings *core.Settings) *Context {
+	r := &Context{
 		Settings: settings,
 		schemaL:  strings.ToLower(settings.Server.Schema),
 	}
 	return r
 }
 
-func (ctx *ShardingContext) GetSchema() string {
+func (ctx *Context) GetSchema() string {
 	return ctx.Settings.Server.Schema
 }
 
-func (ctx *ShardingContext) IsShardingTable(tableName string) bool {
+func (ctx *Context) IsShardingTable(tableName string) bool {
 	_, ok := ctx.Settings.ShardingRule.Tables[tableName]
 	return ok
 }
 
-func (ctx *ShardingContext) GetShardingTable(tableName string) *core.ShardingTable {
-	if r, ok := ctx.Settings.ShardingRule.Tables[tableName]; ok {
-		return r
-	} else {
-		return core.NoShardingTable(tableName)
-	}
+func (ctx *Context) GetShardingTable(tableName string) (*core.ShardingTable, bool) {
+	r, ok := ctx.Settings.ShardingRule.Tables[tableName]
+	return r, ok
 }

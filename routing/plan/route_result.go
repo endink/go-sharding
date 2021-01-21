@@ -24,7 +24,6 @@ import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/scylladb/go-set/strset"
-	"sync"
 )
 
 type RouteResult interface {
@@ -35,20 +34,16 @@ type RouteResult interface {
 	GetCurrentDatabase() (string, error)
 	Next() bool
 	Reset()
-	PushValue(column string, values ...core.ShardingValue)
 }
 
 // RouteResult is the route result of a statement
 // 遍历AST之后得到的路由结果
 // db, table唯一确定了一个路由, 这里只记录分片表的db和table, 如果是关联表, 必须关联到同一个父表
 type routeResult struct {
-	Targets          map[string]*strset.Set // key = Physical database name, value = Physical table name
-	ignoreCase       bool
-	currentDb        string
-	currentTable     string
-	valueSync        sync.Mutex
-	shardingValues   map[string][]core.ShardingValue
-	shardingValueSet map[string]*strset.Set
+	Targets      map[string]*strset.Set // key = Physical database name, value = Physical table name
+	ignoreCase   bool
+	currentDb    string
+	currentTable string
 }
 
 // NewRouteResult constructor of RouteResult
@@ -57,41 +52,6 @@ func NewRouteResult() RouteResult {
 		Targets:    make(map[string]*strset.Set, 0),
 		ignoreCase: true,
 	}
-}
-
-func (r *routeResult) PushValue(column string, values ...core.ShardingValue) {
-	c := core.TrimAndLower(column)
-	valueCount := len(values)
-	if c != "" && valueCount > 0 {
-		r.valueSync.Lock()
-		defer r.valueSync.Unlock()
-		changed := false
-		values, set := r.getOrCreateValueSet(c, valueCount)
-		for _, v := range values {
-			vStr := v.String()
-			if !set.HasAny(vStr) {
-				set.Add(vStr)
-				values = append(values, v)
-				changed = true
-			}
-		}
-		if changed {
-			r.shardingValues[c] = values
-		}
-	}
-}
-
-func (r *routeResult) getOrCreateValueSet(column string, initSize int) ([]core.ShardingValue, *strset.Set) {
-	var valueStrSet *strset.Set
-	var valueSet []core.ShardingValue
-	if set, ok := r.shardingValueSet[column]; ok {
-		valueStrSet = set
-		valueSet = r.shardingValues[column]
-	} else {
-		valueStrSet = strset.NewWithSize(initSize)
-		valueSet = make([]core.ShardingValue, 0, initSize)
-	}
-	return valueSet, valueStrSet
 }
 
 func (r *routeResult) normalizeStr(db string) string {

@@ -52,7 +52,7 @@ func (t *TableNameDecorator) Restore(ctx *format.RestoreCtx) error {
 	}
 
 	if t.origin.Schema.String() != "" {
-		if t.sharding.IsSharding() {
+		if t.sharding.IsDbSharding() {
 			ctx.WriteName(db)
 			ctx.WritePlain(".")
 			ctx.WriteName(table)

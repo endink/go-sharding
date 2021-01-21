@@ -66,7 +66,7 @@ func (c *ColumnNameDecorator) Restore(ctx *format.RestoreCtx) error {
 		return err
 	}
 
-	if c.rule.IsSharding() {
+	if c.rule.IsDbSharding() {
 		ctx.WriteName(db)
 		ctx.WritePlain(".")
 	} else {
@@ -74,7 +74,7 @@ func (c *ColumnNameDecorator) Restore(ctx *format.RestoreCtx) error {
 		ctx.WritePlain(".")
 	}
 
-	if c.isAlias || !c.rule.IsSharding() {
+	if c.isAlias || !c.rule.IsTableSharding() {
 		ctx.WriteName(c.origin.Table.String())
 		ctx.WritePlain(".")
 	} else {

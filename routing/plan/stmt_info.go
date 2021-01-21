@@ -28,12 +28,12 @@ import (
 // StmtInfo 各种Plan的一些公共属性
 type StmtInfo struct {
 	sql        string // origin sql
-	context    *routing.ShardingContext
+	context    *routing.Context
 	tableRules map[string]*core.ShardingTable // key = table name, value = router.Rule, 记录使用到的分片表
 }
 
 // NewStmtInfo constructor of StmtInfo
-func NewStmtInfo(sql string, context *routing.ShardingContext) *StmtInfo {
+func NewStmtInfo(sql string, context *routing.Context) *StmtInfo {
 	return &StmtInfo{
 		sql:        sql,
 		context:    context,
@@ -42,15 +42,17 @@ func NewStmtInfo(sql string, context *routing.ShardingContext) *StmtInfo {
 }
 
 // RecordShardTable 将表信息记录到StmtInfo中, 并返回表信息对应的路由规则
-func (s *StmtInfo) AddTable(n *ast.TableName) (*core.ShardingTable, error) {
+func (s *StmtInfo) AddTable(n *ast.TableName) (*core.ShardingTable, bool, error) {
 	db, table := getTableInfoFromTableName(n)
 	if err := s.validateDatabase(db); err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	shardingTable := s.context.GetShardingTable(table)
-
-	s.tableRules[table] = shardingTable
-	return shardingTable, nil
+	shardingTable, ok := s.context.GetShardingTable(table)
+	if ok {
+		s.tableRules[table] = shardingTable
+		return shardingTable, true, nil
+	}
+	return nil, false, nil
 }
 
 func (s *StmtInfo) validateDatabase(db string) error {

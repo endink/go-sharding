@@ -49,8 +49,8 @@ func (s *SubqueryColumnNameRewriteVisitor) Leave(n ast.Node) (node ast.Node, ok 
 		return n, true
 	}
 
-	st := s.info.context.GetShardingTable(table)
-	if !st.IsSharding() {
+	st, ok := s.info.context.GetShardingTable(table)
+	if !ok {
 		return n, true
 	}
 
@@ -169,17 +169,17 @@ func rewriteSubqueryTableNameInTableSource(p *TableAliasStmtInfo, tableSource *a
 	}
 
 	// 不记录子查询的表名alias
-	shardingTable, err := p.AddTable(tableName)
+	shardingTable, ok, err := p.AddTable(tableName)
 	if err != nil {
 		return fmt.Errorf("check NeedCreateTableNameDecorator error: %v", err)
 	}
 
-	if !shardingTable.IsSharding() {
+	if !ok {
 		return nil
 	}
 
 	// 这是一个分片表或关联表, 创建一个TableName的装饰器, 并替换原有节点
-	d, err := NewTableNameDecorator(tableName, shardingTable)
+	d, err := NewTableNameDecorator(tableName, shardingTable, p.routeResult)
 	if err != nil {
 		return fmt.Errorf("create TableNameDecorator error: %v", err)
 	}

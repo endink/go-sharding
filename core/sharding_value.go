@@ -66,7 +66,7 @@ func (s *ShardingRangeValue) Contains(value *ShardingScalarValue) bool {
 	if s.Table != value.Table || s.Column != s.Column {
 		return false
 	}
-	r, _ := s.Value.Contains(value.Value)
+	r, _ := s.Value.ContainsValue(value.Value)
 	return r
 }
 

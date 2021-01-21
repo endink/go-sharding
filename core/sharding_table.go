@@ -31,9 +31,8 @@ type ShardingTable struct {
 	allTables        []string
 }
 
-func NoShardingTable(tableName string) *ShardingTable {
+func NoShardingTable() *ShardingTable {
 	return &ShardingTable{
-		Name:          tableName,
 		TableStrategy: NoneShardingStrategy,
 	}
 }
@@ -72,7 +71,10 @@ func (t *ShardingTable) HasColumn(column string) bool {
 	return false
 }
 
-//指示是否需要进行分片
-func (t *ShardingTable) IsSharding() bool {
-	return t.TableStrategy != NoneShardingStrategy && t.DatabaseStrategy != NoneShardingStrategy
+func (t *ShardingTable) IsDbSharding() bool {
+	return t.DatabaseStrategy != NoneShardingStrategy
+}
+
+func (t *ShardingTable) IsTableSharding() bool {
+	return t.DatabaseStrategy != NoneShardingStrategy
 }

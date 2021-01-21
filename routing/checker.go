@@ -24,14 +24,14 @@ import (
 
 // Checker 用于检查SelectStmt是不是分表的Visitor, 以及是否包含DB信息
 type Checker struct {
-	context       *ShardingContext
+	context       *Context
 	hasShardTable bool // 是否包含分片表
 	dbInvalid     bool // SQL是否No database selected
 	tableNames    []*ast.TableName
 }
 
 // NewChecker db为USE db中设置的DB名. 如果没有执行USE db, 则为空字符串
-func NewChecker(context *ShardingContext) *Checker {
+func NewChecker(context *Context) *Checker {
 	return &Checker{
 		hasShardTable: false,
 		dbInvalid:     false,

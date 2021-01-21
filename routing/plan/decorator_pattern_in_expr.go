@@ -51,7 +51,12 @@ type PatternInExprDecorator struct {
 
 // CreatePatternInExprDecorator create PatternInExprDecorator
 // 必须先检查是否需要装饰
-func CreatePatternInExprDecorator(n *ast.PatternInExpr, rule *core.ShardingTable, isAlias bool, result RouteResult) (*PatternInExprDecorator, error) {
+func CreatePatternInExprDecorator(
+	n *ast.PatternInExpr,
+	rule *core.ShardingTable,
+	isAlias bool,
+	result RouteResult) (*PatternInExprDecorator, error) {
+
 	columnNameExpr := n.Expr.(*ast.ColumnNameExpr)
 	columnNameExprDecorator := CreateColumnNameExprDecorator(columnNameExpr, rule, isAlias, result)
 
