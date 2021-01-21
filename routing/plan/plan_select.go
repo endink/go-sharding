@@ -16,7 +16,6 @@ package plan
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/parser"
 	"github.com/XiaoMi/Gaea/util/hack"
 	"github.com/pingcap/parser/ast"
@@ -62,7 +61,7 @@ func NewSelectPlan(sql string, r *router.Router) *SelectPlan {
 }
 
 // ExecuteIn implement Plan
-func (s *SelectPlan) ExecuteIn(reqCtx *util.RequestContext, sess core.Executor) (*mysql.Result, error) {
+func (s *SelectPlan) ExecuteIn(reqCtx *util.RequestContext, sess util.Executor) (*mysql.Result, error) {
 	sqls := s.GetSQLs()
 	if sqls == nil {
 		return nil, fmt.Errorf("SQL has not generated")

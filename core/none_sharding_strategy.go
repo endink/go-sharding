@@ -23,7 +23,7 @@ var NoneShardingStrategy = &noneShardingStrategy{}
 type noneShardingStrategy struct {
 }
 
-func (n noneShardingStrategy) ShardScalar(sourceNames []string, value *ShardingScalarValue) string {
+func (n noneShardingStrategy) ShardScalar(sourceNames []string, value *ShardingScalarValue) (string, error) {
 	panic("implement me")
 }
 

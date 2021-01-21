@@ -66,7 +66,8 @@ func (s *ShardingRangeValue) Contains(value *ShardingScalarValue) bool {
 	if s.Table != value.Table || s.Column != s.Column {
 		return false
 	}
-	minOut = s.Value.HasLower() && value.Value <= value.Value
+	r, _ := s.Value.Contains(value.Value)
+	return r
 }
 
 func (s *ShardingRangeValue) GetTable() string {
