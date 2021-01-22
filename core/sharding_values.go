@@ -69,9 +69,9 @@ func (b *ShardingValuesBuilder) Build() *ShardingValues {
 	}
 
 	for column, values := range b.rangeValues {
-		array := make([]Range, 0, values.Size())
-		values.Each(func(_ int, value interface{}) {
-			array = append(array, value.(Range))
+		array := make([]Range, values.Size())
+		values.Each(func(i int, value interface{}) {
+			array[i] = value.(Range)
 		})
 		rmap[column] = array
 	}
@@ -130,7 +130,7 @@ func (b *ShardingValuesBuilder) ContainsValue(column string, value interface{}) 
 	return false
 }
 
-func (b *ShardingValuesBuilder) Merge(values *ShardingValuesBuilder, op BinaryOperation) error {
+func (b *ShardingValuesBuilder) Merge(other *ShardingValuesBuilder, op BinaryOperation) error {
 	if op != BinaryOpAnd && op != BinaryOpOr {
 		return errors.New("unknown ShardingValuesBuilder operation, support are and, or")
 	}
@@ -138,40 +138,50 @@ func (b *ShardingValuesBuilder) Merge(values *ShardingValuesBuilder, op BinaryOp
 	b.valueSync.Lock()
 	defer b.valueSync.Unlock()
 
-	for column, scalarValues := range values.scalarValues {
+	for column, scalarValues := range other.scalarValues {
 		if !scalarValues.Empty() {
-			_ = scalarValues.All(func(item interface{}) (bool, error) {
-				switch op {
-				case BinaryOpAnd:
-					b.andValueWithLock(column, false, item)
-				case BinaryOpOr:
-					b.orValueWithLock(column, false, item)
-				}
-				return true, nil
-			})
+			switch op {
+			case BinaryOpAnd:
+				b.andValueWithLock(column, false, scalarValues.Values()...)
+			case BinaryOpOr:
+				b.orValueWithLock(column, false, scalarValues.Values()...)
+			}
 		}
 	}
 
 	var err error
-	for column, rangeValues := range values.rangeValues {
+	for column, rangeValues := range other.rangeValues {
 		if !rangeValues.Empty() {
-			rangeValues.All(func(_ int, value interface{}) bool {
-				r, ok := value.(Range)
-				if !ok {
-					err = fmt.Errorf("item is not range: %v+", value)
-					return false
-				}
-				switch op {
-				case BinaryOpAnd:
-					err = b.andRangeWithLock(column, false, r)
-				case BinaryOpOr:
-					err = b.orRangeWithLock(column, false, r)
-				}
-				return err == nil
-			})
+			ranges, e := b.getRanges(rangeValues)
+			if e != nil {
+				return e
+			}
+			switch op {
+			case BinaryOpAnd:
+				err = b.andRangeWithLock(column, false, ranges...)
+			case BinaryOpOr:
+				err = b.orRangeWithLock(column, false, ranges...)
+			}
 		}
 	}
 	return err
+}
+
+func (b *ShardingValuesBuilder) getRanges(list *arraylist.List) ([]Range, error) {
+	ranges := make([]Range, list.Size())
+	var err error
+	list.All(func(i int, value interface{}) bool {
+		if r, ok := value.(Range); ok {
+			ranges[i] = r
+		} else {
+			err = fmt.Errorf("%v is not Range type", value)
+		}
+		return err == nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return ranges, nil
 }
 
 func (b *ShardingValuesBuilder) AndValue(column string, values ...interface{}) {

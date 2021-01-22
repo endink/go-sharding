@@ -543,17 +543,19 @@ func convertArray(ranges []Range) []interface{} {
 	if ranges == nil {
 		return nil
 	}
-	array := make([]interface{}, 0, len(ranges))
-	for _, r := range ranges {
-		array = append(array, r)
+	array := make([]interface{}, len(ranges))
+	for i, r := range ranges {
+		array[i] = r
 	}
 	return array
 }
 
 func intArray(from int, to int) []interface{} {
-	array := make([]interface{}, 0, to-from)
+	array := make([]interface{}, to-from+1)
+	var index int
 	for i := from; i <= to; i++ {
-		array = append(array, i)
+		array[index] = i
+		index++
 	}
 	return array
 }
