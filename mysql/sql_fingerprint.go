@@ -270,7 +270,7 @@ func GetFingerprint(q string) string {
 			}
 			// (<anything>) -> (?+) only for first value
 			if Debug {
-				fmt.Println("Values end")
+				fmt.Println("Build end")
 			}
 			valueNo++
 			if valueNo == 1 {
@@ -574,7 +574,7 @@ func GetFingerprint(q string) string {
 				// VALUE(, VALUE (, VALUES(, VALUES (, IN(, or IN(
 				// but not after ON DUPLICATE KEY UPDATE
 				if Debug {
-					fmt.Println("Values begin")
+					fmt.Println("Build begin")
 				}
 				s = inValues
 				sqlState = inValues
@@ -623,7 +623,7 @@ func GetFingerprint(q string) string {
 				cpFromOffset = qi
 
 				if sqlState == inValues {
-					// Values are comma-separated, so the first random char
+					// Build are comma-separated, so the first random char
 					// marks the end of the VALUE() or IN() list.
 					if Debug {
 						fmt.Println("No more values")

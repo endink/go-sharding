@@ -28,10 +28,27 @@ type Inline struct {
 	Expression script.InlineExpression
 }
 
-func (i Inline) ShardScalar(sourceNames []string, value *core.ShardingScalarValue) string {
-	panic("implement me")
+func (i *Inline) GetShardingColumns() []string {
+	return i.Columns
 }
 
-func (i Inline) ShardRange(sourceNames []string, value *core.ShardingRangeValue) []string {
+func (i *Inline) IsShardingColumn(column string) bool {
+	for _, c := range i.Columns {
+		if column == c {
+			return true
+		}
+	}
+	return false
+}
+
+func (i *Inline) IsScalarValueSupported() bool {
+	return true
+}
+
+func (i *Inline) IsRangeValueSupported() bool {
+	return false
+}
+
+func (i *Inline) Shard(sources []string, values *core.ShardingValues) []string {
 	panic("implement me")
 }

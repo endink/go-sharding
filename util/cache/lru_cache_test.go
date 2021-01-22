@@ -64,7 +64,7 @@ func TestSetInsertsValue(t *testing.T) {
 	}
 	values := cache.Items()
 	if len(values) != 1 || values[0].Key != key {
-		t.Errorf("Cache.Values() returned incorrect values: %v", values)
+		t.Errorf("Cache.Build() returned incorrect values: %v", values)
 	}
 }
 

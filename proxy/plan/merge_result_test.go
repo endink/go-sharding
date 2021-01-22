@@ -58,7 +58,7 @@ func TestLimitSelectResult(t *testing.T) {
 			}
 
 			if int64(len(ret.Values)) != test.trimedRetLen {
-				t.Errorf("len Values not equal, expect: %d, actual: %d", test.trimedRetLen, len(ret.Values))
+				t.Errorf("len Build not equal, expect: %d, actual: %d", test.trimedRetLen, len(ret.Values))
 			}
 		})
 	}
