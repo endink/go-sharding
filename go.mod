@@ -5,7 +5,6 @@ go 1.15
 require (
 	github.com/coreos/etcd v3.3.13+incompatible
 	github.com/d5/tengo/v2 v2.6.2
-	github.com/deckarep/golang-set v1.7.1 // indirect
 	github.com/emirpasic/gods v1.12.0
 	github.com/gin-contrib/gzip v0.0.1
 	github.com/gin-gonic/gin v1.5.0

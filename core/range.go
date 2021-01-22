@@ -29,6 +29,8 @@ import (
 
 type RangeAction string
 
+var _ Range = &defaultRange{}
+
 const (
 	RangeActionContains  RangeAction = "ContainsValue"
 	RangeActionIntersect RangeAction = "Intersect"
@@ -45,6 +47,7 @@ type Range interface {
 	Contains(value Range) (bool, error)
 	Intersect(value Range) (Range, error)
 	HasIntersection(v Range) (bool, error)
+	Union(value Range) (Range, error)
 	ValueKind() reflect.Kind
 }
 
@@ -230,6 +233,46 @@ func sortByLower(v Range, d Range) (Range, Range, error) {
 		}
 	}
 	return first, second, nil
+}
+
+func (d *defaultRange) Union(v Range) (Range, error) {
+	if has, err := d.HasIntersection(v); err != nil {
+		return nil, err
+	} else if !has {
+		return nil, nil
+	}
+
+	var err error
+	var lower interface{} = nil
+	var upper interface{} = nil
+
+	if d.HasLower() && v.HasLower() {
+		lower, err = comparison.Min(d.LowerBound(), v.LowerBound())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	if d.HasUpper() && v.HasUpper() {
+		upper, err = comparison.Max(d.UpperBound(), v.UpperBound())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	newRange, err := NewRange(lower, upper)
+	if err != nil {
+		return nil, err
+	}
+
+	r := newRange.(*defaultRange)
+	if d.kind != reflect.Invalid {
+		r.kind = d.kind
+	} else if v.ValueKind() != reflect.Invalid {
+		r.kind = v.ValueKind()
+	}
+
+	return r, nil
 }
 
 func (d *defaultRange) Intersect(v Range) (Range, error) {

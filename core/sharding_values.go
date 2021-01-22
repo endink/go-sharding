@@ -21,48 +21,183 @@
 package core
 
 import (
-	"github.com/scylladb/go-set/strset"
+	"fmt"
+	"github.com/emirpasic/gods/lists/arraylist"
+	"github.com/emirpasic/gods/sets"
+	"github.com/emirpasic/gods/sets/hashset"
 	"sync"
 )
 
 type ShardingValues struct {
-	valueSync      sync.Mutex
-	scalarValues   map[string][]ShardingScalarValue //key: table.column, value
-	scalarValueSet map[string]*strset.Set
-	rangeValues    map[string][]ShardingRangeValue
+	valueSync    sync.Mutex
+	scalarValues map[string]sets.Set //key: table.column, value
+	rangeValues  map[string]*arraylist.List
 }
 
-func (r *ShardingValues) PushScalarValue(column string, values ...ShardingScalarValue) {
+func NewShardingValues() *ShardingValues {
+	return &ShardingValues{
+		scalarValues: make(map[string]sets.Set),
+		rangeValues:  make(map[string]*arraylist.List),
+	}
+}
+
+func (r *ShardingValues) AndValue(column string, values ...interface{}) {
 	c := TrimAndLower(column)
 	valueCount := len(values)
 	if c != "" && valueCount > 0 {
 		r.valueSync.Lock()
 		defer r.valueSync.Unlock()
-		changed := false
-		values, set := r.getOrCreateScalarValueSet(c, valueCount)
-		for _, v := range values {
-			vStr := v.String()
-			if !set.HasAny(vStr) {
-				set.Add(vStr)
-				values = append(values, v)
-				changed = true
-			}
-		}
-		if changed {
-			r.scalarValues[c] = values
-		}
+		r.intersect(column, values)
 	}
 }
 
-func (r *ShardingValues) getOrCreateScalarValueSet(column string, initSize int) ([]ShardingScalarValue, *strset.Set) {
-	var valueStrSet *strset.Set
-	var valueSet []ShardingScalarValue
-	if set, ok := r.scalarValueSet[column]; ok {
-		valueStrSet = set
-		valueSet = r.scalarValues[column]
-	} else {
-		valueStrSet = strset.NewWithSize(initSize)
-		valueSet = make([]ShardingScalarValue, 0, initSize)
+func (r *ShardingValues) intersect(column string, slice2 []interface{}) {
+	set, ok := r.scalarValues[column]
+	if !ok {
+		r.scalarValues[column] = hashset.New(slice2...)
 	}
-	return valueSet, valueStrSet
+
+	m := make(map[interface{}]struct{})
+	nn := make([]interface{}, 0)
+	slice1 := set.Values()
+	for _, v := range slice1 {
+		m[v] = struct{}{}
+	}
+
+	for _, v := range slice2 {
+		_, ok := m[v]
+		if ok {
+			nn = append(nn, v)
+		}
+	}
+	r.scalarValues[column] = hashset.New(nn...)
+}
+
+func (r *ShardingValues) OrValue(column string, values ...interface{}) {
+	c := TrimAndLower(column)
+	valueCount := len(values)
+	if c != "" && valueCount > 0 {
+		r.valueSync.Lock()
+		defer r.valueSync.Unlock()
+		set := r.getOrCreateScalarValueSet(c)
+		set.Add(values)
+	}
+}
+
+func (r *ShardingValues) orRange(column string, values ...Range) error {
+	c := TrimAndLower(column)
+	valueCount := len(values)
+	if c != "" && valueCount > 0 {
+		r.valueSync.Lock()
+		defer r.valueSync.Unlock()
+		for _, item := range values {
+			if err := r.orSingleRange(c, item); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (r *ShardingValues) AndRange(column string, values ...Range) error {
+	c := TrimAndLower(column)
+	valueCount := len(values)
+	if c != "" && valueCount > 0 {
+		r.valueSync.Lock()
+		defer r.valueSync.Unlock()
+		for _, item := range values {
+			if err := r.andSingleRange(c, item); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (r *ShardingValues) andSingleRange(column string, value Range) error {
+	set := r.getOrCreateRageValueSet(column)
+	var err error
+	found := set.Select(func(index int, item interface{}) bool {
+		if err != nil { //如果已经有错误，无需继续查找
+			return false
+		}
+		rangItem := item.(Range)
+		b, e := rangItem.HasIntersection(value)
+		if e != nil {
+			if err != nil {
+				err = fmt.Errorf("%s intersect %s fault", rangItem, value)
+			}
+		}
+		return e == nil && b
+	})
+
+	if err != nil {
+		return err
+	}
+
+	if found.Empty() {
+		set.Clear()
+	}
+
+	result := make([]Range, 0, found.Size())
+	found.All(func(index int, item interface{}) bool {
+		rangItem := item.(Range)
+		var newRange Range
+		newRange, err = rangItem.Intersect(value)
+		if err != nil {
+			return false
+		}
+		result = append(result, newRange)
+		return true
+	})
+
+	set.Clear()
+	for _, rng := range result {
+		set.Add(rng)
+	}
+	return nil
+}
+
+func (r *ShardingValues) orSingleRange(column string, value Range) error {
+	set := r.getOrCreateRageValueSet(column)
+	var err error
+	index, found := set.Find(func(index int, item interface{}) bool {
+		r := item.(Range)
+		var hasInter bool
+		hasInter, err = r.HasIntersection(value)
+		return err != nil || hasInter
+	})
+	if err != nil {
+		return err
+	}
+	if index >= 0 {
+		newRange, e := found.(Range).Union(value)
+		if e != nil {
+			return e
+		}
+		set.Set(index, newRange)
+	} else {
+		set.Add(value)
+	}
+	return nil
+}
+
+func (r *ShardingValues) getOrCreateScalarValueSet(column string) sets.Set {
+	if set, ok := r.scalarValues[column]; ok {
+		return set
+	} else {
+		set = hashset.New()
+		r.scalarValues[column] = set
+		return set
+	}
+}
+
+func (r *ShardingValues) getOrCreateRageValueSet(column string) *arraylist.List {
+	if set, ok := r.rangeValues[column]; ok {
+		return set
+	} else {
+		set = arraylist.New()
+		r.rangeValues[column] = set
+		return set
+	}
 }

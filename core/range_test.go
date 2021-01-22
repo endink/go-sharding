@@ -192,9 +192,50 @@ func TestIntRangeIntersect(t *testing.T) {
 	r2, _ = NewRange(30, nil)
 	testIntersectWithValue(t, r1, r2, 30, 50)
 
-	r1, _ = NewRange(nil, 50)
+	r1, _ = NewRange(nil, 30)
 	r2, _ = NewRange(45, nil)
-	testIntersectWithValue(t, r1, r2, 45, 50)
+	testIntersectWithValue(t, r1, r2, nil, nil)
+
+}
+
+func TestIntRangeUnion(t *testing.T) {
+	var r1, r2 Range
+
+	r1, _ = NewRange(100, 200)
+	r2, _ = NewRange(20, 30)
+	testUnionWithValue(t, r1, r2, nil, nil, false)
+
+	r1, _ = NewRange(100, 200)
+	r2, _ = NewRange(20, 150)
+	testUnionWithValue(t, r1, r2, 20, 200, true)
+
+	r1, _ = NewRange(100, 1000)
+	r2, _ = NewRange(101, 150)
+	testUnionWithValue(t, r1, r2, 100, 1000, true)
+
+	r1, _ = NewRange(nil, 1000)
+	r2, _ = NewRange(101, nil)
+	testUnionWithValue(t, r1, r2, nil, nil, true)
+
+	r1, _ = NewRange(20, 30)
+	r2, _ = NewRange(31, 40)
+	testUnionWithValue(t, r1, r2, nil, nil, false)
+
+	r1, _ = NewRange(20, 30)
+	r2, _ = NewRange(30, 40)
+	testUnionWithValue(t, r1, r2, 20, 40, true)
+
+	r1, _ = NewRange(nil, nil)
+	r2, _ = NewRange(30, 40)
+	testUnionWithValue(t, r1, r2, nil, nil, true)
+
+	r1, _ = NewRange(nil, 50)
+	r2, _ = NewRange(30, nil)
+	testUnionWithValue(t, r1, r2, nil, nil, true)
+
+	r1, _ = NewRange(nil, 30)
+	r2, _ = NewRange(45, nil)
+	testUnionWithValue(t, r1, r2, nil, nil, false)
 
 }
 
@@ -246,10 +287,41 @@ func testIntersectWithValue(t *testing.T, r1 Range, r2 Range, resultMin, resultM
 	if resultMin == nil && resultMax == nil {
 		assert.Nil(t, r, fmt.Sprintf("%s & %s result should be nil range", r1, r2))
 	} else {
-		rr, _ := NewRange(20, 30)
-		if assert.NotNil(t, r, fmt.Sprintf("%s & %s result should be %s", r1, r2, rr)) {
+		rr, _ := NewRange(resultMin, resultMax)
+		if assert.NotNil(t, r, fmt.Sprintf("%s & %s result should not be nil", r1, r2)) {
 			assert.True(t, r.LowerBound() == resultMin && r.UpperBound() == resultMax,
-				fmt.Sprintf("%s & %s should be %s", r1, r2, rr))
+				fmt.Sprintf("%s & %s should be %s, actual is %s", r1, r2, rr, r))
+		}
+	}
+}
+
+func testUnionWithValue(t *testing.T, r1 Range, r2 Range, resultMin, resultMax interface{}, hasResult bool) {
+	r, err := r1.Union(r2)
+	assert.Nil(t, err)
+
+	if (resultMax != nil || resultMin != nil) && !assert.NotNil(t, r, fmt.Sprintf("%s | %s result should not be nil range", r1, r2)) {
+		return
+	}
+
+	if resultMin != nil && !assert.True(t, r.HasLower(), fmt.Sprintf("%s | %s result should has lower bound", r1, r2)) {
+		return
+	}
+
+	if resultMax != nil && !assert.True(t, r.HasUpper(), fmt.Sprintf("%s | %s result should has upper bound", r1, r2)) {
+		return
+	}
+
+	if resultMin == nil && resultMax == nil {
+		if !hasResult {
+			assert.Nil(t, r, fmt.Sprintf("%s | %s result should be nil range", r1, r2))
+		} else {
+			assert.True(t, !r.HasUpper() && !r.HasLower(), fmt.Sprintf("%s | %s result should be *~*", r1, r2))
+		}
+	} else {
+		rr, _ := NewRange(resultMin, resultMax)
+		if assert.NotNil(t, r, fmt.Sprintf("%s | %s result should be nil", r1, r2)) {
+			assert.True(t, r.LowerBound() == resultMin && r.UpperBound() == resultMax,
+				fmt.Sprintf("%s | %s should be %s, actual is %s", r1, r2, rr, r))
 		}
 	}
 }
