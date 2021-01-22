@@ -30,7 +30,7 @@ type HashSet struct {
 	items map[interface{}]struct{}
 }
 
-var itemExists = struct{}{}
+var justNothing = struct{}{}
 
 // New instantiates a new empty set and adds the passed values, if any, to the set
 func NewHashSet(values ...interface{}) *HashSet {
@@ -44,7 +44,7 @@ func NewHashSet(values ...interface{}) *HashSet {
 // Add adds the items (one or more) to the set.
 func (set *HashSet) Add(items ...interface{}) {
 	for _, item := range items {
-		set.items[item] = itemExists
+		set.items[item] = justNothing
 	}
 }
 
@@ -93,13 +93,24 @@ func (set *HashSet) Values() []interface{} {
 	return values
 }
 
-func (set *HashSet) All(action func(index int, item interface{}) bool) {
+func (set *HashSet) All(action func(item interface{}) (bool, error)) error {
+	return set.AllIndex(func(_ int, item interface{}) (bool, error) {
+		return action(item)
+	})
+}
+
+func (set *HashSet) AllIndex(action func(index int, item interface{}) (bool, error)) error {
 	var index int
 	for key, _ := range set.items {
-		if !action(index, key) {
+		next, err := action(index, key)
+		if err != nil {
+			return err
+		}
+		if !next {
 			break
 		}
 	}
+	return nil
 }
 
 func (set *HashSet) Select(action func(item interface{}) (bool, error)) ([]interface{}, error) {

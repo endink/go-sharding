@@ -28,20 +28,19 @@ func (w *StringBuilder) WriteLine(value ...interface{}) {
 	w.buffer.WriteString(LineSeparator)
 }
 
-func (w *StringBuilder) Write(value interface{}) {
-	a, isString := value.(string)
-	if isString {
-		_, _ = w.buffer.WriteString(a)
-		return
-	}
+func (w *StringBuilder) Write(value ...interface{}) {
+	for _, v := range value {
+		if a, isString := v.(string); isString {
+			_, _ = w.buffer.WriteString(a)
+			return
+		}
 
-	b, isBuilder := value.(strings.Builder)
-	if isBuilder {
-		_, _ = w.buffer.WriteString(b.String())
-		return
+		if b, isBuilder := v.(fmt.Stringer); isBuilder {
+			_, _ = w.buffer.WriteString(b.String())
+			return
+		}
+		_, _ = w.buffer.WriteString(fmt.Sprint(v))
 	}
-	_, _ = w.buffer.WriteString(fmt.Sprint(value))
-
 }
 
 func (w *StringBuilder) WriteLineF(format string, args ...interface{}) {

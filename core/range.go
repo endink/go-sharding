@@ -49,6 +49,7 @@ type Range interface {
 	HasIntersection(v Range) (bool, error)
 	Union(value Range) (Range, error)
 	ValueKind() reflect.Kind
+	Equals(value interface{}) bool
 }
 
 var (
@@ -113,11 +114,32 @@ func NewRange(min interface{}, max interface{}) (Range, error) {
 	return r, nil
 }
 
+func (d *defaultRange) Equals(v interface{}) bool {
+	if v == nil {
+		return false
+	}
+	if value, ok := v.(Range); !ok {
+		return false
+	} else {
+		return d.ValueKind() == value.ValueKind() &&
+			d.HasLower() == value.HasLower() &&
+			d.HasUpper() == value.HasUpper() &&
+			d.LowerBound() == value.LowerBound() &&
+			d.UpperBound() == value.UpperBound()
+	}
+}
+
 func (d *defaultRange) LowerBound() interface{} {
+	if !d.HasL {
+		return nil
+	}
 	return d.Lower
 }
 
 func (d *defaultRange) UpperBound() interface{} {
+	if !d.HasU {
+		return nil
+	}
 	return d.Upper
 }
 

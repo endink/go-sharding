@@ -21,10 +21,18 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"github.com/XiaoMi/Gaea/core/collection"
 	"github.com/emirpasic/gods/lists/arraylist"
 	"sync"
+)
+
+type BinaryOperation int
+
+const (
+	BinaryOpAnd BinaryOperation = iota
+	BinaryOpOr
 )
 
 type ShardingValues struct {
@@ -38,6 +46,18 @@ type ShardingValuesBuilder struct {
 	valueSync    sync.Mutex
 	scalarValues map[string]*collection.HashSet //key: column, value: value
 	rangeValues  map[string]*arraylist.List     //key: column, value: value range
+
+	scalarCounter map[string]int
+	rangeCounter  map[string]int
+}
+
+func (b *ShardingValuesBuilder) Reset() {
+	b.valueSync.Lock()
+	defer b.valueSync.Unlock()
+	b.scalarValues = make(map[string]*collection.HashSet)
+	b.rangeValues = make(map[string]*arraylist.List)
+	b.scalarCounter = make(map[string]int)
+	b.rangeCounter = make(map[string]int)
 }
 
 func (b *ShardingValuesBuilder) Build() *ShardingValues {
@@ -64,25 +84,131 @@ func (b *ShardingValuesBuilder) Build() *ShardingValues {
 
 func NewShardingValuesBuilder(tableName string) *ShardingValuesBuilder {
 	return &ShardingValuesBuilder{
-		tableName:    tableName,
-		scalarValues: make(map[string]*collection.HashSet),
-		rangeValues:  make(map[string]*arraylist.List),
+		tableName:     tableName,
+		scalarValues:  make(map[string]*collection.HashSet),
+		rangeValues:   make(map[string]*arraylist.List),
+		scalarCounter: make(map[string]int),
+		rangeCounter:  make(map[string]int),
 	}
+}
+
+func (b *ShardingValuesBuilder) hasRangeValue(column string) bool {
+	_, ok := b.rangeCounter[column]
+	return ok
+}
+
+func (b *ShardingValuesBuilder) hasScalarValue(column string) bool {
+	_, ok := b.scalarCounter[column]
+	return ok
+}
+
+func (b *ShardingValuesBuilder) countRangeValue(column string) {
+	c, _ := b.rangeCounter[column]
+	b.rangeCounter[column] = c + 1
+}
+
+func (b *ShardingValuesBuilder) countScalarValue(column string) {
+	b.scalarCounter[column]++
+}
+
+func (b *ShardingValuesBuilder) ContainsRange(column string, lower interface{}, upper interface{}) bool {
+	c := TrimAndLower(column)
+	if set, ok := b.rangeValues[c]; ok {
+		return set.Any(func(_ int, value interface{}) bool {
+			r := value.(Range)
+			return r.LowerBound() == lower && r.UpperBound() == upper
+		})
+	}
+	return false
+}
+
+func (b *ShardingValuesBuilder) ContainsValue(column string, value interface{}) bool {
+	c := TrimAndLower(column)
+	if set, ok := b.scalarValues[c]; ok {
+		return set.Contains(value)
+	}
+	return false
+}
+
+func (b *ShardingValuesBuilder) Merge(values *ShardingValuesBuilder, op BinaryOperation) error {
+	if op != BinaryOpAnd && op != BinaryOpOr {
+		return errors.New("unknown ShardingValuesBuilder operation, support are and, or")
+	}
+
+	b.valueSync.Lock()
+	defer b.valueSync.Unlock()
+
+	for column, scalarValues := range values.scalarValues {
+		if !scalarValues.Empty() {
+			_ = scalarValues.All(func(item interface{}) (bool, error) {
+				switch op {
+				case BinaryOpAnd:
+					b.andValueWithLock(column, false, item)
+				case BinaryOpOr:
+					b.orValueWithLock(column, false, item)
+				}
+				return true, nil
+			})
+		}
+	}
+
+	var err error
+	for column, rangeValues := range values.rangeValues {
+		if !rangeValues.Empty() {
+			rangeValues.All(func(_ int, value interface{}) bool {
+				r, ok := value.(Range)
+				if !ok {
+					err = fmt.Errorf("item is not range: %v+", value)
+					return false
+				}
+				switch op {
+				case BinaryOpAnd:
+					err = b.andRangeWithLock(column, false, r)
+				case BinaryOpOr:
+					err = b.orRangeWithLock(column, false, r)
+				}
+				return err == nil
+			})
+		}
+	}
+	return err
 }
 
 func (b *ShardingValuesBuilder) AndValue(column string, values ...interface{}) {
 	c := TrimAndLower(column)
+	b.andValueWithLock(c, true, values...)
+}
+
+func (b *ShardingValuesBuilder) andValueWithLock(column string, lock bool, values ...interface{}) {
 	valueCount := len(values)
-	if c != "" && valueCount > 0 {
-		b.valueSync.Lock()
-		defer b.valueSync.Unlock()
-		sValues := values
-		if set, ok := b.rangeValues[c]; ok {
-			sValues = b.intersectRangeAndValues(set, sValues)
-			//明确值的交集将导致 range 失效
-			set.Clear()
+	if column != "" && valueCount > 0 {
+		if lock {
+			b.valueSync.Lock()
+			defer b.valueSync.Unlock()
 		}
-		b.intersect(c, sValues)
+
+		//首先找到和集合的交集明确值
+		var rValues []interface{}
+		//这里无需故关心有没有设置过 range 值，如果没有可能由于 and 过明确值，处理明确值即可
+		if set, ok := b.rangeValues[column]; ok && !set.Empty() {
+			rValues = b.intersectRangeAndValues(set, values)
+			//明确值的交集将导致 range 失效
+			if !set.Empty() { //性能考虑，为 0 时不再重新分配内存
+				set.Clear()
+			}
+		}
+		//与现有明确值计算交集
+		if _, ok := b.scalarCounter[column]; !ok {
+			//首次没有值时可能, 标记已经投入过值
+			b.orValueWithLock(column, false, values...)
+			return
+		} else {
+			b.intersect(column, values)
+			b.countScalarValue(column)
+		}
+
+		//并入集合交集值
+		b.orValueWithLock(column, false, rValues...)
 	}
 }
 
@@ -119,23 +245,36 @@ func (b *ShardingValuesBuilder) intersect(column string, slice2 []interface{}) {
 
 func (b *ShardingValuesBuilder) OrValue(column string, values ...interface{}) {
 	c := TrimAndLower(column)
+	b.orValueWithLock(c, true, values...)
+}
+
+func (b *ShardingValuesBuilder) orValueWithLock(column string, lock bool, values ...interface{}) {
 	valueCount := len(values)
-	if c != "" && valueCount > 0 {
-		b.valueSync.Lock()
-		defer b.valueSync.Unlock()
-		set := b.getOrCreateScalarValueSet(c)
-		set.Add(values)
+	if column != "" && valueCount > 0 {
+		defer func() { b.countScalarValue(column) }()
+		if lock {
+			b.valueSync.Lock()
+			defer b.valueSync.Unlock()
+		}
+		set := b.getOrCreateScalarValueSet(column)
+		set.Add(values...)
 	}
 }
 
-func (b *ShardingValuesBuilder) orRange(column string, values ...Range) error {
+func (b *ShardingValuesBuilder) OrRange(column string, values ...Range) error {
 	c := TrimAndLower(column)
+	return b.orRangeWithLock(c, true, values...)
+}
+
+func (b *ShardingValuesBuilder) orRangeWithLock(column string, lock bool, values ...Range) error {
 	valueCount := len(values)
-	if c != "" && valueCount > 0 {
-		b.valueSync.Lock()
-		defer b.valueSync.Unlock()
+	if column != "" && valueCount > 0 {
+		if lock {
+			b.valueSync.Lock()
+			defer b.valueSync.Unlock()
+		}
 		for _, item := range values {
-			if err := b.orSingleRange(c, item); err != nil {
+			if err := b.orSingleRange(column, item); err != nil {
 				return err
 			}
 		}
@@ -145,13 +284,19 @@ func (b *ShardingValuesBuilder) orRange(column string, values ...Range) error {
 
 func (b *ShardingValuesBuilder) AndRange(column string, values ...Range) error {
 	c := TrimAndLower(column)
+	return b.andRangeWithLock(c, true, values...)
+}
+
+func (b *ShardingValuesBuilder) andRangeWithLock(column string, lock bool, values ...Range) error {
 	valueCount := len(values)
 
-	if c != "" && valueCount > 0 {
-		b.valueSync.Lock()
-		defer b.valueSync.Unlock()
+	if column != "" && valueCount > 0 {
+		if lock {
+			b.valueSync.Lock()
+			defer b.valueSync.Unlock()
+		}
 		for _, item := range values {
-			if err := b.andSingleRange(c, item); err != nil {
+			if err := b.andSingleRange(column, item); err != nil {
 				return err
 			}
 		}
@@ -160,18 +305,27 @@ func (b *ShardingValuesBuilder) AndRange(column string, values ...Range) error {
 }
 
 func (b *ShardingValuesBuilder) andSingleRange(column string, value Range) error {
+	defer func() { b.countRangeValue(column) }()
+
+	//首次处理值时快速添加，无需复杂优化
+	if !b.hasRangeValue(column) && !b.hasScalarValue(column) {
+		set := b.getOrCreateRageValueSet(column)
+		set.Add(value)
+		return nil
+	}
+
 	/*
-		对于新加入的条件 a < 100 产生如下逻辑：
+		对于新加入的条件 a < 100 考虑如下逻辑：
 		得到如下逻辑： (a = 152 or a = 2 or (a > 140 and a < 150)) and a < 145
-		处理步骤：
+		算法：
 		剔除新加入的范围中没有交集的所有明确值
 		对已存在的范围求交集，如果没有交集进行移除，得以下逻辑：
 		a = 2 or (a > 140 and a < 145)
 	*/
 
 	//筛选明确的值
-	if set, hasScalar := b.scalarValues[column]; hasScalar && !set.Empty() {
-		values, err := set.Select(func(item interface{}) (bool, error) {
+	if scalarSet, hasScalar := b.scalarValues[column]; hasScalar && !scalarSet.Empty() {
+		values, err := scalarSet.Select(func(item interface{}) (bool, error) {
 			return value.ContainsValue(item)
 		})
 		if err != nil {
@@ -182,6 +336,7 @@ func (b *ShardingValuesBuilder) andSingleRange(column string, value Range) error
 
 	//求范围交集
 	set := b.getOrCreateRageValueSet(column)
+
 	var err error
 	found := set.Select(func(index int, item interface{}) bool {
 		if err != nil { //如果已经有错误，无需继续查找
@@ -208,7 +363,7 @@ func (b *ShardingValuesBuilder) andSingleRange(column string, value Range) error
 		found.All(func(index int, item interface{}) bool {
 			rangItem := item.(Range)
 			var newRange Range
-			newRange, err = rangItem.Intersect(value)
+			newRange, err = rangItem.Intersect(value) //前面判断过，这里一定有交集
 			if err != nil {
 				return false
 			}
@@ -225,26 +380,46 @@ func (b *ShardingValuesBuilder) andSingleRange(column string, value Range) error
 }
 
 func (b *ShardingValuesBuilder) orSingleRange(column string, value Range) error {
-	set := b.getOrCreateRageValueSet(column)
-	var err error
-	index, found := set.Find(func(index int, item interface{}) bool {
-		r := item.(Range)
-		var hasInter bool
-		hasInter, err = r.HasIntersection(value)
-		return err != nil || hasInter
+	defer func() { b.countRangeValue(column) }()
+
+	scalarValues := b.getOrCreateScalarValueSet(column)
+
+	//范围内已经覆盖的值进行移除优化
+	del, err := scalarValues.Select(func(item interface{}) (bool, error) {
+		return value.ContainsValue(item)
 	})
+
 	if err != nil {
 		return err
 	}
-	if index >= 0 {
-		newRange, e := found.(Range).Union(value)
-		if e != nil {
-			return e
-		}
-		set.Set(index, newRange)
-	} else {
-		set.Add(value)
+
+	for _, del := range del {
+		scalarValues.Remove(del)
 	}
+
+	//能够做并集的范围进行并集优化，否则添加新范围到列表
+	set := b.getOrCreateRageValueSet(column)
+	if !set.Empty() {
+		var err error
+		index, found := set.Find(func(index int, item interface{}) bool {
+			r := item.(Range)
+			var hasInter bool
+			hasInter, err = r.HasIntersection(value)
+			return err != nil || hasInter
+		})
+		if err != nil {
+			return err
+		}
+		if index >= 0 {
+			newRange, e := found.(Range).Union(value)
+			if e != nil {
+				return e
+			}
+			set.Set(index, newRange)
+			return nil
+		}
+	}
+	set.Add(value)
 	return nil
 }
 
