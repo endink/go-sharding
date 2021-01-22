@@ -31,6 +31,7 @@ Router 接口强绑定表索引分片方式，使得自己实现特殊分片逻�
 
 ## 改造任务进度
 
+- [x] 移除小米自己的 logger, 使用 uber zap
 - [x] 支持 Mysql 8 登录认证（jdbc 测试通过）
 - [x] 支持 Mysql Workbench 连接
 - [x] 移除粘贴过来的的 SqlParser 代码， 使用 go module 直接引用 tidb 项目，方便升级
