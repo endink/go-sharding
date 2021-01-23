@@ -39,7 +39,7 @@ func assertHasIntersection(t assert.TestingT, r1 Range, r2 Range, has bool) {
 }
 
 func testNewRangeWithValue(t *testing.T, min interface{}, max interface{}, hasError bool) {
-	r, err := NewRange(min, max)
+	r, err := NewRangeClose(min, max)
 
 	if hasError {
 		assert.Error(t, err)
@@ -57,7 +57,7 @@ func testNewRangeWithValue(t *testing.T, min interface{}, max interface{}, hasEr
 			return
 		}
 
-		r, err = NewRange(nil, max)
+		r, err = NewRangeClose(nil, max)
 		if ok := assert.Nil(t, err); !ok {
 			return
 		}
@@ -69,7 +69,7 @@ func testNewRangeWithValue(t *testing.T, min interface{}, max interface{}, hasEr
 			return
 		}
 
-		r, err = NewRange(min, nil)
+		r, err = NewRangeClose(min, nil)
 		if ok := assert.Nil(t, err); !ok {
 			return
 		}
@@ -93,7 +93,7 @@ func TestNewRange(t *testing.T) {
 }
 
 func testContainsWithValue(t *testing.T, min interface{}, max interface{}, value interface{}, contains bool) {
-	r, err := NewRange(min, max)
+	r, err := NewRangeClose(min, max)
 	assert.Nil(t, err)
 
 	c, err := r.ContainsValue(value)
@@ -123,36 +123,36 @@ func TestContainsValue(t *testing.T) {
 func TestHasIntersection(t *testing.T) {
 	var r1, r2 Range
 
-	r1, _ = NewRange(100, 200)
-	r2, _ = NewRange(20, 30)
+	r1, _ = NewRangeClose(100, 200)
+	r2, _ = NewRangeClose(20, 30)
 	assertHasIntersection(t, r1, r2, false)
 
-	r1, _ = NewRange(100, 200)
-	r2, _ = NewRange(20, nil)
+	r1, _ = NewRangeClose(100, 200)
+	r2, _ = NewRangeClose(20, nil)
 	assertHasIntersection(t, r1, r2, true)
 
-	r1, _ = NewRange(nil, 200)
-	r2, _ = NewRange(20, nil)
+	r1, _ = NewRangeClose(nil, 200)
+	r2, _ = NewRangeClose(20, nil)
 	assertHasIntersection(t, r1, r2, true)
 
-	r1, _ = NewRange(100, nil)
-	r2, _ = NewRange(20, nil)
+	r1, _ = NewRangeClose(100, nil)
+	r2, _ = NewRangeClose(20, nil)
 	assertHasIntersection(t, r1, r2, true)
 
-	r1, _ = NewRange(nil, nil)
-	r2, _ = NewRange(nil, nil)
+	r1, _ = NewRangeClose(nil, nil)
+	r2, _ = NewRangeClose(nil, nil)
 	assertHasIntersection(t, r1, r2, true)
 
-	r1, _ = NewRange(nil, 30)
-	r2, _ = NewRange(nil, 31)
+	r1, _ = NewRangeClose(nil, 30)
+	r2, _ = NewRangeClose(nil, 31)
 	assertHasIntersection(t, r1, r2, true)
 
-	r1, _ = NewRange(nil, 30)
-	r2, _ = NewRange(50, nil)
+	r1, _ = NewRangeClose(nil, 30)
+	r2, _ = NewRangeClose(50, nil)
 	assertHasIntersection(t, r1, r2, false)
 
-	r1, _ = NewRange(nil, 60)
-	r2, _ = NewRange(50, nil)
+	r1, _ = NewRangeClose(nil, 60)
+	r2, _ = NewRangeClose(50, nil)
 	assertHasIntersection(t, r1, r2, true)
 
 }
@@ -160,40 +160,40 @@ func TestHasIntersection(t *testing.T) {
 func TestIntRangeIntersect(t *testing.T) {
 	var r1, r2 Range
 
-	r1, _ = NewRange(100, 200)
-	r2, _ = NewRange(20, 30)
+	r1, _ = NewRangeClose(100, 200)
+	r2, _ = NewRangeClose(20, 30)
 	testIntersectWithValue(t, r1, r2, nil, nil)
 
-	r1, _ = NewRange(100, 200)
-	r2, _ = NewRange(20, 150)
+	r1, _ = NewRangeClose(100, 200)
+	r2, _ = NewRangeClose(20, 150)
 	testIntersectWithValue(t, r1, r2, 100, 150)
 
-	r1, _ = NewRange(100, 1000)
-	r2, _ = NewRange(101, 150)
+	r1, _ = NewRangeClose(100, 1000)
+	r2, _ = NewRangeClose(101, 150)
 	testIntersectWithValue(t, r1, r2, 101, 150)
 
-	r1, _ = NewRange(nil, 1000)
-	r2, _ = NewRange(101, nil)
+	r1, _ = NewRangeClose(nil, 1000)
+	r2, _ = NewRangeClose(101, nil)
 	testIntersectWithValue(t, r1, r2, 101, 1000)
 
-	r1, _ = NewRange(20, 30)
-	r2, _ = NewRange(31, 40)
+	r1, _ = NewRangeClose(20, 30)
+	r2, _ = NewRangeClose(31, 40)
 	testIntersectWithValue(t, r1, r2, nil, nil)
 
-	r1, _ = NewRange(20, 30)
-	r2, _ = NewRange(30, 40)
+	r1, _ = NewRangeClose(20, 30)
+	r2, _ = NewRangeClose(30, 40)
 	testIntersectWithValue(t, r1, r2, 30, 30)
 
-	r1, _ = NewRange(nil, nil)
-	r2, _ = NewRange(30, 40)
+	r1, _ = NewRangeClose(nil, nil)
+	r2, _ = NewRangeClose(30, 40)
 	testIntersectWithValue(t, r1, r2, 30, 40)
 
-	r1, _ = NewRange(nil, 50)
-	r2, _ = NewRange(30, nil)
+	r1, _ = NewRangeClose(nil, 50)
+	r2, _ = NewRangeClose(30, nil)
 	testIntersectWithValue(t, r1, r2, 30, 50)
 
-	r1, _ = NewRange(nil, 30)
-	r2, _ = NewRange(45, nil)
+	r1, _ = NewRangeClose(nil, 30)
+	r2, _ = NewRangeClose(45, nil)
 	testIntersectWithValue(t, r1, r2, nil, nil)
 
 }
@@ -201,40 +201,40 @@ func TestIntRangeIntersect(t *testing.T) {
 func TestIntRangeUnion(t *testing.T) {
 	var r1, r2 Range
 
-	r1, _ = NewRange(100, 200)
-	r2, _ = NewRange(20, 30)
+	r1, _ = NewRangeClose(100, 200)
+	r2, _ = NewRangeClose(20, 30)
 	testUnionWithValue(t, r1, r2, nil, nil, false)
 
-	r1, _ = NewRange(100, 200)
-	r2, _ = NewRange(20, 150)
+	r1, _ = NewRangeClose(100, 200)
+	r2, _ = NewRangeClose(20, 150)
 	testUnionWithValue(t, r1, r2, 20, 200, true)
 
-	r1, _ = NewRange(100, 1000)
-	r2, _ = NewRange(101, 150)
+	r1, _ = NewRangeClose(100, 1000)
+	r2, _ = NewRangeClose(101, 150)
 	testUnionWithValue(t, r1, r2, 100, 1000, true)
 
-	r1, _ = NewRange(nil, 1000)
-	r2, _ = NewRange(101, nil)
+	r1, _ = NewRangeClose(nil, 1000)
+	r2, _ = NewRangeClose(101, nil)
 	testUnionWithValue(t, r1, r2, nil, nil, true)
 
-	r1, _ = NewRange(20, 30)
-	r2, _ = NewRange(31, 40)
+	r1, _ = NewRangeClose(20, 30)
+	r2, _ = NewRangeClose(31, 40)
 	testUnionWithValue(t, r1, r2, nil, nil, false)
 
-	r1, _ = NewRange(20, 30)
-	r2, _ = NewRange(30, 40)
+	r1, _ = NewRangeClose(20, 30)
+	r2, _ = NewRangeClose(30, 40)
 	testUnionWithValue(t, r1, r2, 20, 40, true)
 
-	r1, _ = NewRange(nil, nil)
-	r2, _ = NewRange(30, 40)
+	r1, _ = NewRangeClose(nil, nil)
+	r2, _ = NewRangeClose(30, 40)
 	testUnionWithValue(t, r1, r2, nil, nil, true)
 
-	r1, _ = NewRange(nil, 50)
-	r2, _ = NewRange(30, nil)
+	r1, _ = NewRangeClose(nil, 50)
+	r2, _ = NewRangeClose(30, nil)
 	testUnionWithValue(t, r1, r2, nil, nil, true)
 
-	r1, _ = NewRange(nil, 30)
-	r2, _ = NewRange(45, nil)
+	r1, _ = NewRangeClose(nil, 30)
+	r2, _ = NewRangeClose(45, nil)
 	testUnionWithValue(t, r1, r2, nil, nil, false)
 
 }
@@ -242,30 +242,55 @@ func TestIntRangeUnion(t *testing.T) {
 func TestFloatRangeIntersect(t *testing.T) {
 	var r1, r2 Range
 
-	r1, _ = NewRange(100.1, 200.2)
-	r2, _ = NewRange(20.1, 30.1)
+	r1, _ = NewRangeClose(100.1, 200.2)
+	r2, _ = NewRangeClose(20.1, 30.1)
 	testIntersectWithValue(t, r1, r2, nil, nil)
 
-	r1, _ = NewRange(100.3, 200.4)
-	r2, _ = NewRange(20.3, 150.8)
+	r1, _ = NewRangeClose(100.3, 200.4)
+	r2, _ = NewRangeClose(20.3, 150.8)
 	testIntersectWithValue(t, r1, r2, 100.3, 150.8)
 
-	r1, _ = NewRange(100.1, 1000.989)
-	r2, _ = NewRange(101.33, 150.44)
+	r1, _ = NewRangeClose(100.1, 1000.989)
+	r2, _ = NewRangeClose(101.33, 150.44)
 	testIntersectWithValue(t, r1, r2, 101.33, 150.44)
 
-	r1, _ = NewRange(nil, 1000.997)
-	r2, _ = NewRange(101.998, nil)
+	r1, _ = NewRangeClose(nil, 1000.997)
+	r2, _ = NewRangeClose(101.998, nil)
 	testIntersectWithValue(t, r1, r2, 101.998, 1000.997)
 
-	r1, _ = NewRange(20.1, 30.2)
-	r2, _ = NewRange(31.3, 40.4)
+	r1, _ = NewRangeClose(20.1, 30.2)
+	r2, _ = NewRangeClose(31.3, 40.4)
 	testIntersectWithValue(t, r1, r2, nil, nil)
 
-	r1, _ = NewRange(20.3123, 30.333)
-	r2, _ = NewRange(30.333, 40.333)
+	r1, _ = NewRangeClose(20.3123, 30.333)
+	r2, _ = NewRangeClose(30.333, 40.333)
 	testIntersectWithValue(t, r1, r2, 30.333, 30.333)
 
+}
+
+func assertRange(t *testing.T, r1 Range, r2 Range, excepted Range, actual Range, opCode string) {
+	if (excepted == nil) && !assert.Nil(t, actual, fmt.Sprintf("%s %s %s result should be nil range", r1, opCode, r2)) {
+		return
+	}
+
+	if excepted != nil {
+		if !assert.NotNil(t, actual, fmt.Sprintf("%s %s %s result should not be nil range", r1, opCode, r2)) {
+			return
+		}
+		if excepted.HasLower() && !assert.True(t, actual.HasLower(), fmt.Sprintf("%s %s %s result should has lower bound", r1, opCode, r2)) {
+			return
+		}
+
+		if excepted.HasUpper() && !assert.True(t, actual.HasUpper(), fmt.Sprintf("%s %s %s result should has upper bound", r1, opCode, r2)) {
+			return
+		}
+
+		rr, _ := NewRange(excepted.LowerBound(), excepted.UpperBound(), excepted.IsLowerClosed(), excepted.IsUpperClosed())
+		if assert.NotNil(t, actual, fmt.Sprintf("%s %s %s result should not be nil", r1, opCode, r2)) {
+			assert.True(t, rr.Equals(actual),
+				fmt.Sprintf("%s %s %s should be %s, actual is %s", r1, opCode, r2, rr, actual))
+		}
+	}
 }
 
 func testIntersectWithValue(t *testing.T, r1 Range, r2 Range, resultMin, resultMax interface{}) {
@@ -287,12 +312,26 @@ func testIntersectWithValue(t *testing.T, r1 Range, r2 Range, resultMin, resultM
 	if resultMin == nil && resultMax == nil {
 		assert.Nil(t, r, fmt.Sprintf("%s & %s result should be nil range", r1, r2))
 	} else {
-		rr, _ := NewRange(resultMin, resultMax)
+		rr, _ := NewRangeClose(resultMin, resultMax)
 		if assert.NotNil(t, r, fmt.Sprintf("%s & %s result should not be nil", r1, r2)) {
 			assert.True(t, r.LowerBound() == resultMin && r.UpperBound() == resultMax,
 				fmt.Sprintf("%s & %s should be %s, actual is %s", r1, r2, rr, r))
 		}
 	}
+}
+
+func testIntersect(t *testing.T, r1 Range, r2 Range, excepted Range) {
+	r, err := r1.Intersect(r2)
+	assert.Nil(t, err)
+
+	assertRange(t, r1, r2, excepted, r, "&")
+}
+
+func testUnion(t *testing.T, r1 Range, r2 Range, excepted Range) {
+	r, err := r1.Union(r2)
+	assert.Nil(t, err)
+
+	assertRange(t, r1, r2, excepted, r, "|")
 }
 
 func testUnionWithValue(t *testing.T, r1 Range, r2 Range, resultMin, resultMax interface{}, hasResult bool) {
@@ -318,10 +357,122 @@ func testUnionWithValue(t *testing.T, r1 Range, r2 Range, resultMin, resultMax i
 			assert.True(t, !r.HasUpper() && !r.HasLower(), fmt.Sprintf("%s | %s result should be *~*", r1, r2))
 		}
 	} else {
-		rr, _ := NewRange(resultMin, resultMax)
+		rr, _ := NewRangeClose(resultMin, resultMax)
 		if assert.NotNil(t, r, fmt.Sprintf("%s | %s result should be nil", r1, r2)) {
 			assert.True(t, r.LowerBound() == resultMin && r.UpperBound() == resultMax,
 				fmt.Sprintf("%s | %s should be %s, actual is %s", r1, r2, rr, r))
 		}
+	}
+}
+
+func TestContainsValueComplex(t *testing.T) {
+	testOpenCloseContains(t, createRangeOpenClose(1, 10), 1, false)
+	testOpenCloseContains(t, createRangeOpen(1, 10), 1, false)
+	testOpenCloseContains(t, createRangeCloseOpen(1, 10), 1, true)
+	testOpenCloseContains(t, createRangeOpenClose(1, 10), 10, true)
+	testOpenCloseContains(t, createRangeOpen(1, 10), 10, false)
+	testOpenCloseContains(t, createRangeCloseOpen(1, 10), 10, false)
+}
+
+func TestInsectComplex(t *testing.T) {
+	r1 := createRangeCloseOpen(1, 3)
+	r2 := createRangeOpenClose(3, 100)
+	testIntersect(t, r1, r2, nil)
+
+	r1 = createRangeOpenClose(1, 3)
+	r2 = createRangeOpenClose(3, 100)
+	testIntersect(t, r1, r2, createRange(3, 3))
+
+	r1 = createRangeOpenClose(1, 3)
+	r2 = createRangeOpen(3, 100)
+	testIntersect(t, r1, r2, createRange(3, 3))
+
+	r1 = createRangeOpen(1, 5)
+	r2 = createRangeOpen(3, 100)
+	testIntersect(t, r1, r2, createRangeOpen(3, 5))
+
+	r1 = createRange(1, 5)
+	r2 = createRangeOpen(3, 100)
+	testIntersect(t, r1, r2, createRangeOpenClose(3, 5))
+
+	r1 = createRange(1, 100)
+	r2 = createRangeOpen(1, 100)
+	testIntersect(t, r1, r2, createRangeOpen(1, 100))
+
+	r1 = createRange(1, 100)
+	r2 = createRangeCloseOpen(1, 100)
+	testIntersect(t, r1, r2, createRangeCloseOpen(1, 100))
+
+	r1 = createRange(1, 100)
+	r2 = createRangeOpenClose(1, 100)
+	testIntersect(t, r1, r2, createRangeOpenClose(1, 100))
+
+	r1 = createRangeOpen(1, 200)
+	r2 = createRange(1, 100)
+	testIntersect(t, r1, r2, createRangeOpenClose(1, 100))
+
+	r1 = createRangeOpenClose(1, 100)
+	r2 = createRangeCloseOpen(1, 100)
+	testIntersect(t, r1, r2, createRangeOpen(1, 100))
+
+	r1 = createRangeOpenClose(1, 100)
+	r2 = createRangeCloseOpen(50, 100)
+	testIntersect(t, r1, r2, createRangeCloseOpen(50, 100))
+
+}
+
+func TestUnionComplex(t *testing.T) {
+	r1 := createRangeCloseOpen(1, 3)
+	r2 := createRangeOpenClose(3, 100)
+	testUnion(t, r1, r2, nil)
+
+	r1 = createRangeOpenClose(1, 3)
+	r2 = createRangeOpenClose(3, 100)
+	testUnion(t, r1, r2, createRangeOpenClose(1, 100))
+
+	r1 = createRangeOpenClose(1, 3)
+	r2 = createRangeOpen(3, 100)
+	testUnion(t, r1, r2, createRangeOpen(1, 100))
+
+	r1 = createRangeOpen(1, 5)
+	r2 = createRangeOpen(3, 100)
+	testUnion(t, r1, r2, createRangeOpen(1, 100))
+
+	r1 = createRange(1, 5)
+	r2 = createRangeOpen(3, 100)
+	testUnion(t, r1, r2, createRangeCloseOpen(1, 100))
+
+	r1 = createRange(1, 100)
+	r2 = createRangeOpen(1, 100)
+	testUnion(t, r1, r2, createRange(1, 100))
+
+	r1 = createRange(1, 100)
+	r2 = createRangeCloseOpen(1, 100)
+	testUnion(t, r1, r2, createRange(1, 100))
+
+	r1 = createRange(1, 100)
+	r2 = createRangeOpenClose(1, 100)
+	testUnion(t, r1, r2, createRange(1, 100))
+
+	r1 = createRangeOpen(1, 200)
+	r2 = createRange(1, 100)
+	testUnion(t, r1, r2, createRangeCloseOpen(1, 200))
+
+	r1 = createRangeOpenClose(1, 100)
+	r2 = createRangeCloseOpen(1, 100)
+	testUnion(t, r1, r2, createRange(1, 100))
+
+	r1 = createRangeOpenClose(1, 100)
+	r2 = createRangeCloseOpen(50, 100)
+	testUnion(t, r1, r2, createRangeOpenClose(1, 100))
+}
+
+func testOpenCloseContains(t *testing.T, r Range, value interface{}, contains bool) bool {
+	c, err := r.ContainsValue(value)
+	assert.Nil(t, err)
+	if contains {
+		return assert.True(t, c, fmt.Errorf("%s should contains %s", r, value))
+	} else {
+		return assert.False(t, c, fmt.Errorf("%s should not contains %s", r, value))
 	}
 }

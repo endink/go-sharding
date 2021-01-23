@@ -31,6 +31,7 @@ package plan
 import (
 	"github.com/XiaoMi/Gaea/proxy/router"
 	"github.com/pingcap/parser/ast"
+	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
 /*2,5 ==> [2,3,4]*/
@@ -264,4 +265,28 @@ func getTableInfoFromTableName(t *ast.TableName) (string, string) {
 
 func getColumnInfoFromColumnName(t *ast.ColumnName) (string, string, string) {
 	return t.Schema.O, t.Table.L, t.Name.L
+}
+
+// BinaryOperationFieldtype declares field type of binary operation
+type BinaryOperationFieldtype int
+
+// Expr type
+const (
+	UnsupportExpr BinaryOperationFieldtype = iota
+	ValueExpr
+	ColumnNameExpr
+	FuncCallExpr
+)
+
+func getExprNodeTypeInBinaryOperation(n ast.ExprNode) BinaryOperationFieldtype {
+	switch n.(type) {
+	case *ast.ColumnNameExpr:
+		return ColumnNameExpr
+	case *driver.ValueExpr:
+		return ValueExpr
+	case *ast.FuncCallExpr:
+		return FuncCallExpr
+	default:
+		return UnsupportExpr
+	}
 }

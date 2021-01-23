@@ -18,23 +18,23 @@
 
 package core
 
-var NoneShardingStrategy ShardingStrategy = &noneShardingStrategy{}
+import (
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
 
-type noneShardingStrategy struct {
-}
+func TestPermute(t *testing.T) {
+	array1 := []interface{}{1, 3, 5}
+	array2 := []interface{}{2, 4, 6}
+	array3 := []interface{}{7, 8, 9}
 
-func (n *noneShardingStrategy) GetShardingColumns() []string {
-	return nil
-}
+	list := [][]interface{}{array1, array2, array3}
 
-func (n *noneShardingStrategy) IsScalarValueSupported() bool {
-	return false
-}
+	result := Permute(list)
 
-func (n *noneShardingStrategy) IsRangeValueSupported() bool {
-	return false
-}
+	assert.Equal(t, 27, len(result))
 
-func (n *noneShardingStrategy) Shard(sources []string, values *ShardingValues) ([]string, error) {
-	return sources, nil
+	for _, innerArray := range result {
+		assert.Equal(t, 3, len(innerArray))
+	}
 }

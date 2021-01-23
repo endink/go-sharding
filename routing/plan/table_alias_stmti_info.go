@@ -42,6 +42,10 @@ func NewTableAliasStmtInfo(sql string, ctx *routing.Context) *TableAliasStmtInfo
 	}
 }
 
+func (t *TableAliasStmtInfo) GetRouteResult() RouteResult {
+	return t.routeResult
+}
+
 // NeedCreateTableNameDecorator check if TableName with alias needs decorate
 // SELECT语句可能带有表别名, 需要记录表别名
 func (t *TableAliasStmtInfo) AddTableWithAlias(table *ast.TableName, alias string) (*core.ShardingTable, bool, error) {
@@ -81,7 +85,7 @@ func (t *TableAliasStmtInfo) getAliasTable(alias string) (string, bool) {
 }
 
 // NeedCreatePatternInExprDecorator check if PatternInExpr needs decoration
-func (p *TableAliasStmtInfo) NeedCreatePatternInExprDecorator(n *ast.PatternInExpr) (*ShardingTableRecord, bool, error) {
+func (t *TableAliasStmtInfo) NeedCreatePatternInExprDecorator(n *ast.PatternInExpr) (*ShardingTableRecord, bool, error) {
 	if n.Sel != nil {
 		return nil, false, fmt.Errorf("TableName does not support Sel in sharding")
 	}
@@ -92,7 +96,7 @@ func (p *TableAliasStmtInfo) NeedCreatePatternInExprDecorator(n *ast.PatternInEx
 		return nil, false, nil
 	}
 
-	rule, need, err := p.NeedCreateColumnNameExprDecoratorInCondition(columnNameExpr)
+	rule, need, err := t.NeedCreateColumnNameExprDecoratorInCondition(columnNameExpr)
 	if err != nil {
 		return nil, false, fmt.Errorf("check ColumnName error: %v", err)
 	}
@@ -141,7 +145,7 @@ func (t *TableAliasStmtInfo) GetSettedRuleFromColumnInfo(db, table, column strin
 func (t *TableAliasStmtInfo) getSettedRuleByColumnName(column string) (*ShardingTableRecord, bool, error) {
 	ret := &ShardingTableRecord{}
 	for _, r := range t.tableRules {
-		if r.HasColumn(column) {
+		if r.HasTableShardingColumn(column) {
 			if ret.Sharding == nil {
 				ret.Sharding = r
 			} else {

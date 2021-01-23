@@ -523,8 +523,32 @@ func TestUnionOptimization5(t *testing.T) {
 	assertRangesEquals(t, []Range{createRange(5, 8)}, values.RangeValues[testColumn])
 }
 
+func createRangeOpenClose(min interface{}, max interface{}) Range {
+	r, err := NewRangeOpenClose(min, max)
+	if err != nil {
+		panic(err)
+	}
+	return r
+}
+
+func createRangeCloseOpen(min interface{}, max interface{}) Range {
+	r, err := NewRangeCloseOpen(min, max)
+	if err != nil {
+		panic(err)
+	}
+	return r
+}
+
+func createRangeOpen(min interface{}, max interface{}) Range {
+	r, err := NewRangeOpen(min, max)
+	if err != nil {
+		panic(err)
+	}
+	return r
+}
+
 func createRange(min interface{}, max interface{}) Range {
-	r, err := NewRange(min, max)
+	r, err := NewRangeClose(min, max)
 	if err != nil {
 		panic(err)
 	}

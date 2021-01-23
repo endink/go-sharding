@@ -179,7 +179,7 @@ func rewriteSubqueryTableNameInTableSource(p *TableAliasStmtInfo, tableSource *a
 	}
 
 	// 这是一个分片表或关联表, 创建一个TableName的装饰器, 并替换原有节点
-	d, err := NewTableNameDecorator(tableName, shardingTable, p.routeResult)
+	d, err := NewTableNameDecorator(tableName, shardingTable, p.GetRouteResult())
 	if err != nil {
 		return fmt.Errorf("create TableNameDecorator error: %v", err)
 	}

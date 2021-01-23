@@ -8,16 +8,27 @@ import (
 	"reflect"
 )
 
+var _ CompiledScript = &tengoScript{}
+
 type CompiledScript interface {
 	ExecuteList() ([]string, error)
 	ExecuteScalar() (string, error)
 	SetVar(name string, value interface{}) error
+	Clone() CompiledScript
 }
 
 type tengoScript struct {
 	raw       *string
 	compiled  *tengo.Compiled
 	resultVar string
+}
+
+func (script *tengoScript) Clone() CompiledScript {
+	return &tengoScript{
+		raw:       script.raw,
+		compiled:  script.compiled.Clone(),
+		resultVar: script.resultVar,
+	}
 }
 
 func (script *tengoScript) SetVar(name string, value interface{}) error {

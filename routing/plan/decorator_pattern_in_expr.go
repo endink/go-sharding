@@ -100,12 +100,12 @@ func getPatternInRouteResult(n *ast.ColumnName,
 	column := n.Name.L
 
 	if isNotIn {
-		tables := rule.GetAllTables()
+		tables := rule.GetTables()
 		valueMap := getBroadcastValueMap(tables, values)
 		return tables, valueMap, nil
 	}
-	if !rule.HasColumn(column) {
-		tables := rule.GetAllTables()
+	if !rule.HasTableShardingColumn(column) || !rule.TableStrategy.IsScalarValueSupported() { //不支持明确值分片或者不分片
+		tables := rule.GetTables()
 		valueMap := getBroadcastValueMap(tables, values)
 		return tables, valueMap, nil
 	}
@@ -113,22 +113,27 @@ func getPatternInRouteResult(n *ast.ColumnName,
 	var usedTables []string
 	valueMap := make(map[string][]ast.ExprNode)
 	nullErr := fmt.Sprintf("sharding column '%s' value can not be null", column)
-	for _, vi := range values {
-		v, _ := vi.(*driver.ValueExpr)
-		value, err := util.GetValueExprResultEx(v, false, nullErr)
-		if err != nil {
-			return nil, nil, err
+	if len(values) > 0 {
+		shardingValue := core.ShardingValuesForSingleScalar(rule.Name, column)
+		for _, vi := range values {
+			v, _ := vi.(*driver.ValueExpr)
+			value, err := util.GetValueExprResultEx(v, false, nullErr)
+			if err != nil {
+				return nil, nil, err
+			}
+			//idx, err := rule.FindTableIndex(value)
+			shardingValue.ScalarValues[column][0] = value
+			tables, e := rule.TableStrategy.Shard(rule.GetTables(), shardingValue)
+			if e != nil {
+				return nil, nil, e
+			}
+			for _, t := range tables {
+				if _, ok := valueMap[t]; !ok {
+					usedTables = append(usedTables, t)
+				}
+				valueMap[t] = append(valueMap[t], vi)
+			}
 		}
-		//idx, err := rule.FindTableIndex(value)
-		shardingValue := core.NewShardingValue(rule.Name, column, value)
-		t, err := rule.TableStrategy.ShardScalar(rule.GetAllTables(), shardingValue)
-		if err != nil {
-			return nil, nil, err
-		}
-		if _, ok := valueMap[t]; !ok {
-			usedTables = append(usedTables, t)
-		}
-		valueMap[t] = append(valueMap[t], vi)
 	}
 	return usedTables, valueMap, nil
 }
@@ -146,7 +151,7 @@ func checkValueType(values []ast.ExprNode) error {
 func getBroadcastValueMap(tables []string, nodes []ast.ExprNode) map[string][]ast.ExprNode {
 	ret := make(map[string][]ast.ExprNode)
 	for _, t := range tables {
-		ret[t] = append(ret[t], nodes...)
+		ret[t] = nodes
 	}
 	return ret
 }

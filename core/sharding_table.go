@@ -20,15 +20,16 @@
 
 package core
 
-import "github.com/scylladb/go-set/strset"
+import (
+	"github.com/scylladb/go-set/strset"
+)
 
 type ShardingTable struct {
 	Name             string
-	ShardingColumns  []string
 	TableStrategy    ShardingStrategy
 	DatabaseStrategy ShardingStrategy
-	resources        map[string][]string //key: database, value: tables
-	allTables        []string
+	tables           []string
+	schemas          []string
 }
 
 func NoShardingTable() *ShardingTable {
@@ -37,35 +38,35 @@ func NoShardingTable() *ShardingTable {
 	}
 }
 
-func (t *ShardingTable) SetResources(resources map[string][]string) {
-	r := resources
-	if r == nil {
-		r = make(map[string][]string, 0)
-	}
+func (t *ShardingTable) SetResources(schemas []string, tables []string) {
+	schemasSet := strset.New()
+	schemasSet.Add(schemas...)
 
-	set := strset.New()
-	for _, tables := range r {
-		set.Add(tables...)
-	}
+	tableSet := strset.New()
+	tableSet.Add(tables...)
 
-	t.allTables = set.List()
-	t.resources = r
-}
-
-//get physical database and tables
-func (t *ShardingTable) GetResources() map[string][]string {
-	return t.resources
+	t.schemas = schemasSet.List()
+	t.tables = tableSet.List()
 }
 
 //get all of the configured tables
-func (t *ShardingTable) GetAllTables() []string {
-	return t.allTables
+func (t *ShardingTable) GetTables() []string {
+	return t.tables
 }
 
-func (t *ShardingTable) HasColumn(column string) bool {
-	for _, column := range t.ShardingColumns {
-		if TrimAndLower(column) == column {
+func (t *ShardingTable) HasDbShardingColumn(column string) bool {
+	return t.IsDbSharding() && t.containsColumn(t.DatabaseStrategy.GetShardingColumns(), column)
+}
 
+func (t *ShardingTable) HasTableShardingColumn(column string) bool {
+	return t.IsTableSharding() && t.containsColumn(t.TableStrategy.GetShardingColumns(), column)
+}
+
+func (t *ShardingTable) containsColumn(columns []string, column string) bool {
+	c := TrimAndLower(column)
+	for _, s := range columns {
+		if s == c {
+			return true
 		}
 	}
 	return false
@@ -77,4 +78,8 @@ func (t *ShardingTable) IsDbSharding() bool {
 
 func (t *ShardingTable) IsTableSharding() bool {
 	return t.DatabaseStrategy != NoneShardingStrategy
+}
+
+func (t *ShardingTable) IsSharding() bool {
+	return t.IsDbSharding() || t.IsDbSharding()
 }

@@ -63,7 +63,7 @@ func (i *InlineBuilder) loadShardingColumns() ([]string, error) {
 	}
 
 	if len(columns) == 0 {
-		return nil, fmt.Errorf("invalid configuration property '%s' for inline strategy, have no columns can be parsed", ShardingColumnPropertyName)
+		return nil, fmt.Errorf("invalid configuration property '%s' for inline strategy, columns can not be parsed", ShardingColumnPropertyName)
 	}
 	return columns, nil
 }

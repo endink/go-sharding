@@ -27,9 +27,10 @@ import (
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/core/provider"
 	"github.com/XiaoMi/Gaea/core/script"
-	"github.com/scylladb/go-set/strset"
 	"go.uber.org/config"
 	"net"
+	"reflect"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -215,37 +216,13 @@ func (mgr *cnfManager) buildShardingTable(name string, settings *internal.TableS
 	}
 
 	//加载候选数据库和表
-	resources, err := buildDbResource(settings.Resources)
+	schemas, tables, err := buildDbResource(settings.Resources)
 	if err != nil {
 		return nil, err
 	}
-	sd.SetResources(resources)
-
-	columns, err := buildShardingColumns(name, settings.ShardingColumns)
-	if err != nil {
-		return nil, err
-	}
-	sd.ShardingColumns = columns
+	sd.SetResources(schemas, tables)
 
 	return sd, nil
-}
-
-func buildShardingColumns(table string, shardingColumnExpr string) ([]string, error) {
-	values := core.TrimAndLower(shardingColumnExpr)
-	if len(values) > 0 {
-		nameArray := strings.Split(values, ",")
-		set := strset.NewWithSize(len(nameArray))
-		for _, n := range nameArray {
-			name := core.TrimAndLower(n)
-			if n != "" {
-				set.Add(name)
-			}
-		}
-		if set.Size() > 0 {
-			return set.List(), nil
-		}
-	}
-	return nil, fmt.Errorf("configuration property '%s' missed for table '%s'", table, internal.ShardingColumnsProperty)
 }
 
 func (mgr *cnfManager) buildShardingStrategy(tableName string, propertyName string, settings interface{}) (core.ShardingStrategy, error) {
@@ -320,38 +297,66 @@ func validateStrategyConfig(tableName string, propertyName string, settings inte
 	return fmt.Errorf("table '%s' has bad config value for %s ( value: %s )", tableName, propertyName, fmt.Sprint(settings))
 }
 
-func buildDbResource(dbNodesExpression string) (map[string][]string, error) {
+func buildDbResource(dbNodesExpression string) ([]string, []string, error) {
 	expr := strings.TrimSpace(dbNodesExpression)
 	if expr == "" {
-		return make(map[string][]string, 0), nil
+		return nil, nil, nil
 	}
 
 	inline, err := script.NewInlineExpression(expr)
 	if err != nil {
-		return nil, errors.New(fmt.Sprint("bad resource expression: ", expr, core.LineSeparator, err))
+		return nil, nil, errors.New(fmt.Sprint("bad resource expression: ", expr, core.LineSeparator, err))
 	}
 
 	ns, err := inline.Flat()
 	if err != nil {
-		return nil, errors.New(fmt.Sprint("bad resource expression: ", expr, core.LineSeparator, err))
+		return nil, nil, errors.New(fmt.Sprint("bad resource expression: ", expr, core.LineSeparator, err))
 	}
 
 	nodes := make(map[string][]string, len(ns))
 	for _, name := range ns {
 		schemaAndTable := strings.Split(name, ".")
 		if len(schemaAndTable) != 2 {
-			return nil, errors.New(fmt.Sprint("bad resource expression: ", expr, ", the separator (.) between schema and table name missed", core.LineSeparator, err))
+			return nil, nil, errors.New(fmt.Sprint("bad resource expression: ", expr, ", the separator (.) between schema and table name missed", core.LineSeparator, err))
 		}
 		schema := core.TrimAndLower(schemaAndTable[0])
 		table := core.TrimAndLower(schemaAndTable[1])
 		if err = core.ValidateIdentifier(schema); err != nil {
-			return nil, errors.New(fmt.Sprint("bad database name in resource expression: ", expr, core.LineSeparator, err))
+			return nil, nil, errors.New(fmt.Sprint("bad database name in resource expression: ", expr, core.LineSeparator, err))
 		}
 		if err = core.ValidateIdentifier(table); err != nil {
-			return nil, errors.New(fmt.Sprint("bad table name in resource expression: ", expr, core.LineSeparator, err))
+			return nil, nil, errors.New(fmt.Sprint("bad table name in resource expression: ", expr, core.LineSeparator, err))
 		}
-
-		nodes[schema] = append(nodes[schema], table)
+		allTables := append(nodes[schema], table)
+		sort.Strings(allTables)
+		nodes[schema] = allTables
 	}
-	return nodes, nil
+	return visitSchemasAndTables(nodes)
+}
+
+func visitSchemasAndTables(set map[string][]string) ([]string, []string, error) {
+	var tables []string
+	var db string
+	var schemas = make([]string, 0, len(set))
+	for schema, tablesInSchema := range set {
+		//记录第一个表和 DB
+		if tables == nil {
+			db = schema
+			tables = tablesInSchema
+		} else {
+			if !reflect.DeepEqual(tablesInSchema, tables) {
+				sb := core.NewStringBuilder()
+				sb.WriteLineF("schema '%s' and '%s' has the different tables, please check your configuration", db, schema)
+				sb.Write(db, ": ")
+				sb.WriteJoin(", ", tables)
+				sb.WriteLine()
+				sb.Write(schema, ": ")
+				sb.WriteJoin(", ", tablesInSchema)
+				sb.WriteLine()
+				return nil, nil, errors.New(sb.String())
+			}
+		}
+		schemas = append(schemas, schema)
+	}
+	return schemas, tables, nil
 }

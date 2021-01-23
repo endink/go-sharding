@@ -28,6 +28,19 @@ type inlineSegmentGroup struct {
 	segments []*inlineSegment
 }
 
+func (group *inlineSegmentGroup) clone() *inlineSegmentGroup {
+	if group.segments == nil {
+		return &inlineSegmentGroup{}
+	}
+	segs := make([]*inlineSegment, len(group.segments))
+	for i, s := range group.segments {
+		segs[i] = s
+	}
+	return &inlineSegmentGroup{
+		segments: segs,
+	}
+}
+
 type inlineSegment struct {
 	rawScript string
 	prefix    string
@@ -41,7 +54,15 @@ type splitContext struct {
 	segments  []*inlineSegment
 }
 
-func (seg inlineSegment) isBlank() bool {
+func (seg *inlineSegment) clone() *inlineSegment {
+	return &inlineSegment{
+		rawScript: seg.rawScript,
+		prefix:    seg.prefix,
+		script:    seg.script.Clone(),
+	}
+}
+
+func (seg *inlineSegment) isBlank() bool {
 	return strings.TrimSpace(seg.prefix) == "" && strings.TrimSpace(seg.rawScript) == ""
 }
 

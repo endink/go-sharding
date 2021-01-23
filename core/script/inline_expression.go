@@ -18,20 +18,48 @@
 
 package script
 
+import (
+	"errors"
+	"github.com/XiaoMi/Gaea/core"
+)
+
+var _ InlineExpression = &inlineExpr{}
+
 type InlineExpression interface {
 	Flat(variables ...*Variable) ([]string, error)
 	FlatScalar(variables ...*Variable) (string, error)
+	Clone() InlineExpression
+	RawExpresion() string
 }
 
 type inlineExpr struct {
 	expression string
 	segments   []*inlineSegmentGroup
-	vars       []*Variable
+	varsNames  []string
+}
+
+func (i *inlineExpr) Clone() InlineExpression {
+	var groups []*inlineSegmentGroup
+	if len(i.segments) > 0 {
+		groups = make([]*inlineSegmentGroup, len(i.segments))
+		for idx, segment := range i.segments {
+			groups[idx] = segment
+		}
+	}
+	return &inlineExpr{
+		expression: i.expression,
+		segments:   groups,
+		varsNames:  i.varsNames,
+	}
+}
+
+func (i *inlineExpr) RawExpresion() string {
+	return i.expression
 }
 
 func (i *inlineExpr) FlatScalar(variables ...*Variable) (string, error) {
 	if list, err := i.Flat(variables...); err != nil {
-		return "", nil
+		return "", err
 	} else {
 		for _, s := range list {
 			return s, nil
@@ -50,13 +78,13 @@ func (i *inlineExpr) Flat(variables ...*Variable) ([]string, error) {
 			if s.script != nil {
 				for _, va := range variables {
 					if err := s.script.SetVar(va.Name, va.Value); err != nil {
-						return nil, err
+						return nil, i.wrapExecuteError(err, variables...)
 					}
 				}
-				if list, err := s.script.ExecuteList(); err != nil {
-					return nil, err
+				if l, err := s.script.ExecuteList(); err != nil {
+					return nil, i.wrapExecuteError(err, variables...)
 				} else {
-					segStrings := flatFill(s.prefix, list)
+					segStrings := flatFill(s.prefix, l)
 					current = outJoin(current, segStrings)
 				}
 			} else {
@@ -80,8 +108,41 @@ func (i *inlineExpr) Flat(variables ...*Variable) ([]string, error) {
 	return list, nil
 }
 
+func varsArray(vars []*Variable) []interface{} {
+	r := make([]interface{}, len(vars))
+	for i, variable := range vars {
+		r[i] = variable
+	}
+	return r
+}
+
+func (i *inlineExpr) wrapExecuteError(e error, vars ...*Variable) error {
+	sb := core.NewStringBuilder()
+	sb.WriteLine("inline sharding fault.")
+	sb.WriteLine("Script: ", i.expression)
+	sb.Write("Variables: ")
+	if len(vars) > 0 {
+		sb.WriteJoin(", ", varsArray(vars)...)
+	} else {
+		sb.Write("<none>")
+	}
+	sb.WriteLine()
+	sb.WriteLine("Error:")
+	sb.Write(e.Error())
+
+	return errors.New(sb.String())
+}
+
 func NewInlineExpression(expression string, variables ...*Variable) (InlineExpression, error) {
-	expr := &inlineExpr{expression: expression, vars: variables}
+	var names []string
+	if len(variables) > 0 {
+		names = make([]string, len(variables))
+		for i, variable := range variables {
+			names[i] = variable.Name
+		}
+	}
+
+	expr := &inlineExpr{expression: expression, varsNames: names}
 
 	if segments, err := splitSegments(expression, variables...); err != nil {
 		return nil, err

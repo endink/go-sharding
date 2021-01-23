@@ -62,6 +62,14 @@ type ShardingRangeValue struct {
 	Value  Range
 }
 
+func NewShardingRange(table string, column string, value Range) *ShardingRangeValue {
+	return &ShardingRangeValue{
+		Table:  table,
+		Column: column,
+		Value:  value,
+	}
+}
+
 func (s *ShardingRangeValue) Contains(value *ShardingScalarValue) bool {
 	if s.Table != value.Table || s.Column != s.Column {
 		return false
@@ -79,5 +87,5 @@ func (s *ShardingRangeValue) GetColumn() string {
 }
 
 func (s *ShardingRangeValue) String() string {
-	return fmt.Sprintf("%s.%s:%s", s.Table, s.Column, RangeToString(s.Value))
+	return fmt.Sprintf("%s.%s:%s", s.Table, s.Column, s.Value)
 }

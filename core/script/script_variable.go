@@ -20,7 +20,13 @@
 
 package script
 
+import "fmt"
+
 type Variable struct {
 	Name  string
 	Value interface{}
+}
+
+func (v *Variable) String() string {
+	return fmt.Sprintf("%s=%v", v.Name, v.Value)
 }

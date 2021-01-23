@@ -20,10 +20,9 @@ package core
 
 type ShardingStrategy interface {
 	GetShardingColumns() []string
-	IsShardingColumn(column string) bool
 
 	IsScalarValueSupported() bool
 	IsRangeValueSupported() bool
 
-	Shard(sources []string, values *ShardingValues) []string
+	Shard(sources []string, values *ShardingValues) ([]string, error)
 }

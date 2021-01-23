@@ -20,6 +20,7 @@ package core
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/core/comparison"
 	"os"
 	"regexp"
 	"runtime"
@@ -193,15 +194,16 @@ func Union(slice1, slice2 []string) []string {
 
 //求交集
 func Intersect(slice1, slice2 []string) []string {
-	m := make(map[string]int)
-	nn := make([]string, 0)
+	m := make(map[string]struct{})
+	nothing := struct{}{}
+	nn := make([]string, 0, comparison.MinInt(len(slice1), len(slice2)))
 	for _, v := range slice1 {
-		m[v]++
+		m[v] = nothing
 	}
 
 	for _, v := range slice2 {
-		times, _ := m[v]
-		if times == 1 {
+		_, ok := m[v]
+		if ok {
 			nn = append(nn, v)
 		}
 	}
@@ -226,20 +228,26 @@ func Difference(slice1, slice2 []string) []string {
 	return nn
 }
 
-func RangeToString(r Range) string {
-	if r == nil {
-		return "~"
+func reduce(slices [][]interface{}, out *[][]interface{}, idx int, idxes []int) {
+	if idx < len(slices) {
+		for i := 0; i < len(slices[idx]); i++ {
+			idxes[idx] = i
+			reduce(slices, out, idx+1, idxes)
+		}
 	} else {
-		min := ""
-		if r.HasLower() {
-			min = fmt.Sprint(r.LowerBound())
+		var cm []interface{}
+		for i := 0; i < len(slices); i++ {
+			cm = append(cm, slices[i][idxes[i]])
 		}
-
-		max := ""
-		if r.HasUpper() {
-			min = fmt.Sprint(r.UpperBound())
-		}
-
-		return fmt.Sprintf("%s~%s", min, max)
+		*out = append(*out, cm)
 	}
+}
+
+// 笛卡尔积算法 多个数组的排列组合
+// 例:{{1,2,3}, {4,5}}, 输出{{1,4}, {1,5}, {2,4}, {2,5}, {3,4}, {3,5}}
+func Permute(slices [][]interface{}) [][]interface{} {
+	var result [][]interface{}
+	idxes := make([]int, len(slices))
+	reduce(slices, &result, 0, idxes)
+	return result
 }

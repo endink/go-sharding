@@ -19,15 +19,13 @@
 package internal
 
 const (
-	ResourcesProperty       = "resources"
-	DbStrategyProperty      = "db-strategy"
-	TableStrategyProperty   = "table-strategy"
-	ShardingColumnsProperty = "sharding-columns"
+	ResourcesProperty     = "resources"
+	DbStrategyProperty    = "db-strategy"
+	TableStrategyProperty = "table-strategy"
 )
 
 type TableSettings struct {
-	Resources       string      `yaml:"resources"`
-	DbStrategy      interface{} `yaml:"db-strategy"`
-	TableStrategy   interface{} `yaml:"table-strategy"`
-	ShardingColumns string      `yaml:"sharding-columns"`
+	Resources     string      `yaml:"resources"`
+	DbStrategy    interface{} `yaml:"db-strategy"`
+	TableStrategy interface{} `yaml:"table-strategy"`
 }

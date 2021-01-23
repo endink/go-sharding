@@ -16,6 +16,7 @@ package plan
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/optimize"
 	"github.com/XiaoMi/Gaea/parser"
 	"github.com/XiaoMi/Gaea/routing"
 	"github.com/XiaoMi/Gaea/util/hack"
@@ -48,6 +49,8 @@ type SelectPlan struct {
 	count  int64 // LIMIT count, 未设置则为-1
 
 	sqls map[string]map[string][]string
+
+	valuesOptimizer *explainer.Optimizer
 }
 
 // NewSelectPlan constructor of SelectPlan
@@ -58,6 +61,7 @@ func NewSelectPlan(sql string, ctx *routing.Context) *SelectPlan {
 		aggregateFuncs:     make(map[int]AggregateFuncMerger),
 		offset:             -1,
 		count:              -1,
+		valuesOptimizer:    explainer.NewOptimizer(),
 	}
 }
 
@@ -480,7 +484,7 @@ func rewriteTableNameInTableSource(p *TableAliasStmtInfo, tableSource *ast.Table
 	}
 
 	// 这是一个分片表或关联表, 创建一个TableName的装饰器, 并替换原有节点
-	d, err := NewTableNameDecorator(tableName, shardingTable, p.routeResult)
+	d, err := NewTableNameDecorator(tableName, shardingTable, p.GetRouteResult())
 	if err != nil {
 		return fmt.Errorf("create TableNameDecorator error: %v", err)
 	}
@@ -621,6 +625,7 @@ func handleHaving(p *SelectPlan, stmt *ast.SelectStmt) (err error) {
 }
 
 func handleComparisonExpr(p *TableAliasStmtInfo, comp ast.ExprNode) (bool, []int, ast.ExprNode, error) {
+
 	switch expr := comp.(type) {
 	case *ast.BinaryOperationExpr:
 		return handleBinaryOperationExpr(p, expr)
@@ -648,7 +653,7 @@ func handlePatternInExpr(p *TableAliasStmtInfo, expr *ast.PatternInExpr) (bool, 
 	if !need {
 		return false, nil, expr, nil
 	}
-	decorator, err := CreatePatternInExprDecorator(expr, rule, isAlias, p.GetRouteResult())
+	decorator, err := CreatePatternInExprDecorator(expr, rule.Sharding, rule.IsAlias, p.GetRouteResult())
 	if err != nil {
 		return false, nil, nil, fmt.Errorf("create PatternInExprDecorator error: %v", err)
 	}
@@ -720,27 +725,28 @@ func handleBinaryOperationExprMathCompare(p *TableAliasStmtInfo, expr *ast.Binar
 	rType := getExprNodeTypeInBinaryOperation(expr.R)
 
 	// handle hint database function: SELECT * from tbl where DATABASE() = db_0 / 'db_0' / `db_0`
-	if expr.Op == opcode.EQ {
-		if lType == FuncCallExpr {
-			hintDB, err := getDatabaseFuncHint(expr.L.(*ast.FuncCallExpr), expr.R)
-			if err != nil {
-				return false, nil, nil, fmt.Errorf("get database function hint error: %v", err)
-			}
-			if hintDB != "" {
-				p.hintPhyDB = hintDB
-				return false, nil, expr, nil
-			}
-		} else if rType == FuncCallExpr {
-			hintDB, err := getDatabaseFuncHint(expr.R.(*ast.FuncCallExpr), expr.L)
-			if err != nil {
-				return false, nil, nil, fmt.Errorf("get database function hint error: %v", err)
-			}
-			if hintDB != "" {
-				p.hintPhyDB = hintDB
-				return false, nil, expr, nil
-			}
-		}
-	}
+	//TODO: 不再支持函数处理
+	//if expr.Op == opcode.EQ {
+	//	if lType == FuncCallExpr {
+	//		hintDB, err := getDatabaseFuncHint(expr.L.(*ast.FuncCallExpr), expr.R)
+	//		if err != nil {
+	//			return false, nil, nil, fmt.Errorf("get database function hint error: %v", err)
+	//		}
+	//		if hintDB != "" {
+	//			p.hintPhyDB = hintDB
+	//			return false, nil, expr, nil
+	//		}
+	//	} else if rType == FuncCallExpr {
+	//		hintDB, err := getDatabaseFuncHint(expr.R.(*ast.FuncCallExpr), expr.L)
+	//		if err != nil {
+	//			return false, nil, nil, fmt.Errorf("get database function hint error: %v", err)
+	//		}
+	//		if hintDB != "" {
+	//			p.hintPhyDB = hintDB
+	//			return false, nil, expr, nil
+	//		}
+	//	}
+	//}
 
 	if lType == ColumnNameExpr && rType == ColumnNameExpr {
 		return handleBinaryOperationExprCompareLeftColumnRightColumn(p, expr)
@@ -751,7 +757,7 @@ func handleBinaryOperationExprMathCompare(p *TableAliasStmtInfo, expr *ast.Binar
 			return handleBinaryOperationExprCompareLeftColumnRightValue(p, expr, getFindTableIndexesFunc(expr.Op))
 		}
 		column := expr.L.(*ast.ColumnNameExpr)
-		rule, need, isAlias, err := NeedCreateColumnNameExprDecoratorInCondition(p, column)
+		rule, need, err := p.NeedCreateColumnNameExprDecoratorInCondition(column)
 		if err != nil {
 			return false, nil, nil, fmt.Errorf("check ColumnNameExpr error in BinaryOperationExpr.L: %v", err)
 		}
@@ -759,7 +765,7 @@ func handleBinaryOperationExprMathCompare(p *TableAliasStmtInfo, expr *ast.Binar
 			return false, nil, expr, nil
 		}
 
-		decorator := CreateColumnNameExprDecorator(column, rule, isAlias, p.GetRouteResult())
+		decorator := CreateColumnNameExprDecorator(column, rule.Sharding, rule.IsAlias, p.GetRouteResult())
 		expr.L = decorator
 		return false, nil, expr, nil
 	}
@@ -769,7 +775,7 @@ func handleBinaryOperationExprMathCompare(p *TableAliasStmtInfo, expr *ast.Binar
 			return handleBinaryOperationExprCompareLeftValueRightColumn(p, expr, getFindTableIndexesFunc(inverseOperator(expr.Op)))
 		}
 		column := expr.R.(*ast.ColumnNameExpr)
-		rule, need, isAlias, err := NeedCreateColumnNameExprDecoratorInCondition(p, column)
+		rule, need, err := p.NeedCreateColumnNameExprDecoratorInCondition(column)
 		if err != nil {
 			return false, nil, nil, fmt.Errorf("check ColumnNameExpr error in BinaryOperationExpr.R: %v", err)
 		}
@@ -777,7 +783,7 @@ func handleBinaryOperationExprMathCompare(p *TableAliasStmtInfo, expr *ast.Binar
 			return false, nil, expr, nil
 		}
 
-		decorator := CreateColumnNameExprDecorator(column, rule, isAlias, p.GetRouteResult())
+		decorator := CreateColumnNameExprDecorator(column, rule.Sharding, rule.IsAlias, p.GetRouteResult())
 		expr.R = decorator
 		return false, nil, expr, nil
 	}
@@ -789,23 +795,23 @@ func handleBinaryOperationExprMathCompare(p *TableAliasStmtInfo, expr *ast.Binar
 // 如果出现分表列, 只创建一个替换表名的装饰器, 不计算路由. 因此返回结果前两个一定是false, nil
 func handleBinaryOperationExprOther(p *TableAliasStmtInfo, expr *ast.BinaryOperationExpr) (bool, []int, ast.ExprNode, error) {
 	if lColumn, ok := expr.L.(*ast.ColumnNameExpr); ok {
-		lRule, lNeed, lIsAlias, lErr := NeedCreateColumnNameExprDecoratorInCondition(p, lColumn)
+		lRule, lNeed, lErr := p.NeedCreateColumnNameExprDecoratorInCondition(lColumn)
 		if lErr != nil {
 			return false, nil, nil, fmt.Errorf("check ColumnNameExpr error in BinaryOperationExpr.L: %v", lErr)
 		}
 
 		if lNeed {
-			lDecorator := CreateColumnNameExprDecorator(lColumn, lRule, lIsAlias, p.GetRouteResult())
+			lDecorator := CreateColumnNameExprDecorator(lColumn, lRule.Sharding, lRule.IsAlias, p.GetRouteResult())
 			expr.L = lDecorator
 		}
 	}
 	if rColumn, ok := expr.R.(*ast.ColumnNameExpr); ok {
-		rRule, rNeed, rIsAlias, rErr := NeedCreateColumnNameExprDecoratorInCondition(p, rColumn)
+		rRule, rNeed, rErr := p.NeedCreateColumnNameExprDecoratorInCondition(rColumn)
 		if rErr != nil {
 			return false, nil, nil, fmt.Errorf("check ColumnNameExpr error in BinaryOperationExpr.R: %v", rErr)
 		}
 		if rNeed {
-			rDecorator := CreateColumnNameExprDecorator(rColumn, rRule, rIsAlias, p.GetRouteResult())
+			rDecorator := CreateColumnNameExprDecorator(rColumn, rRule.Sharding, rRule.IsAlias, p.GetRouteResult())
 			expr.R = rDecorator
 		}
 	}
@@ -898,7 +904,7 @@ func inverseOperator(op opcode.Op) opcode.Op {
 
 func handleBinaryOperationExprCompareLeftColumnRightColumn(p *TableAliasStmtInfo, expr *ast.BinaryOperationExpr) (bool, []int, ast.ExprNode, error) {
 	lColumn := expr.L.(*ast.ColumnNameExpr)
-	lRule, lNeed, lIsAlias, lErr := NeedCreateColumnNameExprDecoratorInCondition(p, lColumn)
+	lRule, lNeed, lIsAlias, lErr := p.NeedCreateColumnNameExprDecoratorInCondition(lColumn)
 	if lErr != nil {
 		return false, nil, nil, fmt.Errorf("check ColumnNameExpr error in BinaryOperationExpr.L: %v", lErr)
 	}

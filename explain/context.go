@@ -16,25 +16,7 @@
  *  File author: Anders Xiao
  */
 
-package core
+package explain
 
-var NoneShardingStrategy ShardingStrategy = &noneShardingStrategy{}
-
-type noneShardingStrategy struct {
-}
-
-func (n *noneShardingStrategy) GetShardingColumns() []string {
-	return nil
-}
-
-func (n *noneShardingStrategy) IsScalarValueSupported() bool {
-	return false
-}
-
-func (n *noneShardingStrategy) IsRangeValueSupported() bool {
-	return false
-}
-
-func (n *noneShardingStrategy) Shard(sources []string, values *ShardingValues) ([]string, error) {
-	return sources, nil
+type Context interface {
 }

@@ -31,12 +31,6 @@ type RangeAction string
 
 var _ Range = &defaultRange{}
 
-const (
-	RangeActionContains  RangeAction = "ContainsValue"
-	RangeActionIntersect RangeAction = "Intersect"
-	RangeActionUnion     RangeAction = "Union"
-)
-
 type Range interface {
 	fmt.Stringer
 	LowerBound() interface{}
@@ -50,6 +44,8 @@ type Range interface {
 	Union(value Range) (Range, error)
 	ValueKind() reflect.Kind
 	Equals(value interface{}) bool
+	IsUpperClosed() bool
+	IsLowerClosed() bool
 }
 
 var (
@@ -60,25 +56,36 @@ var (
 )
 
 type defaultRange struct {
-	Lower interface{}
-	Upper interface{}
-	HasL  bool
-	HasU  bool
-	kind  reflect.Kind
+	Lower  interface{}
+	Upper  interface{}
+	HasL   bool
+	HasU   bool
+	kind   reflect.Kind
+	CloseL bool
+	CloseU bool
 }
 
-func NewAtLeastRange(min interface{}) Range {
-	r, _ := NewRange(min, nil)
-	return r
+func NewRangeCloseOpen(min interface{}, max interface{}) (Range, error) {
+	return NewRange(min, max, true, false)
 }
 
-func NewAtMostRange(max interface{}) Range {
-	r, _ := NewRange(nil, max)
-	return r
+func NewRangeOpenClose(min interface{}, max interface{}) (Range, error) {
+	return NewRange(min, max, false, true)
 }
 
-func NewRange(min interface{}, max interface{}) (Range, error) {
-	r := &defaultRange{}
+func NewRangeOpen(min interface{}, max interface{}) (Range, error) {
+	return NewRange(min, max, false, false)
+}
+
+func NewRangeClose(min interface{}, max interface{}) (Range, error) {
+	return NewRange(min, max, true, true)
+}
+
+func NewRange(min interface{}, max interface{}, closeLower bool, closeUppper bool) (Range, error) {
+	r := &defaultRange{
+		CloseL: closeLower,
+		CloseU: closeUppper,
+	}
 
 	if min == nil {
 		r.HasL = false
@@ -114,6 +121,14 @@ func NewRange(min interface{}, max interface{}) (Range, error) {
 	return r, nil
 }
 
+func (d *defaultRange) IsUpperClosed() bool {
+	return d.CloseU
+}
+
+func (d *defaultRange) IsLowerClosed() bool {
+	return d.CloseL
+}
+
 func (d *defaultRange) Equals(v interface{}) bool {
 	if v == nil {
 		return false
@@ -125,7 +140,9 @@ func (d *defaultRange) Equals(v interface{}) bool {
 			d.HasLower() == value.HasLower() &&
 			d.HasUpper() == value.HasUpper() &&
 			d.LowerBound() == value.LowerBound() &&
-			d.UpperBound() == value.UpperBound()
+			d.UpperBound() == value.UpperBound() &&
+			(!d.HasLower() || d.IsLowerClosed() == value.IsLowerClosed()) &&
+			(!d.HasUpper() || d.IsUpperClosed() == value.IsUpperClosed())
 	}
 }
 
@@ -188,24 +205,27 @@ func (d *defaultRange) Contains(value Range) (bool, error) {
 }
 
 func (d *defaultRange) ContainsValue(value interface{}) (bool, error) {
-	var outMin, outMax bool
-	if d.HasL {
+	if d.HasLower() {
 		r, err := comparison.Compare(d.Lower, value)
 		if err != nil {
 			return false, err
 		}
-		outMin = r > 0
+		if (d.IsLowerClosed() && r > 0) || (!d.IsLowerClosed() && r >= 0) {
+			return false, nil
+		}
 	}
 
-	if d.HasU {
+	if d.HasUpper() {
 		r, err := comparison.Compare(d.Upper, value)
 		if err != nil {
 			return false, err
 		}
-		outMax = r < 0
+		if (d.IsUpperClosed() && r < 0) || (!d.IsUpperClosed() && r <= 0) {
+			return false, nil
+		}
 	}
 
-	return !outMin && !outMax, nil
+	return true, nil
 }
 
 func (d *defaultRange) HasIntersection(v Range) (bool, error) {
@@ -222,14 +242,59 @@ func (d *defaultRange) HasIntersection(v Range) (bool, error) {
 	}
 
 	if first.HasUpper() && second.HasLower() {
-		if r, err := comparison.Compare(first.UpperBound(), second.LowerBound()); err != nil {
+		firstValue := first.UpperBound()
+		secondValue := second.LowerBound()
+		if r, err := comparison.Compare(firstValue, secondValue); err != nil {
 			return false, err
 		} else {
-			return r >= 0, nil
+			switch r {
+			case 0:
+				//一开一闭临界时就有交集
+				return first.IsUpperClosed() || second.IsLowerClosed(), nil
+			default:
+				return r >= 0, nil
+			}
 		}
 	}
 
 	return true, nil
+}
+
+func sortByUpper(v Range, d Range) (Range, Range, error) {
+	var first, second Range
+
+	if !d.HasUpper() {
+		first = v
+		second = d
+	} else if !v.HasUpper() {
+		first = d
+		second = v
+	} else {
+		r, err := comparison.Compare(v.UpperBound(), d.UpperBound())
+		if err != nil {
+			return nil, nil, err
+		}
+		switch r {
+		case 0:
+			if v.IsUpperClosed() {
+				first = d
+				second = v
+			} else {
+				first = v
+				second = d
+			}
+		default:
+			if r < 0 {
+				first = v
+				second = d
+			} else {
+				first = d
+				second = v
+			}
+		}
+
+	}
+	return first, second, nil
 }
 
 func sortByLower(v Range, d Range) (Range, Range, error) {
@@ -246,13 +311,25 @@ func sortByLower(v Range, d Range) (Range, Range, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-		if r < 0 {
-			first = v
-			second = d
-		} else {
-			first = d
-			second = v
+		switch r {
+		case 0:
+			if v.IsLowerClosed() {
+				first = v
+				second = d
+			} else {
+				first = d
+				second = v
+			}
+		default:
+			if r < 0 {
+				first = v
+				second = d
+			} else {
+				first = d
+				second = v
+			}
 		}
+
 	}
 	return first, second, nil
 }
@@ -267,22 +344,27 @@ func (d *defaultRange) Union(v Range) (Range, error) {
 	var err error
 	var lower interface{} = nil
 	var upper interface{} = nil
+	var closeLower, closeUpper bool
 
 	if d.HasLower() && v.HasLower() {
-		lower, err = comparison.Min(d.LowerBound(), v.LowerBound())
-		if err != nil {
-			return nil, err
+		first, _, e := sortByLower(d, v)
+		if e != nil {
+			return nil, e
 		}
+		lower = first.LowerBound()
+		closeLower = first.IsLowerClosed()
 	}
 
 	if d.HasUpper() && v.HasUpper() {
-		upper, err = comparison.Max(d.UpperBound(), v.UpperBound())
-		if err != nil {
-			return nil, err
+		_, second, e := sortByUpper(d, v)
+		if e != nil {
+			return nil, e
 		}
+		upper = second.UpperBound()
+		closeUpper = second.IsUpperClosed()
 	}
 
-	newRange, err := NewRange(lower, upper)
+	newRange, err := NewRange(lower, upper, closeLower, closeUpper)
 	if err != nil {
 		return nil, err
 	}
@@ -306,40 +388,58 @@ func (d *defaultRange) Intersect(v Range) (Range, error) {
 
 	newRange := &defaultRange{}
 
-	if d.HasL && v.HasLower() {
-		r, err := comparison.Max(d.Lower, v.LowerBound())
-		if err != nil {
-			return nil, err
-		}
-		newRange.Lower = r
-		newRange.HasL = true
-	} else if !v.HasLower() && d.HasL {
-		newRange.Lower = v.LowerBound()
-		newRange.HasL = true
-	} else if v.HasLower() && !d.HasL {
-		newRange.Lower = v.LowerBound()
-		newRange.HasL = true
+	first, second, err := sortByLower(d, v)
+	if err != nil {
+		return nil, err
 	}
+	newRange.CloseL = second.IsLowerClosed()
+	newRange.Lower = second.LowerBound()
+	newRange.HasL = second.HasLower()
 
-	if d.HasU && v.HasUpper() {
-		r, err := comparison.Min(d.Upper, v.UpperBound())
-		if err != nil {
-			return nil, err
+	if !first.HasUpper() { //完全覆盖的情况
+		newRange.CloseU = second.IsUpperClosed()
+		newRange.Upper = second.UpperBound()
+		newRange.HasU = second.HasUpper()
+	} else if !second.HasUpper() { //不应该出现这种情况
+		newRange.CloseU = first.IsUpperClosed()
+		newRange.Upper = first.UpperBound()
+		newRange.HasU = first.HasUpper()
+	} else {
+		c, e := comparison.Compare(first.UpperBound(), second.UpperBound())
+		if e != nil {
+			return nil, e
 		}
-		newRange.Upper = r
-		newRange.HasU = true
-	} else if !v.HasUpper() && d.HasU {
-		newRange.Upper = d.Upper
-		newRange.HasU = true
-	} else if v.HasUpper() && !d.HasU {
-		newRange.Upper = v.UpperBound()
-		newRange.HasU = true
+		switch c {
+		case 0:
+			if !first.IsUpperClosed() {
+				newRange.CloseU = first.IsUpperClosed()
+				newRange.HasU = first.HasUpper()
+				newRange.Upper = first.UpperBound()
+			} else {
+				newRange.CloseU = second.IsUpperClosed()
+				newRange.HasU = second.HasUpper()
+				newRange.Upper = second.UpperBound()
+			}
+		case 1:
+			newRange.CloseU = second.IsUpperClosed()
+			newRange.HasU = second.HasUpper()
+			newRange.Upper = second.UpperBound()
+		case -1:
+			newRange.CloseU = first.IsUpperClosed()
+			newRange.HasU = first.HasUpper()
+			newRange.Upper = first.UpperBound()
+		}
 	}
 
 	if d.kind != reflect.Invalid {
 		newRange.kind = d.kind
 	} else if v.ValueKind() != reflect.Invalid {
 		newRange.kind = v.ValueKind()
+	}
+
+	if newRange.HasLower() && newRange.HasUpper() && newRange.LowerBound() == newRange.UpperBound() {
+		newRange.CloseL = true
+		newRange.CloseU = true
 	}
 
 	return newRange, nil
@@ -357,5 +457,14 @@ func (d *defaultRange) String() string {
 	if d.HasU {
 		max = fmt.Sprint(d.Upper)
 	}
-	return fmt.Sprintf("%s..%s", min, max)
+	lowerStr := "["
+	upperStr := "]"
+
+	if !d.IsLowerClosed() {
+		lowerStr = "("
+	}
+	if !d.IsUpperClosed() {
+		upperStr = ")"
+	}
+	return fmt.Sprint(lowerStr, min, ", ", max, upperStr)
 }
