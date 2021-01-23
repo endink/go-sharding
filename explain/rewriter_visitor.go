@@ -51,8 +51,8 @@ func (s *columnRewritingVisitor) Leave(n ast.Node) (node ast.Node, ok bool) {
 	if err != nil {
 		panic(fmt.Errorf("check rewrite column name for ColumnNameExpr error: %v", err))
 	}
-	if result.IsRewrote {
-		return result.NewToken, true
+	if result.IsRewrote() {
+		return result.GetNewNode(), true
 	}
 
 	return n, true
