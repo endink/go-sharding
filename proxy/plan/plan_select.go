@@ -160,7 +160,7 @@ func HandleSelectStmt(p *SelectPlan, stmt *ast.SelectStmt) error {
 	// field list的处理必须在group by之前, 因为group by, order by会补列, 而这些补充的列是已经处理过的
 	if stmt.Fields != nil {
 		if err := handleFieldList(p, stmt); err != nil {
-			return fmt.Errorf("handle Fields error: %v", err)
+			return fmt.Errorf("handle fields error: %v", err)
 		}
 
 		// 记录补列前的Fields长度

@@ -1,0 +1,83 @@
+/*
+ * Copyright 2021. Go-Sharding Author All Rights Reserved.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ *  File author: Anders Xiao
+ */
+
+package explain
+
+import (
+	"github.com/pingcap/errors"
+	"github.com/pingcap/parser/ast"
+)
+
+type FieldLookup interface {
+	addField(index int, field *ast.SelectField) error
+	addFieldWitName(index int, name string) error
+
+	Fields() []*FieldIndex
+	FindByName(fieldName string) int
+}
+
+type fieldLookup struct {
+	fields     []*FieldIndex
+	fieldNames map[string]uint8
+}
+
+func (a *fieldLookup) FindByName(fieldName string) int {
+	i, ok := a.fieldNames[fieldName]
+	if ok {
+		return int(i)
+	} else {
+		return -1
+	}
+}
+
+func newFieldLookup() *fieldLookup {
+	return &fieldLookup{
+		fieldNames: make(map[string]uint8),
+	}
+}
+
+func (a *fieldLookup) Fields() []*FieldIndex {
+	return a.fields
+}
+
+func (a *fieldLookup) addFieldWitName(index int, name string) error {
+	if name != "" {
+		if index > 255 || index < 0 {
+			return errors.New("field index out of range, at most 256 fields are allowed")
+		}
+
+		f := &FieldIndex{
+			index,
+		}
+		a.fieldNames[name] = uint8(index)
+		a.fields = append(a.fields, f)
+	}
+	return nil
+}
+
+func (a *fieldLookup) addField(index int, field *ast.SelectField) error {
+	var name string
+	if field.AsName.L != "" {
+		name = field.AsName.L
+	}
+	if f, isColumnExpr := field.Expr.(*ast.ColumnNameExpr); isColumnExpr {
+		name = f.Name.Name.L
+	}
+
+	return a.addFieldWitName(index, name)
+}

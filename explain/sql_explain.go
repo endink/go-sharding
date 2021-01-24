@@ -19,10 +19,8 @@
 package explain
 
 import (
-	"errors"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/emirpasic/gods/stacks/arraystack"
-	"github.com/pingcap/parser/ast"
 	"sync"
 )
 
@@ -32,16 +30,21 @@ type SqlExplain struct {
 	lock             sync.Mutex
 	builders         map[string]*core.ShardingValuesBuilder
 	shardingProvider ShardingProvider
-	context          *Context
+	ctx              Context
 	logicStack       *arraystack.Stack
 }
 
-func NewSqlExplain(shardingProvider ShardingProvider) *SqlExplain {
+func NewSqlExplain(runtime Runtime, shardingProvider ShardingProvider) *SqlExplain {
 	return &SqlExplain{
 		builders:         make(map[string]*core.ShardingValuesBuilder),
 		shardingProvider: shardingProvider,
 		logicStack:       arraystack.New(),
+		ctx:              NewContext(runtime),
 	}
+}
+
+func (s *SqlExplain) CurrentContext() Context {
+	return s.ctx
 }
 
 func (s *SqlExplain) PushValue(table string, column string, value interface{}) error {
@@ -102,51 +105,4 @@ func (s *SqlExplain) currentLogic() core.BinaryLogic {
 		return core.LogicAnd
 	}
 	return v.(core.BinaryLogic)
-}
-
-func (s *SqlExplain) ExplainJoinOn(on *ast.OnCondition, rewriter Rewriter) error {
-	newExpr, err := s.explainCondition(on.Expr, rewriter, core.LogicAnd)
-	if err != nil {
-		return err
-	}
-	on.Expr = newExpr
-	return nil
-}
-
-func (s *SqlExplain) ExplainWhere(sel *ast.SelectStmt, rewriter Rewriter) error {
-	where := sel.Where
-	if where != nil {
-		expr, err := s.explainCondition(where, rewriter, core.LogicAnd)
-		if err != nil {
-			sel.Where = expr
-		}
-	}
-	return nil
-}
-
-func (s *SqlExplain) ExplainHaving(stmt *ast.SelectStmt, rewriter Rewriter) error {
-
-	having := stmt.Having
-	if having == nil {
-		return nil
-	}
-
-	return s.rewriteColumn(having, rewriter, "explain having fault !")
-}
-
-func (s *SqlExplain) ExplainLimit(stmt *ast.SelectStmt, rewriter Rewriter) error {
-	if stmt.Limit != nil {
-		result, err := rewriter.RewriteLimit(stmt.Limit, s.context)
-		if err != nil {
-			return err
-		}
-		if result.IsRewrote() {
-			l, ok := result.GetNewNode().(*ast.Limit)
-			if !ok {
-				return errors.New("rewrite limit succeed, but result is not a limit node")
-			}
-			stmt.Limit = l
-		}
-	}
-	return nil
 }

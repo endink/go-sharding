@@ -32,10 +32,9 @@ type ShardingTable struct {
 	schemas          []string
 }
 
-func NoShardingTable() *ShardingTable {
-	return &ShardingTable{
-		TableStrategy: NoneShardingStrategy,
-	}
+var NilShardingTable = &ShardingTable{
+	TableStrategy:    NoneShardingStrategy,
+	DatabaseStrategy: NoneShardingStrategy,
 }
 
 func (t *ShardingTable) SetResources(schemas []string, tables []string) {
@@ -82,4 +81,8 @@ func (t *ShardingTable) IsTableSharding() bool {
 
 func (t *ShardingTable) IsSharding() bool {
 	return t.IsDbSharding() || t.IsDbSharding()
+}
+
+func (t *ShardingTable) IsNil() bool {
+	return t == NilShardingTable
 }

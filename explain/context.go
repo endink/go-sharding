@@ -18,5 +18,61 @@
 
 package explain
 
+import (
+	"github.com/XiaoMi/Gaea/logging"
+)
+
+var Logger = logging.GetLogger("explain")
+
 type Context interface {
+	TableLookup() TableLookup
+	AggLookup() AggLookup
+	GroupByLookup() FieldLookup
+	OrderByLookup() FieldLookup
+	FieldLookup() FieldLookup
+	Runtime() Runtime
+}
+
+type context struct {
+	tableLookup   TableLookup
+	aggLookup     AggLookup
+	groupByLookup FieldLookup
+	orderByLookup FieldLookup
+	fieldLookup   FieldLookup
+	runtime       Runtime
+}
+
+func NewContext(runtime Runtime) Context {
+	return &context{
+		tableLookup:   newTableLookup(),
+		aggLookup:     newAggLookup(),
+		groupByLookup: newFieldLookup(),
+		orderByLookup: newFieldLookup(),
+		fieldLookup:   newFieldLookup(),
+		runtime:       runtime,
+	}
+}
+
+func (c *context) Runtime() Runtime {
+	return c.runtime
+}
+
+func (c *context) OrderByLookup() FieldLookup {
+	return c.orderByLookup
+}
+
+func (c *context) GroupByLookup() FieldLookup {
+	return c.groupByLookup
+}
+
+func (c *context) FieldLookup() FieldLookup {
+	return c.fieldLookup
+}
+
+func (c *context) TableLookup() TableLookup {
+	return c.tableLookup
+}
+
+func (c *context) AggLookup() AggLookup {
+	return c.aggLookup
 }

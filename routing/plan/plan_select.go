@@ -167,7 +167,7 @@ func HandleSelectStmt(p *SelectPlan, stmt *ast.SelectStmt) error {
 	// field list的处理必须在group by之前, 因为group by, order by会补列, 而这些补充的列是已经处理过的
 	if stmt.Fields != nil {
 		if err := handleFieldList(p, stmt); err != nil {
-			return fmt.Errorf("handle Fields error: %v", err)
+			return fmt.Errorf("handle fields error: %v", err)
 		}
 
 		// 记录补列前的Fields长度
@@ -280,14 +280,15 @@ func handleExtraFieldList(p *SelectPlan, stmt *ast.SelectStmt) {
 	deleteNum := 0
 	for i := 0; i < len(p.groupByColumn); i++ {
 		p.groupByColumn[i] -= deleteNum
-		currColumnIndex := p.originColumnCount + i - deleteNum
-		field, isColumnExpr := stmt.Fields.Fields[currColumnIndex].Expr.(*ast.ColumnNameExpr)
+		currColumnIndex := p.originColumnCount + i - deleteNum                                //当前补的 group by 列索引
+		field, isColumnExpr := stmt.Fields.Fields[currColumnIndex].Expr.(*ast.ColumnNameExpr) //被补的列
 		if !isColumnExpr {
 			continue
 		}
-		if index, ok := selectFields[field.Name.Name.L]; !ok {
+		if index, ok := selectFields[field.Name.Name.L]; !ok { // select 中没有找到列，补再最后不变
 			continue
 		} else {
+			//原始列中存在， 移除
 			stmt.Fields.Fields = append(stmt.Fields.Fields[:currColumnIndex], stmt.Fields.Fields[currColumnIndex+1:]...)
 			p.groupByColumn[i] = index
 			deleteNum++

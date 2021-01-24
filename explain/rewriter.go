@@ -19,7 +19,6 @@
 package explain
 
 import (
-	"errors"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/pingcap/parser/ast"
 )
@@ -27,8 +26,22 @@ import (
 type RewriteResult interface {
 	IsRewrote() bool
 	Table() *core.ShardingTable
+}
+
+type RewriteNodeResult interface {
+	RewriteResult
 	GetNewNode() ast.Node
-	GetNewExprNode() (ast.ExprNode, error)
+}
+
+type RewriteExprResult interface {
+	RewriteResult
+	GetNewNode() ast.ExprNode
+}
+
+type RewriteLimitResult interface {
+	IsRewrote() bool
+	Table() *core.ShardingTable
+	GetNewNode() *ast.Limit
 }
 
 var NoneRewrote RewriteResult = &noneRewriteResult{}
@@ -44,19 +57,12 @@ func (n *noneRewriteResult) Table() *core.ShardingTable {
 	return nil
 }
 
-func (n *noneRewriteResult) GetNewNode() ast.Node {
-	return nil
-}
-
-func (n *noneRewriteResult) GetNewExprNode() (ast.ExprNode, error) {
-	return nil, errors.New("rewrite result is not an ExprNode")
-}
-
 //SQL 改写器
 type Rewriter interface {
+	RewriteTable(table *ast.TableSource, explainContext Context) (RewriteNodeResult, error)
 	//改写列，返回值为改写后的节点（装饰器）， 标志位 true 表示改写成功
-	RewriteColumn(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteResult, error)
-	RewritePatterIn(patternIn *ast.PatternInExpr, explainContext Context) (RewriteResult, error)
-	RewriteBetween(patternIn *ast.BetweenExpr, explainContext Context) (RewriteResult, error)
-	RewriteLimit(limit *ast.Limit, explainContext Context) (RewriteResult, error)
+	RewriteColumn(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteExprResult, error)
+	RewritePatterIn(patternIn *ast.PatternInExpr, explainContext Context) (RewriteExprResult, error)
+	RewriteBetween(patternIn *ast.BetweenExpr, explainContext Context) (RewriteExprResult, error)
+	RewriteLimit(limit *ast.Limit, explainContext Context) (RewriteLimitResult, error)
 }

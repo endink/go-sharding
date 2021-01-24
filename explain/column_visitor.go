@@ -23,25 +23,25 @@ import (
 	"github.com/pingcap/parser/ast"
 )
 
-type columnRewritingVisitor struct {
+type columnVisitor struct {
 	re      Rewriter
 	context Context
 }
 
-func NewColumnRewritingVisitor(rewriter Rewriter, context Context) *columnRewritingVisitor {
-	return &columnRewritingVisitor{
+func NewColumnVisitor(rewriter Rewriter, context Context) *columnVisitor {
+	return &columnVisitor{
 		re:      rewriter,
 		context: context,
 	}
 }
 
 // Enter implement ast.Visitor
-func (s *columnRewritingVisitor) Enter(n ast.Node) (node ast.Node, skipChildren bool) {
+func (s *columnVisitor) Enter(n ast.Node) (node ast.Node, skipChildren bool) {
 	return n, false
 }
 
 // Leave implement ast.Visitor
-func (s *columnRewritingVisitor) Leave(n ast.Node) (node ast.Node, ok bool) {
+func (s *columnVisitor) Leave(n ast.Node) (node ast.Node, ok bool) {
 	field, ok := n.(*ast.ColumnNameExpr)
 	if !ok {
 		return n, true

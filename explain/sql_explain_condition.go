@@ -58,31 +58,31 @@ func (s *SqlExplain) rewriteColumn(expr ast.Node, rewriter Rewriter, errMsg stri
 			err = errors.New(fmt.Sprint(msg, core.LineSeparator, fmt.Sprintf("%v", e)))
 		}
 	}()
-	columnNameRewriter := NewColumnRewritingVisitor(rewriter, s.context)
+	columnNameRewriter := NewColumnVisitor(rewriter, s.CurrentContext())
 	expr.Accept(columnNameRewriter)
 	return nil
 }
 
 // column in (xxx, xxx) 解释器
 func (s *SqlExplain) explainBetween(expr *ast.BetweenExpr, rewriter Rewriter) (ast.ExprNode, error) {
-	result, err := rewriter.RewriteBetween(expr, s.context)
+	result, err := rewriter.RewriteBetween(expr, s.CurrentContext())
 	if err != nil {
 		return nil, err
 	}
 	if result.IsRewrote() {
-		return result.GetNewExprNode()
+		return result.GetNewNode(), nil
 	}
 	return expr, nil
 }
 
 // column in (xxx, xxx) 解释器
 func (s *SqlExplain) explainPatternIn(expr *ast.PatternInExpr, rewriter Rewriter) (ast.ExprNode, error) {
-	result, err := rewriter.RewritePatterIn(expr, s.context)
+	result, err := rewriter.RewritePatterIn(expr, s.CurrentContext())
 	if err != nil {
 		return nil, err
 	}
 	if result.IsRewrote() {
-		return result.GetNewExprNode()
+		return result.GetNewNode(), nil
 	}
 	return expr, nil
 }
@@ -232,16 +232,12 @@ func (s *SqlExplain) rewriteLeftColumn(expr *ast.BinaryOperationExpr, rewriter R
 	if !ok {
 		return NoneRewrote, nil
 	}
-	result, err := rewriter.RewriteColumn(leftCol, s.context)
+	result, err := rewriter.RewriteColumn(leftCol, s.CurrentContext())
 	if err != nil {
 		return nil, err
 	}
 	if result != nil && result.IsRewrote() {
-		if newExpr, e := result.GetNewExprNode(); e != nil {
-			return nil, e
-		} else {
-			expr.L = newExpr
-		}
+		expr.L = result.GetNewNode()
 	}
 	return result, nil
 }
@@ -251,16 +247,12 @@ func (s *SqlExplain) rewriteRightColumn(expr *ast.BinaryOperationExpr, rewriter 
 	if !ok {
 		return NoneRewrote, nil
 	}
-	result, err := rewriter.RewriteColumn(col, s.context)
+	result, err := rewriter.RewriteColumn(col, s.CurrentContext())
 	if err != nil {
 		return nil, err
 	}
 	if result != nil && result.IsRewrote() {
-		if newExpr, e := result.GetNewExprNode(); e != nil {
-			return nil, e
-		} else {
-			expr.R = newExpr
-		}
+		expr.R = result.GetNewNode()
 	}
 	return result, nil
 }

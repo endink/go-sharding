@@ -750,7 +750,7 @@ var MySQLErrName = map[uint16]string{
 	ErrPartitionExchangeTempTable:                            "Table to exchange with partition is temporary: '%-.64s'",
 	ErrPartitionInsteadOfSubpartition:                        "Subpartitioned table, use subpartition instead of partition",
 	ErrUnknownPartition:                                      "Unknown partition '%-.64s' in table '%-.64s'",
-	ErrTablesDifferentMetadata:                               "Tables have different definitions",
+	ErrTablesDifferentMetadata:                               "tables have different definitions",
 	ErrRowDoesNotMatchPartition:                              "Found a row that does not match the partition",
 	ErrBinlogCacheSizeGreaterThanMax:                         "Option binlogCacheSize (%d) is greater than maxBinlogCacheSize (%d); setting binlogCacheSize equal to maxBinlogCacheSize.",
 	ErrWarnIndexNotApplicable:                                "Cannot use %-.64s access on index '%-.64s' due to type or collation conversion on field '%-.64s'",
