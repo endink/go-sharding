@@ -23,31 +23,31 @@ import (
 	"github.com/pingcap/parser/ast"
 )
 
-type columnVisitor struct {
+type fieldVisitor struct {
 	re      Rewriter
 	context Context
 }
 
-func NewColumnVisitor(rewriter Rewriter, context Context) *columnVisitor {
-	return &columnVisitor{
+func NewFieldVisitor(rewriter Rewriter, context Context) *fieldVisitor {
+	return &fieldVisitor{
 		re:      rewriter,
 		context: context,
 	}
 }
 
 // Enter implement ast.Visitor
-func (s *columnVisitor) Enter(n ast.Node) (node ast.Node, skipChildren bool) {
+func (s *fieldVisitor) Enter(n ast.Node) (node ast.Node, skipChildren bool) {
 	return n, false
 }
 
 // Leave implement ast.Visitor
-func (s *columnVisitor) Leave(n ast.Node) (node ast.Node, ok bool) {
+func (s *fieldVisitor) Leave(n ast.Node) (node ast.Node, ok bool) {
 	field, ok := n.(*ast.ColumnNameExpr)
 	if !ok {
 		return n, true
 	}
 
-	result, err := s.re.RewriteColumn(field, s.context)
+	result, err := s.re.RewriteField(field, s.context)
 	if err != nil {
 		panic(fmt.Errorf("check rewrite column name for ColumnNameExpr error: %v", err))
 	}

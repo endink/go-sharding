@@ -58,7 +58,7 @@ func (s *SqlExplain) rewriteColumn(expr ast.Node, rewriter Rewriter, errMsg stri
 			err = errors.New(fmt.Sprint(msg, core.LineSeparator, fmt.Sprintf("%v", e)))
 		}
 	}()
-	columnNameRewriter := NewColumnVisitor(rewriter, s.CurrentContext())
+	columnNameRewriter := NewFieldVisitor(rewriter, s.CurrentContext())
 	expr.Accept(columnNameRewriter)
 	return nil
 }

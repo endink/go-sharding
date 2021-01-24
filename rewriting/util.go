@@ -30,18 +30,6 @@ func GetColumnTableName(c *ast.ColumnName, context explain.Context) (string, err
 	return getTableNameFromColumn(c, db)
 }
 
-func FindShardingTableByColumn(n *ast.ColumnName, context explain.Context) (*core.ShardingTable, error) {
-	name, err := getTableNameFromColumn(n, context.Runtime().GetServerSchema())
-	if err != nil {
-		return nil, err
-	}
-	shardingTable, ok := context.TableLookup().FindShardingTable(name)
-	if ok {
-		return shardingTable, nil
-	}
-	return core.NilShardingTable, nil
-}
-
 func FindShardingTable(n *ast.TableName, context explain.Context) (*core.ShardingTable, error) {
 	name, err := getTableName(n, context.Runtime().GetServerSchema())
 	if err != nil {
@@ -68,8 +56,5 @@ func getTableNameFromColumn(c *ast.ColumnName, allowedDbName string) (string, er
 		return "", fmt.Errorf("cross database is not supported")
 	}
 
-	if c.Table.L == "" {
-		return "", fmt.Errorf("unable to locate which table the '%s' column belongs to", c.Name.O)
-	}
-	return c.Name.L, nil
+	return c.Table.L, nil
 }

@@ -98,7 +98,7 @@ func (s *SqlExplain) newFieldFromByItem(item *ast.ByItem, rewriter Rewriter) (*a
 		return nil, fmt.Errorf("ByItem.Expr is not a ColumnNameExpr")
 	}
 
-	result, err := rewriter.RewriteColumn(columnExpr, s.CurrentContext())
+	result, err := rewriter.RewriteField(columnExpr, s.CurrentContext())
 	if err != nil {
 		return nil, err
 	}
