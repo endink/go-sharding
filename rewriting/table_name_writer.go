@@ -49,15 +49,15 @@ func NewTableNameWriter(n *ast.TableName, context explain.Context) (*TableNameWr
 
 // Restore implement ast.Node
 func (t *TableNameWriter) Restore(ctx *format.RestoreCtx) error {
-	db, table, err := t.runtime.GetCurrent(t.shardingTable)
+	table, err := t.runtime.GetCurrentTable(t.shardingTable)
 	if err != nil {
 		return err
 	}
 
-	if t.origin.Schema.String() != "" {
-		ctx.WriteName(db)
-		ctx.WritePlain(".")
-	}
+	//if t.origin.Schema.String() != "" {
+	//	ctx.WriteName(db)
+	//	ctx.WritePlain(".")
+	//}
 
 	ctx.WriteName(table)
 	return nil

@@ -52,15 +52,15 @@ func NewColumnNameWriter(n *ast.ColumnNameExpr, context explain.Context, shardin
 }
 
 func (c *ColumnNameWriter) Restore(ctx *format.RestoreCtx) error {
-	db, table, err := c.runtime.GetCurrent(c.shardingTable)
+	table, err := c.runtime.GetCurrentTable(c.shardingTable)
 	if err != nil {
 		return err
 	}
 
-	if c.columnName.Schema.String() != "" {
-		ctx.WriteName(db)
-		ctx.WritePlain(".")
-	}
+	//if c.columnName.Schema.String() != "" {
+	//	ctx.WriteName(db)
+	//	ctx.WritePlain(".")
+	//}
 
 	if c.isAlias {
 		ctx.WriteName(c.columnName.Table.String())
