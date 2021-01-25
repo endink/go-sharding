@@ -30,16 +30,13 @@ func GetColumnTableName(c *ast.ColumnName, context explain.Context) (string, err
 	return getTableNameFromColumn(c, db)
 }
 
-func FindShardingTable(n *ast.TableName, context explain.Context) (*core.ShardingTable, error) {
+func FindShardingTable(n *ast.TableName, context explain.Context) (*core.ShardingTable, bool, error) {
 	name, err := getTableName(n, context.Runtime().GetServerSchema())
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	shardingTable, ok := context.TableLookup().FindShardingTable(name)
-	if ok {
-		return shardingTable, nil
-	}
-	return core.NilShardingTable, nil
+	return shardingTable, ok, nil
 }
 
 func getTableName(t *ast.TableName, allowedDbName string) (string, error) {
@@ -57,4 +54,15 @@ func getTableNameFromColumn(c *ast.ColumnName, allowedDbName string) (string, er
 	}
 
 	return c.Table.L, nil
+}
+
+func FindShardingTableByColumn(columnName *ast.ColumnNameExpr, explainContext explain.Context, explicit bool) (*core.ShardingTable, bool, error) {
+	var sd *core.ShardingTable
+	var err error
+	if columnName.Name.Table.O != "" {
+		sd, _ = explainContext.TableLookup().FindShardingTable(columnName.Name.Table.L)
+	} else if explicit {
+		sd, err = explainContext.TableLookup().ExplicitShardingTableByColumn(columnName.Name.Name.L)
+	}
+	return sd, sd != nil, err
 }

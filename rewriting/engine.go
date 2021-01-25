@@ -20,11 +20,12 @@ package rewriting
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/explain"
 	"github.com/pingcap/errors"
 	"github.com/pingcap/parser/ast"
 )
+
+var _ explain.Rewriter = &Engine{}
 
 type Engine struct {
 	context explain.Context
@@ -41,7 +42,11 @@ func (s *Engine) RewriteTable(table *ast.TableSource, explainContext explain.Con
 	if !isTableName {
 		return nil, fmt.Errorf("table source is not type of TableName, type: %T", table.Source)
 	}
-	if sd, ok := explainContext.TableLookup().FindShardingTable(tableName.Name.L); ok {
+	sd, ok, fe := FindShardingTable(tableName, explainContext)
+	if fe != nil {
+		return nil, fe
+	}
+	if ok {
 		if writer, err := NewTableNameWriter(tableName, explainContext); err == nil {
 			return ResultFromNode(writer, sd), nil
 		} else {
@@ -52,40 +57,33 @@ func (s *Engine) RewriteTable(table *ast.TableSource, explainContext explain.Con
 }
 
 func (s *Engine) RewriteField(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
-	if columnName.Name.Table.O != "" {
-		if sd, ok := explainContext.TableLookup().FindShardingTable(columnName.Name.Table.L); ok {
-			if writer, err := NewColumnNameWriter(columnName, explainContext); err == nil {
-				return ResultFromExprNode(writer, sd), nil
-			} else {
-				return nil, err
-			}
-		}
-	}
-	return NoneRewriteExprNodeResult, nil
-}
-
-func (s *Engine) RewriteColumn(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
-	sd, ok, err := s.deepFindShardingTable(columnName, explainContext)
+	sd, ok, err := FindShardingTableByColumn(columnName, explainContext, false)
 	if err != nil {
 		return nil, err
 	}
 	if ok {
 		if writer, e := NewColumnNameWriter(columnName, explainContext); e == nil {
 			return ResultFromExprNode(writer, sd), nil
+		} else {
+			return nil, e
 		}
 	}
 	return NoneRewriteExprNodeResult, nil
 }
 
-func (s *Engine) deepFindShardingTable(columnName *ast.ColumnNameExpr, explainContext explain.Context) (*core.ShardingTable, bool, error) {
-	var sd *core.ShardingTable
-	var err error
-	if columnName.Name.Table.O != "" {
-		sd, _ = explainContext.TableLookup().FindShardingTable(columnName.Name.Table.L)
-	} else {
-		sd, err = explainContext.TableLookup().ExplicitShardingTableByColumn(columnName.Name.Name.L)
+func (s *Engine) RewriteColumn(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
+	sd, ok, err := FindShardingTableByColumn(columnName, explainContext, true)
+	if err != nil {
+		return nil, err
 	}
-	return sd, sd != nil, err
+	if ok {
+		if writer, e := NewColumnNameWriter(columnName, explainContext); e == nil {
+			return ResultFromExprNode(writer, sd), nil
+		} else {
+			return nil, e
+		}
+	}
+	return NoneRewriteExprNodeResult, nil
 }
 
 func (s *Engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
@@ -93,13 +91,15 @@ func (s *Engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainContext ex
 	if !ok {
 		return nil, errors.New("pattern in statement required ColumnNameExpr")
 	}
-	sd, ok, err := s.deepFindShardingTable(columnNameExpr, explainContext)
+	sd, ok, err := FindShardingTableByColumn(columnNameExpr, explainContext, true)
 	if err != nil {
 		return nil, err
 	}
 	if ok {
 		if writer, e := NewPatternInWriter(patternIn, sd, explainContext); e == nil {
 			return ResultFromExprNode(writer, sd), nil
+		} else {
+			return nil, e
 		}
 	}
 	return NoneRewriteExprNodeResult, nil
@@ -110,13 +110,15 @@ func (s *Engine) RewriteBetween(between *ast.BetweenExpr, explainContext explain
 	if !ok {
 		return nil, errors.New("between and statement required ColumnNameExpr")
 	}
-	sd, ok, err := s.deepFindShardingTable(columnNameExpr, explainContext)
+	sd, ok, err := FindShardingTableByColumn(columnNameExpr, explainContext, true)
 	if err != nil {
 		return nil, err
 	}
 	if ok {
 		if writer, e := NewBetweenWriter(between, explainContext); e == nil {
 			return ResultFromExprNode(writer, sd), nil
+		} else {
+			return nil, e
 		}
 	}
 	return NoneRewriteExprNodeResult, nil
