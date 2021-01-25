@@ -16,50 +16,29 @@
  *  File author: Anders Xiao
  */
 
-package explain
+package rewriting
 
 import (
+	"errors"
+	"github.com/XiaoMi/Gaea/explain"
 	"github.com/pingcap/parser/ast"
 	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
-func (s *SqlExplain) ExplainLimit(stmt *ast.SelectStmt, rewriter Rewriter) error {
-	if stmt.Limit != nil {
-		s.CurrentContext().LimitLookup().setLimit(stmt.Limit)
-		result, err := rewriter.RewriteLimit(stmt.Limit, s.CurrentContext())
-		if err != nil {
-			return err
-		}
-		if result.IsRewrote() {
-			stmt.Limit = result.GetNewNode()
-		}
-	}
-	return nil
-}
-
-func NeedRewriteLimitOrCreateRewrite(stmt *ast.SelectStmt) (bool, int64, int64, *ast.Limit) {
-	limit := stmt.Limit
-	if limit == nil {
-		return false, -1, -1, nil
+func NewLimitWriter(context explain.Context) (*ast.Limit, error) {
+	if context.LimitLookup().HasLimit() {
+		return nil, errors.New("there is none limit in plain context")
 	}
 
-	count := limit.Count.(*driver.ValueExpr).GetInt64()
-
-	if limit.Offset == nil {
-		return false, 0, count, nil
+	newCount := context.LimitLookup().Count()
+	if context.LimitLookup().Offset() > 0 {
+		newCount += context.LimitLookup().Offset()
 	}
 
-	offset := limit.Offset.(*driver.ValueExpr).GetInt64()
-
-	if offset == 0 {
-		return false, 0, count, nil
-	}
-
-	newCount := count + offset
 	nv := &driver.ValueExpr{}
 	nv.SetInt64(newCount)
 	newLimit := &ast.Limit{
 		Count: nv,
 	}
-	return true, offset, count, newLimit
+	return newLimit, nil
 }

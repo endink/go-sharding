@@ -70,6 +70,21 @@ func (s *SqlExplain) explainBetween(expr *ast.BetweenExpr, rewriter Rewriter) (a
 		return nil, err
 	}
 	if result.IsRewrote() {
+		columnNameExpr, ok := expr.Expr.(*ast.ColumnNameExpr)
+		if !ok {
+			return nil, errors.New("between and must have a column inside")
+		}
+		ranges, e := GetValueFromValueFromBetween(expr)
+
+		if e != nil {
+			return nil, e
+		}
+
+		for _, r := range ranges {
+			if pushErr := s.PushValue(result.Table().Name, columnNameExpr.Name.Name.L, r); err != nil {
+				return nil, pushErr
+			}
+		}
 		return result.GetNewNode(), nil
 	}
 	return expr, nil
@@ -213,7 +228,7 @@ func (s *SqlExplain) explainColumnAndValue(expr *ast.BinaryOperationExpr, rewrit
 	if r.IsRewrote() {
 		if v, ok := valueNode.(*driver.ValueExpr); ok {
 			if IsSupportedValue(v) && IsSupportedOp(expr.Op) {
-				value, e := s.explainValue(expr.Op, v)
+				value, e := GetValueFromOpValue(expr.Op, v)
 				if e != nil {
 					return nil, err
 				}
@@ -230,7 +245,7 @@ func (s *SqlExplain) explainColumnAndValue(expr *ast.BinaryOperationExpr, rewrit
 func (s *SqlExplain) rewriteLeftColumn(expr *ast.BinaryOperationExpr, rewriter Rewriter) (RewriteResult, error) {
 	leftCol, ok := expr.L.(*ast.ColumnNameExpr)
 	if !ok {
-		return NoneRewrote, nil
+		return NoneRewroteResult, nil
 	}
 	result, err := rewriter.RewriteColumn(leftCol, s.CurrentContext())
 	if err != nil {
@@ -245,7 +260,7 @@ func (s *SqlExplain) rewriteLeftColumn(expr *ast.BinaryOperationExpr, rewriter R
 func (s *SqlExplain) rewriteRightColumn(expr *ast.BinaryOperationExpr, rewriter Rewriter) (RewriteResult, error) {
 	col, ok := expr.R.(*ast.ColumnNameExpr)
 	if !ok {
-		return NoneRewrote, nil
+		return NoneRewroteResult, nil
 	}
 	result, err := rewriter.RewriteColumn(col, s.CurrentContext())
 	if err != nil {

@@ -58,7 +58,7 @@ func NewPatternInWriter(
 		return nil, fmt.Errorf("create pattern in writer fault: %v", colErr)
 	}
 
-	tables, valueMap, err := getPatternInRouteResult(columnNameExpr.Name, n.Not, rule, n.List)
+	tables, valueMap, err := getPatternInRouteResult(columnNameExpr.Name.Name.L, n.Not, rule, n.List)
 	if err != nil {
 		return nil, fmt.Errorf("getPatternInRouteResult error: %v", err)
 	}
@@ -80,7 +80,8 @@ func NewPatternInWriter(
 // 如果是分片条件, 则构建值到索引的映射.
 // 例如, 1,2,3,4分别映射到索引0,2则[]int = [0,2], map=[0:[1,2], 2:[3,4]]
 // 如果是全路由, 则每个分片都要返回所有的值.
-func getPatternInRouteResult(n *ast.ColumnName,
+func getPatternInRouteResult(
+	column string,
 	isNotIn bool,
 	rule *core.ShardingTable,
 	values []ast.ExprNode) ([]string, map[string][]ast.ExprNode, error) {
@@ -88,8 +89,6 @@ func getPatternInRouteResult(n *ast.ColumnName,
 	if err := checkValueType(values); err != nil {
 		return nil, nil, fmt.Errorf("check value error: %v", err)
 	}
-
-	column := n.Name.L
 
 	if isNotIn {
 		tables := rule.GetTables()

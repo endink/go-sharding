@@ -122,7 +122,7 @@ func (lookup *tableLookup) addShardingTable(table string, provider ShardingProvi
 			}
 		}
 	}
-	if alias != "" {
+	if alias != "" && sd != nil {
 		lookup.shardingTables[alias] = sd
 	}
 }
