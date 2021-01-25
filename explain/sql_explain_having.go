@@ -27,5 +27,5 @@ func (s *SqlExplain) ExplainHaving(stmt *ast.SelectStmt, rewriter Rewriter) erro
 		return nil
 	}
 
-	return s.rewriteColumn(having, rewriter, "explain having fault !")
+	return s.rewriteField(rewriter, "explain having fault !", having)
 }

@@ -29,12 +29,13 @@ var _ ast.ExprNode = &ColumnNameWriter{}
 // ColumnNameWriter decorate ColumnNameExpr to rewrite table name
 type ColumnNameWriter struct {
 	*ast.ColumnNameExpr
-	columnName *ast.ColumnName
-	isAlias    bool
-	runtime    explain.Runtime
+	columnName    *ast.ColumnName
+	isAlias       bool
+	runtime       explain.Runtime
+	shardingTable string
 }
 
-func NewColumnNameWriter(n *ast.ColumnNameExpr, context explain.Context) (*ColumnNameWriter, error) {
+func NewColumnNameWriter(n *ast.ColumnNameExpr, context explain.Context, shardingTable string) (*ColumnNameWriter, error) {
 	name := n.Name
 	tableName, err := GetColumnTableName(name, context)
 	if err != nil {
@@ -46,11 +47,12 @@ func NewColumnNameWriter(n *ast.ColumnNameExpr, context explain.Context) (*Colum
 		columnName:     n.Name,
 		isAlias:        context.TableLookup().HasAlias(tableName),
 		runtime:        context.Runtime(),
+		shardingTable:  shardingTable,
 	}, nil
 }
 
 func (c *ColumnNameWriter) Restore(ctx *format.RestoreCtx) error {
-	db, table, err := c.runtime.GetCurrent()
+	db, table, err := c.runtime.GetCurrent(c.shardingTable)
 	if err != nil {
 		return err
 	}

@@ -46,20 +46,25 @@ func (s *SqlExplain) explainCondition(node ast.ExprNode, rewriter Rewriter, logi
 		return expr, nil
 	default:
 		// 其他情况只替换表名 (但是不处理根节点是ColumnNameExpr的情况, 理论上也不会出现这种情况)
-		err := s.rewriteColumn(expr, rewriter, "explain condition fault !")
+		err := s.rewriteField(rewriter, "explain condition fault !", expr)
 		return node, err
 	}
 }
 
-func (s *SqlExplain) rewriteColumn(expr ast.Node, rewriter Rewriter, errMsg string) (err error) {
+func (s *SqlExplain) rewriteField(rewriter Rewriter, errMsg string, expr ...ast.Node) (err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			msg := core.IfBlank(errMsg, "visitor rewrite fault !")
 			err = errors.New(fmt.Sprint(msg, core.LineSeparator, fmt.Sprintf("%v", e)))
 		}
 	}()
-	columnNameRewriter := NewFieldVisitor(rewriter, s.CurrentContext())
-	expr.Accept(columnNameRewriter)
+	for _, node := range expr {
+		if node != nil {
+			columnNameRewriter := NewFieldVisitor(rewriter, s.CurrentContext())
+			node.Accept(columnNameRewriter)
+		}
+	}
+
 	return nil
 }
 
@@ -81,7 +86,7 @@ func (s *SqlExplain) explainBetween(expr *ast.BetweenExpr, rewriter Rewriter) (a
 		}
 
 		for _, r := range ranges {
-			if pushErr := s.PushValue(result.Table().Name, columnNameExpr.Name.Name.L, r); err != nil {
+			if pushErr := s.PushValue(result.Table().Name, columnNameExpr.Name.Name.L, r); pushErr != nil {
 				return nil, pushErr
 			}
 		}

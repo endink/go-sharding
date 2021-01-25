@@ -19,8 +19,8 @@
 package explain
 
 type Runtime interface {
-	GetCurrent() (database string, table string, err error)
-	GetCurrentTable() (string, error)
-	GetCurrentDatabase() (string, error)
+	GetCurrent(shardingTable string) (database string, table string, err error)
+	GetCurrentTable(shardingTable string) (string, error)
+	GetCurrentDatabase(shardingTable string) (string, error)
 	GetServerSchema() string
 }

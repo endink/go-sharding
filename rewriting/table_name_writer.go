@@ -28,8 +28,9 @@ import (
 var _ ast.Node = &TableNameWriter{}
 
 type TableNameWriter struct {
-	origin  *ast.TableName
-	runtime explain.Runtime
+	origin        *ast.TableName
+	runtime       explain.Runtime
+	shardingTable string
 }
 
 func NewTableNameWriter(n *ast.TableName, context explain.Context) (*TableNameWriter, error) {
@@ -38,8 +39,9 @@ func NewTableNameWriter(n *ast.TableName, context explain.Context) (*TableNameWr
 	}
 
 	ret := &TableNameWriter{
-		origin:  n,
-		runtime: context.Runtime(),
+		origin:        n,
+		runtime:       context.Runtime(),
+		shardingTable: n.Name.L,
 	}
 
 	return ret, nil
@@ -47,7 +49,7 @@ func NewTableNameWriter(n *ast.TableName, context explain.Context) (*TableNameWr
 
 // Restore implement ast.Node
 func (t *TableNameWriter) Restore(ctx *format.RestoreCtx) error {
-	db, table, err := t.runtime.GetCurrent()
+	db, table, err := t.runtime.GetCurrent(t.shardingTable)
 	if err != nil {
 		return err
 	}

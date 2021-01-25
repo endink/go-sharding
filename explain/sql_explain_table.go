@@ -25,36 +25,35 @@ import (
 	"github.com/pingcap/parser/ast"
 )
 
-func (s *SqlExplain) ExplainTables(sel *ast.SelectStmt, rewriter Rewriter) (TableLookup, error) {
-	lookup := s.CurrentContext().TableLookup()
+func (s *SqlExplain) ExplainTables(sel *ast.SelectStmt, rewriter Rewriter) error {
 	if sel.From == nil {
-		return nil, errors.New("select 'from' statement is missing")
+		return errors.New("select 'from' statement is missing")
 	}
 
 	join := sel.From.TableRefs
 	if join == nil {
-		return nil, errors.New("there is an unknown syntax in the select 'from' statement")
+		return errors.New("there is an unknown syntax in the select 'from' statement")
 	}
-	if err := s.explainJoin(join, rewriter, lookup); err != nil {
-		return nil, err
+	if err := s.explainJoin(join, rewriter); err != nil {
+		return err
 	}
-	return lookup, nil
+	return nil
 }
 
-func (s *SqlExplain) explainJoin(join *ast.Join, rewriter Rewriter, lookup TableLookup) error {
+func (s *SqlExplain) explainJoin(join *ast.Join, rewriter Rewriter) error {
 	if err := checkLimitJoinClause(join); err != nil {
 		return fmt.Errorf("invalid join statement: %v", err)
 	}
 
 	// 只允许最多两个表的JOIN
 	if join.Left != nil {
-		err := s.explainJoinSide(join.Left, rewriter, lookup, true)
+		err := s.explainJoinSide(join.Left, rewriter, true)
 		if err != nil {
 			return err
 		}
 	}
 	if join.Right != nil {
-		err := s.explainJoinSide(join.Right, rewriter, lookup, false)
+		err := s.explainJoinSide(join.Right, rewriter, false)
 		if err != nil {
 			return err
 		}
@@ -71,17 +70,17 @@ func (s *SqlExplain) explainJoin(join *ast.Join, rewriter Rewriter, lookup Table
 	return nil
 }
 
-func (s *SqlExplain) explainJoinSide(joinSide ast.ResultSetNode, rewriter Rewriter, lookup TableLookup, allowNestedJoin bool) error {
+func (s *SqlExplain) explainJoinSide(joinSide ast.ResultSetNode, rewriter Rewriter, allowNestedJoin bool) error {
 	switch sideNode := joinSide.(type) {
 	case *ast.TableSource:
 		// 改写两个表的node
-		err := s.rewriteTableSource(sideNode, rewriter, lookup)
+		err := s.rewriteTableSource(sideNode, rewriter)
 		if err != nil {
 			return err
 		}
 	case *ast.Join:
 		if allowNestedJoin {
-			if err := s.explainJoin(sideNode, rewriter, lookup); err != nil {
+			if err := s.explainJoin(sideNode, rewriter); err != nil {
 				return fmt.Errorf("explain nested join statement error: %v", err)
 			}
 		} else {
@@ -102,15 +101,35 @@ func (s *SqlExplain) explainJoinOn(on *ast.OnCondition, rewriter Rewriter) error
 	return nil
 }
 
-func (s *SqlExplain) rewriteTableSource(table *ast.TableSource, rewriter Rewriter, lookup TableLookup) error {
-	err := lookup.addTable(table, s.shardingProvider)
-	if err != nil {
-		return err
+func (s *SqlExplain) rewriteTableSource(table *ast.TableSource, rewriter Rewriter) error {
+	lookup := s.CurrentContext().TableLookup()
+	switch name := table.Source.(type) {
+	case *ast.TableName:
+		if s.subQueryDepth.Get() == 0 {
+			err := lookup.addTable(table, s.shardingProvider)
+			if err != nil {
+				return err
+			}
+		}
+		result, e := rewriter.RewriteTable(name, s.CurrentContext())
+		if e != nil {
+			return fmt.Errorf("rewrite left TableSource error: %v", e)
+		}
+		if result.IsRewrote() {
+			table.Source = result.GetNewNode()
+		}
+		return nil
+	case *ast.SelectStmt:
+		if s.maxSubQueryDepth == int32(0) {
+			return errors.New("sub query is not supported")
+		}
+		if s.subQueryDepth.Add(1) > s.maxSubQueryDepth {
+			return errors.New("too many subquery")
+		}
+		return s.explainSubQuery(name, rewriter)
+	default:
+		return fmt.Errorf("field Source cannot handle, type: %T", table.Source)
 	}
-	if _, err = rewriter.RewriteTable(table, s.CurrentContext()); err != nil {
-		return fmt.Errorf("rewrite left TableSource error: %v", err)
-	}
-	return nil
 }
 
 // 检查TableRefs中存在的不允许在分表中执行的语法

@@ -21,6 +21,7 @@ package explain
 import (
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/emirpasic/gods/stacks/arraystack"
+	"github.com/ngaut/sync2"
 	"sync"
 )
 
@@ -32,6 +33,8 @@ type SqlExplain struct {
 	shardingProvider ShardingProvider
 	ctx              Context
 	logicStack       *arraystack.Stack
+	subQueryDepth    sync2.AtomicInt32
+	maxSubQueryDepth int32
 }
 
 func NewSqlExplain(runtime Runtime, shardingProvider ShardingProvider) *SqlExplain {
@@ -40,6 +43,7 @@ func NewSqlExplain(runtime Runtime, shardingProvider ShardingProvider) *SqlExpla
 		shardingProvider: shardingProvider,
 		logicStack:       arraystack.New(),
 		ctx:              NewContext(runtime),
+		maxSubQueryDepth: int32(5),
 	}
 }
 

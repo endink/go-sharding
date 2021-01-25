@@ -58,7 +58,7 @@ func (n *noneRewriteResult) Table() *core.ShardingTable {
 
 //SQL 改写器
 type Rewriter interface {
-	RewriteTable(table *ast.TableSource, explainContext Context) (RewriteNodeResult, error)
+	RewriteTable(table *ast.TableName, explainContext Context) (RewriteNodeResult, error)
 	RewriteField(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteExprResult, error)
 	//改写列，返回值为改写后的节点（装饰器）， 标志位 true 表示改写成功
 	RewriteColumn(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteExprResult, error)

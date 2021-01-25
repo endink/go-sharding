@@ -19,7 +19,6 @@
 package rewriting
 
 import (
-	"fmt"
 	"github.com/XiaoMi/Gaea/explain"
 	"github.com/pingcap/errors"
 	"github.com/pingcap/parser/ast"
@@ -37,11 +36,7 @@ func NewRewritingEngine(context explain.Context) *Engine {
 	}
 }
 
-func (s *Engine) RewriteTable(table *ast.TableSource, explainContext explain.Context) (explain.RewriteNodeResult, error) {
-	tableName, isTableName := table.Source.(*ast.TableName)
-	if !isTableName {
-		return nil, fmt.Errorf("table source is not type of TableName, type: %T", table.Source)
-	}
+func (s *Engine) RewriteTable(tableName *ast.TableName, explainContext explain.Context) (explain.RewriteNodeResult, error) {
 	sd, ok, fe := FindShardingTable(tableName, explainContext)
 	if fe != nil {
 		return nil, fe
@@ -62,7 +57,7 @@ func (s *Engine) RewriteField(columnName *ast.ColumnNameExpr, explainContext exp
 		return nil, err
 	}
 	if ok {
-		if writer, e := NewColumnNameWriter(columnName, explainContext); e == nil {
+		if writer, e := NewColumnNameWriter(columnName, explainContext, sd.Name); e == nil {
 			return ResultFromExprNode(writer, sd), nil
 		} else {
 			return nil, e
@@ -77,7 +72,7 @@ func (s *Engine) RewriteColumn(columnName *ast.ColumnNameExpr, explainContext ex
 		return nil, err
 	}
 	if ok {
-		if writer, e := NewColumnNameWriter(columnName, explainContext); e == nil {
+		if writer, e := NewColumnNameWriter(columnName, explainContext, sd.Name); e == nil {
 			return ResultFromExprNode(writer, sd), nil
 		} else {
 			return nil, e
@@ -96,7 +91,7 @@ func (s *Engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainContext ex
 		return nil, err
 	}
 	if ok {
-		if writer, e := NewPatternInWriter(patternIn, sd, explainContext); e == nil {
+		if writer, e := NewPatternInWriter(patternIn, explainContext, sd); e == nil {
 			return ResultFromExprNode(writer, sd), nil
 		} else {
 			return nil, e
@@ -115,7 +110,7 @@ func (s *Engine) RewriteBetween(between *ast.BetweenExpr, explainContext explain
 		return nil, err
 	}
 	if ok {
-		if writer, e := NewBetweenWriter(between, explainContext); e == nil {
+		if writer, e := NewBetweenWriter(between, explainContext, sd); e == nil {
 			return ResultFromExprNode(writer, sd), nil
 		} else {
 			return nil, e

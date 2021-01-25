@@ -43,22 +43,22 @@ type PatternInWriter struct {
 	tables      []string
 	tableValues map[string][]ast.ExprNode // table - columnValue
 
-	rule    *core.ShardingTable
-	runtime explain.Runtime
+	shardingTable *core.ShardingTable
+	runtime       explain.Runtime
 }
 
 func NewPatternInWriter(
 	n *ast.PatternInExpr,
-	rule *core.ShardingTable,
-	context explain.Context) (*PatternInWriter, error) {
+	context explain.Context,
+	shardingTable *core.ShardingTable) (*PatternInWriter, error) {
 
 	columnNameExpr := n.Expr.(*ast.ColumnNameExpr)
-	colWriter, colErr := NewColumnNameWriter(columnNameExpr, context)
+	colWriter, colErr := NewColumnNameWriter(columnNameExpr, context, shardingTable.Name)
 	if colErr != nil {
 		return nil, fmt.Errorf("create pattern in writer fault: %v", colErr)
 	}
 
-	tables, valueMap, err := getPatternInRouteResult(columnNameExpr.Name.Name.L, n.Not, rule, n.List)
+	tables, valueMap, err := getPatternInRouteResult(columnNameExpr.Name.Name.L, n.Not, shardingTable, n.List)
 	if err != nil {
 		return nil, fmt.Errorf("getPatternInRouteResult error: %v", err)
 	}
@@ -66,11 +66,11 @@ func NewPatternInWriter(
 	ret := &PatternInWriter{
 		Expr: colWriter,
 		//List:        n.List,
-		Not:         n.Not,
-		rule:        rule,
-		runtime:     context.Runtime(),
-		tables:      tables,
-		tableValues: valueMap,
+		Not:           n.Not,
+		shardingTable: shardingTable,
+		runtime:       context.Runtime(),
+		tables:        tables,
+		tableValues:   valueMap,
 	}
 
 	return ret, nil
@@ -83,7 +83,7 @@ func NewPatternInWriter(
 func getPatternInRouteResult(
 	column string,
 	isNotIn bool,
-	rule *core.ShardingTable,
+	sharding *core.ShardingTable,
 	values []ast.ExprNode) ([]string, map[string][]ast.ExprNode, error) {
 
 	if err := checkValueType(values); err != nil {
@@ -91,12 +91,12 @@ func getPatternInRouteResult(
 	}
 
 	if isNotIn {
-		tables := rule.GetTables()
+		tables := sharding.GetTables()
 		valueMap := getBroadcastValueMap(tables, values)
 		return tables, valueMap, nil
 	}
-	if !rule.IsTableSharding() || !rule.HasTableShardingColumn(column) || !rule.TableStrategy.IsScalarValueSupported() { //不支持明确值分片或者不分片
-		tables := rule.GetTables()
+	if !sharding.IsTableSharding() || !sharding.HasTableShardingColumn(column) || !sharding.TableStrategy.IsScalarValueSupported() { //不支持明确值分片或者不分片
+		tables := sharding.GetTables()
 		valueMap := getBroadcastValueMap(tables, values)
 		return tables, valueMap, nil
 	}
@@ -105,16 +105,16 @@ func getPatternInRouteResult(
 	valueMap := make(map[string][]ast.ExprNode)
 	nullErr := fmt.Sprintf("sharding column '%s' value can not be null", column)
 	if len(values) > 0 {
-		shardingValue := core.ShardingValuesForSingleScalar(rule.Name, column)
+		shardingValue := core.ShardingValuesForSingleScalar(sharding.Name, column)
 		for _, vi := range values {
 			v, _ := vi.(*driver.ValueExpr)
 			value, err := util.GetValueExprResultEx(v, false, nullErr)
 			if err != nil {
 				return nil, nil, err
 			}
-			//idx, err := rule.FindTableIndex(value)
+			//idx, err := shardingTable.FindTableIndex(value)
 			shardingValue.ScalarValues[column][0] = value
-			tables, e := rule.TableStrategy.Shard(rule.GetTables(), shardingValue)
+			tables, e := sharding.TableStrategy.Shard(sharding.GetTables(), shardingValue)
 			if e != nil {
 				return nil, nil, e
 			}
@@ -154,7 +154,7 @@ func (p *PatternInWriter) GetCurrentRouteResult() []string {
 
 // Restore implement ast.Node
 func (p *PatternInWriter) Restore(ctx *format.RestoreCtx) error {
-	table, err := p.runtime.GetCurrentTable()
+	table, err := p.runtime.GetCurrentTable(p.shardingTable.Name)
 	if err != nil {
 		return err
 	}

@@ -19,28 +19,16 @@
 package explain
 
 import (
+	"fmt"
 	"github.com/pingcap/parser/ast"
 )
 
-func (s *SqlExplain) ExplainFields(stmt *ast.SelectStmt, rewriter Rewriter) error {
-	fields := stmt.Fields
-	if fields == nil {
-		return nil
+func (s *SqlExplain) explainSubQuery(subQuery *ast.SelectStmt, rewriter Rewriter) error {
+	if err := s.ExplainTables(subQuery, rewriter); err != nil {
+		return fmt.Errorf("explain sub query tables fault: %v", err)
 	}
 
-	if e := s.rewriteField(rewriter, "explain fields fault", fields); e != nil {
-		return e
-	}
+	return s.rewriteField(rewriter, "rewrite sub query column name fault",
+		subQuery.Where, subQuery.Fields, subQuery.GroupBy, subQuery.Having, subQuery.OrderBy)
 
-	ctx := s.CurrentContext()
-	for i, field := range stmt.Fields.Fields {
-		err := ctx.AggLookup().visit(i, field)
-		if err == nil {
-			err = ctx.FieldLookup().addField(i, field)
-		}
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }

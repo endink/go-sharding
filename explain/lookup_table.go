@@ -39,6 +39,7 @@ type tableLookup struct {
 	tables           map[string]model.CIStr
 	shardingTables   map[string]*core.ShardingTable
 	tableNames       []string
+	subQueryAlias    map[string]struct{}
 }
 
 func newTableLookup() *tableLookup {

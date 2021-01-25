@@ -20,6 +20,7 @@ package rewriting
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/explain"
 	"github.com/XiaoMi/Gaea/proxy/router"
 	"github.com/pingcap/parser/ast"
@@ -39,9 +40,9 @@ type BetweenWriter struct {
 }
 
 // NewBetweenWriter create BetweenExprDecorator
-func NewBetweenWriter(n *ast.BetweenExpr, context explain.Context) (*BetweenWriter, error) {
+func NewBetweenWriter(n *ast.BetweenExpr, context explain.Context, shardingTable *core.ShardingTable) (*BetweenWriter, error) {
 	columnNameExpr := n.Expr.(*ast.ColumnNameExpr)
-	columnNameExprDecorator, err := NewColumnNameWriter(columnNameExpr, context)
+	columnNameExprDecorator, err := NewColumnNameWriter(columnNameExpr, context, shardingTable.Name)
 	if err != nil {
 		return nil, err
 	}
