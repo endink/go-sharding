@@ -20,12 +20,88 @@ package gen
 
 import (
 	"errors"
+	"fmt"
+	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/explain"
+	"github.com/scylladb/go-set/strset"
 )
 
 var _ explain.Runtime = &genRuntime{}
 
 var ErrRuntimeResourceNotFound = errors.New("resource was not found in runtime")
+
+func NewGenerationRuntime(defaultDatabase string, context explain.Context, values map[string]*core.ShardingValues) (*genRuntime, error) {
+	shardingTables := context.TableLookup().GetTables()
+	if len(shardingTables) > 0 {
+		allTables := make([][]string, 0, len(shardingTables))
+		allDatabases := strset.New()
+
+		for _, table := range shardingTables {
+			shardingTable, hasTable := context.TableLookup().FindShardingTable(table)
+			if !hasTable {
+				return nil, fmt.Errorf("sharding table '%s' not existed", shardingTable)
+			}
+			shardingValues, _ := values[table]
+			databases, dbErr := shardDatabase(shardingValues, shardingTable, defaultDatabase)
+			if dbErr == nil {
+				return nil, dbErr
+			}
+			allDatabases.Add(databases...)
+
+			physicalTables, tbErr := shardTables(shardingValues, shardingTable)
+			if tbErr == nil {
+				return nil, tbErr
+			}
+			allTables = append(allTables, physicalTables)
+		}
+
+		dbs := allDatabases.List()
+		resources := make([][]string, len(shardingTables))
+		resources[0] = dbs
+		resources = append(resources, allTables...)
+
+		return &genRuntime{
+			resources:       core.PermuteString(resources),
+			shardingTables:  shardingTables,
+			defaultDatabase: defaultDatabase,
+			databases:       dbs,
+			currentIndex:    -1,
+			currentTableMap: make(map[string]string, len(shardingTables)),
+		}, nil
+	}
+	return nil, fmt.Errorf("have no any sharding table used in sql")
+}
+
+func shardDatabase(shardingValues *core.ShardingValues, shardingTable *core.ShardingTable, defaultDb string) ([]string, error) {
+	if shardingValues == nil || shardingValues.IsEmpty() {
+		return shardingTable.GetDatabases(), nil
+	} else if !shardingTable.IsDbSharding() {
+		return []string{defaultDb}, nil
+	} else {
+		allDatabases := shardingTable.GetDatabases()
+		physicalDbs, shardErr := shardingTable.DatabaseStrategy.Shard(allDatabases, shardingValues)
+		if shardErr != nil {
+			return nil, shardErr
+		}
+		return physicalDbs, nil
+	}
+}
+
+func shardTables(shardingValues *core.ShardingValues, shardingTable *core.ShardingTable) ([]string, error) {
+	if shardingValues == nil || shardingValues.IsEmpty() {
+		return shardingTable.GetTables(), nil
+	} else if !shardingTable.IsTableSharding() {
+		return []string{shardingTable.Name}, nil
+	} else {
+
+		allTables := shardingTable.GetTables()
+		physicalTables, shardErr := shardingTable.TableStrategy.Shard(allTables, shardingValues)
+		if shardErr != nil {
+			return nil, shardErr
+		}
+		return physicalTables, nil
+	}
+}
 
 type genRuntime struct {
 	resources      [][]string //二维数值表示实际数据表，存在多个分片表时取得笛卡尔积, 其中最后一列表示数据库

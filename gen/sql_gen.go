@@ -19,13 +19,10 @@
 package gen
 
 import (
-	"fmt"
-	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/explain"
 	"github.com/XiaoMi/Gaea/util"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
-	"github.com/scylladb/go-set/strset"
 	"strings"
 )
 
@@ -33,7 +30,7 @@ func GenerateSql(defaultDatabase string, stmt ast.StmtNode, explain *explain.Sql
 	values := explain.GetShardingValues()
 
 	context := explain.CurrentContext()
-	runtime, err := builderRuntime(defaultDatabase, context, values)
+	runtime, err := NewGenerationRuntime(defaultDatabase, context, values)
 
 	if err != nil {
 		return nil, err
@@ -77,77 +74,4 @@ func genSqlWithRuntime(stmt ast.StmtNode, runtime *genRuntime) (map[string][]str
 		}
 	}
 	return result, nil
-}
-
-func builderRuntime(defaultDatabase string, context explain.Context, values map[string]*core.ShardingValues) (*genRuntime, error) {
-	shardingTables := context.TableLookup().GetTables()
-	if len(shardingTables) > 0 {
-		allTables := make([][]string, 0, len(shardingTables))
-		allDatabases := strset.New()
-
-		for _, table := range shardingTables {
-			shardingTable, hasTable := context.TableLookup().FindShardingTable(table)
-			if !hasTable {
-				return nil, fmt.Errorf("sharding table '%s' not existed", shardingTable)
-			}
-			shardingValues, _ := values[table]
-			databases, dbErr := shardDatabase(shardingValues, shardingTable, defaultDatabase)
-			if dbErr == nil {
-				return nil, dbErr
-			}
-			allDatabases.Add(databases...)
-
-			physicalTables, tbErr := shardTables(shardingValues, shardingTable)
-			if tbErr == nil {
-				return nil, tbErr
-			}
-			allTables = append(allTables, physicalTables)
-		}
-
-		dbs := allDatabases.List()
-		resources := make([][]string, len(shardingTables))
-		resources[0] = dbs
-		resources = append(resources, allTables...)
-
-		return &genRuntime{
-			resources:       core.PermuteString(resources),
-			shardingTables:  shardingTables,
-			defaultDatabase: defaultDatabase,
-			databases:       dbs,
-			currentIndex:    -1,
-			currentTableMap: make(map[string]string, len(shardingTables)),
-		}, nil
-	}
-	return nil, fmt.Errorf("have no any sharding table used in sql")
-}
-
-func shardDatabase(shardingValues *core.ShardingValues, shardingTable *core.ShardingTable, defaultDb string) ([]string, error) {
-	if shardingValues == nil || shardingValues.IsEmpty() {
-		return shardingTable.GetDatabases(), nil
-	} else if !shardingTable.IsDbSharding() {
-		return []string{defaultDb}, nil
-	} else {
-		allDatabases := shardingTable.GetDatabases()
-		physicalDbs, shardErr := shardingTable.DatabaseStrategy.Shard(allDatabases, shardingValues)
-		if shardErr != nil {
-			return nil, shardErr
-		}
-		return physicalDbs, nil
-	}
-}
-
-func shardTables(shardingValues *core.ShardingValues, shardingTable *core.ShardingTable) ([]string, error) {
-	if shardingValues == nil || shardingValues.IsEmpty() {
-		return shardingTable.GetTables(), nil
-	} else if !shardingTable.IsTableSharding() {
-		return []string{shardingTable.Name}, nil
-	} else {
-
-		allTables := shardingTable.GetTables()
-		physicalTables, shardErr := shardingTable.TableStrategy.Shard(allTables, shardingValues)
-		if shardErr != nil {
-			return nil, shardErr
-		}
-		return physicalTables, nil
-	}
 }
