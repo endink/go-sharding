@@ -20,30 +20,33 @@ package explain
 
 import (
 	"github.com/XiaoMi/Gaea/core"
+	"github.com/XiaoMi/Gaea/util/sync2"
 	"github.com/emirpasic/gods/stacks/arraystack"
-	"github.com/ngaut/sync2"
 	"sync"
 )
 
 type ShardingProvider func(table string) (*core.ShardingTable, bool)
 
 type SqlExplain struct {
-	lock             sync.Mutex
+	tableLock        sync.Mutex
 	builders         map[string]*core.ShardingValuesBuilder
 	shardingProvider ShardingProvider
 	ctx              Context
 	logicStack       *arraystack.Stack
 	subQueryDepth    sync2.AtomicInt32
 	maxSubQueryDepth int32
+	valuesChanged    bool
+	values           map[string]*core.ShardingValues
 }
 
-func NewSqlExplain(runtime Runtime, shardingProvider ShardingProvider) *SqlExplain {
+func NewSqlExplain(shardingProvider ShardingProvider) *SqlExplain {
 	return &SqlExplain{
 		builders:         make(map[string]*core.ShardingValuesBuilder),
 		shardingProvider: shardingProvider,
 		logicStack:       arraystack.New(),
-		ctx:              NewContext(runtime),
+		ctx:              NewContext(),
 		maxSubQueryDepth: int32(5),
+		values:           make(map[string]*core.ShardingValues, 0),
 	}
 }
 
@@ -51,13 +54,28 @@ func (s *SqlExplain) CurrentContext() Context {
 	return s.ctx
 }
 
+func (s *SqlExplain) GetShardingValues() map[string]*core.ShardingValues {
+	if s.valuesChanged { //暂时不需要线程安全
+		values := make(map[string]*core.ShardingValues, len(s.builders))
+		for tableName, builder := range s.builders {
+			values[tableName] = builder.Build()
+		}
+		s.values = values
+	}
+	return s.values
+}
+
 func (s *SqlExplain) PushValue(table string, column string, value interface{}) error {
+	var err error
 	if rg, ok := value.(core.Range); ok {
-		return s.pushRange(table, column, rg)
+		err = s.pushRange(table, column, rg)
 	} else {
 		s.pushScalar(table, column, value)
-		return nil
 	}
+	if err == nil {
+		s.valuesChanged = true
+	}
+	return err
 }
 
 func (s *SqlExplain) pushScalar(table string, column string, value interface{}) {
@@ -85,8 +103,8 @@ func (s *SqlExplain) table(tableName string) *core.ShardingValuesBuilder {
 	var builder *core.ShardingValuesBuilder
 	var ok bool
 	if builder, ok = s.builders[tableName]; !ok {
-		s.lock.Lock()
-		defer s.lock.Unlock()
+		s.tableLock.Lock()
+		defer s.tableLock.Unlock()
 		if builder, ok = s.builders[tableName]; !ok {
 			builder = core.NewShardingValuesBuilder(tableName)
 			s.builders[tableName] = builder

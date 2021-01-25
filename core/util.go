@@ -251,3 +251,27 @@ func Permute(slices [][]interface{}) [][]interface{} {
 	reduce(slices, &result, 0, idxes)
 	return result
 }
+
+func reduceString(slices [][]string, out *[][]string, idx int, idxes []int) {
+	if idx < len(slices) {
+		for i := 0; i < len(slices[idx]); i++ {
+			idxes[idx] = i
+			reduceString(slices, out, idx+1, idxes)
+		}
+	} else {
+		var cm []string
+		for i := 0; i < len(slices); i++ {
+			cm = append(cm, slices[i][idxes[i]])
+		}
+		*out = append(*out, cm)
+	}
+}
+
+// 笛卡尔积算法 多个数组的排列组合
+// 例:{{1,2,3}, {4,5}}, 输出{{1,4}, {1,5}, {2,4}, {2,5}, {3,4}, {3,5}}
+func PermuteString(slices [][]string) [][]string {
+	var result [][]string
+	idxes := make([]int, len(slices))
+	reduceString(slices, &result, 0, idxes)
+	return result
+}

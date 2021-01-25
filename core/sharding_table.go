@@ -29,7 +29,7 @@ type ShardingTable struct {
 	TableStrategy    ShardingStrategy
 	DatabaseStrategy ShardingStrategy
 	tables           []string
-	schemas          []string
+	databases        []string
 }
 
 var NilShardingTable = &ShardingTable{
@@ -37,15 +37,20 @@ var NilShardingTable = &ShardingTable{
 	DatabaseStrategy: NoneShardingStrategy,
 }
 
-func (t *ShardingTable) SetResources(schemas []string, tables []string) {
-	schemasSet := strset.New()
-	schemasSet.Add(schemas...)
+func (t *ShardingTable) SetResources(databases []string, tables []string) {
+	dbSet := strset.New()
+	dbSet.Add(databases...)
 
 	tableSet := strset.New()
 	tableSet.Add(tables...)
 
-	t.schemas = schemasSet.List()
+	t.databases = dbSet.List()
 	t.tables = tableSet.List()
+}
+
+//get all of the configured tables
+func (t *ShardingTable) GetDatabases() []string {
+	return t.databases
 }
 
 //get all of the configured tables

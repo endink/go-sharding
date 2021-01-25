@@ -35,11 +35,11 @@ type TableLookup interface {
 }
 
 type tableLookup struct {
-	aliasToTableName map[string]model.CIStr
-	tables           map[string]model.CIStr
-	shardingTables   map[string]*core.ShardingTable
-	tableNames       []string
-	subQueryAlias    map[string]struct{}
+	aliasToTableName   map[string]model.CIStr
+	tables             map[string]model.CIStr
+	shardingTables     map[string]*core.ShardingTable
+	shardingTableNames []string
+	subQueryAlias      map[string]struct{}
 }
 
 func newTableLookup() *tableLookup {
@@ -51,7 +51,7 @@ func newTableLookup() *tableLookup {
 }
 
 func (lookup *tableLookup) GetTables() []string {
-	return lookup.tableNames
+	return lookup.shardingTableNames
 }
 
 func (lookup *tableLookup) FindNameByAlias(tableName string) (model.CIStr, bool) {
@@ -74,7 +74,7 @@ func (lookup *tableLookup) FindShardingTable(tableOrAlias string) (*core.Shardin
 func (lookup *tableLookup) ExplicitShardingTableByColumn(column string) (*core.ShardingTable, error) {
 	var sd *core.ShardingTable
 	var found bool
-	for _, name := range lookup.tableNames {
+	for _, name := range lookup.shardingTableNames {
 		hasFound := found
 		sd, found = lookup.FindShardingTable(name)
 		if hasFound && found { //找到多余一个时
@@ -94,18 +94,19 @@ func (lookup *tableLookup) addTable(table *ast.TableSource, provider ShardingPro
 		return fmt.Errorf("table source is not type of TableName, type: %T", table.Source)
 	}
 	alias := table.AsName.L
+	shardingTable := tableName.Name.L
 	if alias != "" {
-		if n, ok := lookup.aliasToTableName[alias]; ok && n.L != tableName.Name.L {
+		if n, ok := lookup.aliasToTableName[alias]; ok && n.L != shardingTable {
 			return fmt.Errorf("duplex table alias in sql, alias: %s, tables: %s, %s", alias, n.O, tableName.Name.O)
 		} else {
 			lookup.aliasToTableName[alias] = tableName.Name
 		}
 	}
-	if _, ok := lookup.tables[tableName.Name.L]; !ok {
-		lookup.tables[tableName.Name.L] = tableName.Name
-		lookup.tableNames = append(lookup.tableNames, tableName.Name.L)
+	if _, ok := lookup.tables[shardingTable]; !ok {
+		lookup.tables[shardingTable] = tableName.Name
+		lookup.shardingTableNames = append(lookup.shardingTableNames, shardingTable)
 	}
-	lookup.addShardingTable(tableName.Name.L, provider, alias)
+	lookup.addShardingTable(shardingTable, provider, alias)
 	return nil
 }
 

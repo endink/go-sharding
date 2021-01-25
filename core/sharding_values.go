@@ -43,6 +43,10 @@ func ShardingValuesForSingleScalar(tableName string, column string) *ShardingVal
 	}
 }
 
+func (values *ShardingValues) IsEmpty() bool {
+	return values.IsEmptyScalars() && values.IsEmptyRanges()
+}
+
 func (values *ShardingValues) IsEmptyScalars() bool {
 	return len(values.ScalarValues) == 0
 }
