@@ -21,6 +21,7 @@ package script
 import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/core"
+	"github.com/XiaoMi/Gaea/testkit"
 	"github.com/emirpasic/gods/utils"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -39,7 +40,7 @@ func TestFlatOneDepth(t *testing.T) {
 	list := FlatInlineExpression(expr, t)
 	assert.Equal(t, 3, len(list))
 
-	assert.True(t, core.StringSliceEqual(list, []string{"ds_1", "ds_2", "ds_3"}))
+	testkit.AssertStrArrayEquals(t, []string{"ds_1", "ds_2", "ds_3"}, list)
 }
 
 func TestFlatTwoDepth(t *testing.T) {
