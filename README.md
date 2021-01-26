@@ -5,6 +5,13 @@
 数据库分库分表中间件，尽可能兼容 [ShardingSphere](https://github.com/apache/shardingsphere) 的 golang 实现，
 基于小米 [Gaea](https://github.com/XiaoMi/Gaea) 魔改，但是路由算法支持 ShardingSphere 的 inline 表达式风格，而不是 Mycat/kingshard 这类晦涩而又不灵活的配置，移除多租户功能（配置太复杂了，部署多套即可）
 
+---
+
+已经决定全部重写，小米的代码仅参考逻辑！！！
+
+> 最新的开发进度和代码看[**这里**](https://github.com/endink/go-sharding/tree/refactoring)
+
+---
 ## 为什么造这个轮子
 
 尝试了 ShardingSphere Proxy, 其有着糟糕的 insert 性能和 CPU 100% 问题，官方 issue 里 CPU 问题给出的回复是让升级到一个 5.0 alpha 版本试试，注意，是试试，
