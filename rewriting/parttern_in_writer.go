@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/explain"
-	"github.com/XiaoMi/Gaea/util"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
 	"github.com/pingcap/parser/types"
@@ -58,7 +57,7 @@ func NewPatternInWriter(
 		return nil, fmt.Errorf("create pattern in writer fault: %v", colErr)
 	}
 
-	tables, valueMap, err := getPatternInRouteResult(columnNameExpr.Name.Name.L, n.Not, shardingTable, n.List)
+	tables, valueMap, err := getPatternInRouteResult(explain.GetColumn(columnNameExpr.Name), n.Not, shardingTable, n.List)
 	if err != nil {
 		return nil, fmt.Errorf("getPatternInRouteResult error: %v", err)
 	}
@@ -95,7 +94,7 @@ func getPatternInRouteResult(
 		valueMap := getBroadcastValueMap(tables, values)
 		return tables, valueMap, nil
 	}
-	if !sharding.IsTableSharding() || !sharding.HasTableShardingColumn(column) || !sharding.TableStrategy.IsScalarValueSupported() { //不支持明确值分片或者不分片
+	if !sharding.HasTableShardingColumn(column) || !sharding.TableStrategy.IsScalarValueSupported() { //不支持明确值分片或者不分片
 		tables := sharding.GetTables()
 		valueMap := getBroadcastValueMap(tables, values)
 		return tables, valueMap, nil
@@ -108,7 +107,7 @@ func getPatternInRouteResult(
 		shardingValue := core.ShardingValuesForSingleScalar(sharding.Name, column)
 		for _, vi := range values {
 			v, _ := vi.(*driver.ValueExpr)
-			value, err := util.GetValueExprResultEx(v, false, nullErr)
+			value, err := explain.GetValueFromExprStrictly(v, false, nullErr)
 			if err != nil {
 				return nil, nil, err
 			}

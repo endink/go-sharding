@@ -23,6 +23,8 @@ import (
 	"github.com/XiaoMi/Gaea/core/script"
 )
 
+var _ core.ShardingStrategy = &Inline{}
+
 type Inline struct {
 	Columns    []string
 	Expression script.InlineExpression
@@ -41,10 +43,6 @@ func (i *Inline) IsRangeValueSupported() bool {
 }
 
 func (i *Inline) Shard(sources []string, values *core.ShardingValues) ([]string, error) {
-	if values.IsEmptyScalars() {
-		return sources, nil
-	}
-
 	if len(i.Columns) == 1 {
 		column := i.Columns[0]
 		if columnValues, ok := values.ScalarValues[column]; ok {
@@ -65,7 +63,7 @@ func (i *Inline) shardSingleColumn(column string, columnValues []interface{}) ([
 	tables := make([]string, 0, len(columnValues))
 	for _, value := range columnValues {
 		v.Value = value
-		if table, e := script.InlineExpression.FlatScalar(v); e != nil {
+		if table, e := i.Expression.FlatScalar(v); e != nil {
 			return nil, e
 		} else {
 			tables = append(tables, table)

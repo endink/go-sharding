@@ -38,11 +38,16 @@ func (s *SqlExplain) explainCondition(node ast.ExprNode, rewriter Rewriter, logi
 	case *ast.BetweenExpr:
 		return s.explainBetween(expr, rewriter)
 	case *ast.ParenthesesExpr:
+		s.BeginValueGroup()
 		newExpr, err := s.explainCondition(expr.Expr, rewriter, logic)
 		if err != nil {
 			return nil, err
 		}
 		expr.Expr = newExpr
+		err = s.EndValueGroup()
+		if err != nil {
+			return nil, err
+		}
 		return expr, nil
 	default:
 		// 其他情况只替换表名 (但是不处理根节点是ColumnNameExpr的情况, 理论上也不会出现这种情况)
@@ -75,20 +80,20 @@ func (s *SqlExplain) explainBetween(expr *ast.BetweenExpr, rewriter Rewriter) (a
 		return nil, err
 	}
 	if result.IsRewrote() {
-		columnNameExpr, ok := expr.Expr.(*ast.ColumnNameExpr)
-		if !ok {
-			return nil, errors.New("between and must have a column inside")
-		}
 		ranges, e := GetValueFromValueFromBetween(expr)
 
 		if e != nil {
 			return nil, e
 		}
 
+		s.BeginValueGroup()
 		for _, r := range ranges {
-			if pushErr := s.PushValue(result.Table().Name, columnNameExpr.Name.Name.L, r); pushErr != nil {
+			if pushErr := s.PushAndValue(result.GetShardingTable(), result.GetColumn(), r); pushErr != nil {
 				return nil, pushErr
 			}
+		}
+		if scopeErr := s.EndValueGroup(); scopeErr != nil {
+			return nil, scopeErr
 		}
 		return result.GetNewNode(), nil
 	}
@@ -101,7 +106,15 @@ func (s *SqlExplain) explainPatternIn(expr *ast.PatternInExpr, rewriter Rewriter
 	if err != nil {
 		return nil, err
 	}
-	if result.IsRewrote() {
+	if result.IsRewrote() && !expr.Not {
+		values, e := GetValueFromPatternIn(expr, false)
+		if e != nil {
+			return nil, e
+		}
+		e = s.PushOrValueGroup(result.GetShardingTable(), result.GetColumn(), values...)
+		if e != nil {
+			return nil, e
+		}
 		return result.GetNewNode(), nil
 	}
 	return expr, nil
@@ -194,16 +207,15 @@ func (s *SqlExplain) explainBinaryMath(expr *ast.BinaryOperationExpr, rewriter R
 		if err != nil {
 			return nil, err
 		}
-	}
+	} else {
+		if lType == ColumnNameExpr {
+			return s.explainColumnAndValue(expr, rewriter, true)
+		}
 
-	if lType == ColumnNameExpr {
-		return s.explainColumnAndValue(expr, rewriter, true)
+		if rType == ColumnNameExpr {
+			return s.explainColumnAndValue(expr, rewriter, false)
+		}
 	}
-
-	if rType == ColumnNameExpr {
-		return s.explainColumnAndValue(expr, rewriter, false)
-	}
-
 	return expr, nil
 }
 
@@ -220,7 +232,7 @@ func (s *SqlExplain) explainColumnAndValue(expr *ast.BinaryOperationExpr, rewrit
 		valueNode = expr.L
 	}
 
-	columnName := getColumn(columnNode.(*ast.ColumnNameExpr).Name)
+	columnName := GetColumn(columnNode.(*ast.ColumnNameExpr).Name)
 
 	if columnLeft {
 		r, err = s.rewriteLeftColumn(expr, rewriter)

@@ -43,12 +43,12 @@ func (s *Engine) RewriteTable(tableName *ast.TableName, explainContext explain.C
 	}
 	if ok {
 		if writer, err := NewTableNameWriter(tableName, explainContext); err == nil {
-			return ResultFromNode(writer, sd), nil
+			return explain.ResultFromNode(writer, sd), nil
 		} else {
 			return nil, err
 		}
 	}
-	return NoneRewriteNodeResult, nil
+	return explain.NoneRewriteNodeResult, nil
 }
 
 func (s *Engine) RewriteField(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
@@ -58,12 +58,12 @@ func (s *Engine) RewriteField(columnName *ast.ColumnNameExpr, explainContext exp
 	}
 	if ok {
 		if writer, e := NewColumnNameWriter(columnName, explainContext, sd.Name); e == nil {
-			return ResultFromExprNode(writer, sd), nil
+			return explain.ResultFromExprNode(writer, sd, explain.GetColumn(columnName.Name)), nil
 		} else {
 			return nil, e
 		}
 	}
-	return NoneRewriteExprNodeResult, nil
+	return explain.NoneRewriteExprNodeResult, nil
 }
 
 func (s *Engine) RewriteColumn(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
@@ -73,12 +73,12 @@ func (s *Engine) RewriteColumn(columnName *ast.ColumnNameExpr, explainContext ex
 	}
 	if ok {
 		if writer, e := NewColumnNameWriter(columnName, explainContext, sd.Name); e == nil {
-			return ResultFromExprNode(writer, sd), nil
+			return explain.ResultFromExprNode(writer, sd, explain.GetColumn(columnName.Name)), nil
 		} else {
 			return nil, e
 		}
 	}
-	return NoneRewriteExprNodeResult, nil
+	return explain.NoneRewriteExprNodeResult, nil
 }
 
 func (s *Engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
@@ -92,12 +92,12 @@ func (s *Engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainContext ex
 	}
 	if ok {
 		if writer, e := NewPatternInWriter(patternIn, explainContext, sd); e == nil {
-			return ResultFromExprNode(writer, sd), nil
+			return explain.ResultFromExprNode(writer, sd, explain.GetColumn(columnNameExpr.Name)), nil
 		} else {
 			return nil, e
 		}
 	}
-	return NoneRewriteExprNodeResult, nil
+	return explain.NoneRewriteExprNodeResult, nil
 }
 
 func (s *Engine) RewriteBetween(between *ast.BetweenExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
@@ -111,12 +111,12 @@ func (s *Engine) RewriteBetween(between *ast.BetweenExpr, explainContext explain
 	}
 	if ok {
 		if writer, e := NewBetweenWriter(between, explainContext, sd); e == nil {
-			return ResultFromExprNode(writer, sd), nil
+			return explain.ResultFromExprNode(writer, sd, explain.GetColumn(columnNameExpr.Name)), nil
 		} else {
 			return nil, e
 		}
 	}
-	return NoneRewriteExprNodeResult, nil
+	return explain.NoneRewriteExprNodeResult, nil
 }
 
 func (s *Engine) RewriteLimit(limit *ast.Limit, explainContext explain.Context) (explain.RewriteLimitResult, error) {
@@ -126,7 +126,7 @@ func (s *Engine) RewriteLimit(limit *ast.Limit, explainContext explain.Context) 
 		if err != nil {
 			return nil, err
 		}
-		return ResultFromLimit(writer), nil
+		return explain.ResultFromLimit(writer), nil
 	}
-	return NoneRewriteLimitResult, nil
+	return explain.NoneRewriteLimitResult, nil
 }

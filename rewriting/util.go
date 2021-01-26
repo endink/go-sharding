@@ -57,12 +57,16 @@ func getTableNameFromColumn(c *ast.ColumnName, allowedDbName string) (string, er
 }
 
 func FindShardingTableByColumn(columnName *ast.ColumnNameExpr, explainContext explain.Context, explicit bool) (*core.ShardingTable, bool, error) {
-	var sd *core.ShardingTable
-	var err error
+	c := explain.GetColumn(columnName.Name)
 	if columnName.Name.Table.O != "" {
-		sd, _ = explainContext.TableLookup().FindShardingTable(columnName.Name.Table.L)
+		sd, _ := explainContext.TableLookup().FindShardingTable(columnName.Name.Table.O)
+		if !sd.HasTableShardingColumn(c) && !sd.HasDbShardingColumn(c) {
+			return nil, false, nil
+		}
+		return sd, true, nil
 	} else if explicit {
-		sd, err = explainContext.TableLookup().ExplicitShardingTableByColumn(columnName.Name.Name.L)
+		sd, err := explainContext.TableLookup().ExplicitShardingTableByColumn(c)
+		return sd, sd != nil, err
 	}
-	return sd, sd != nil, err
+	return nil, false, nil
 }

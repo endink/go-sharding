@@ -26,8 +26,15 @@ import (
 	"strings"
 )
 
-func GenerateSql(defaultDatabase string, stmt ast.StmtNode, explain *explain.SqlExplain) (map[string][]string, error) {
+func GenerateSql(defaultDatabase string, stmt ast.StmtNode, explain *explain.SqlExplain) (*SqlGenResult, error) {
 	values := explain.GetShardingValues()
+
+	if len(values) == 0 { //没有存在任何分片表数据
+		return &SqlGenResult{
+			DataSources: []string{defaultDatabase},
+			Usage:       UsageRaw,
+		}, nil
+	}
 
 	context := explain.CurrentContext()
 	runtime, err := NewGenerationRuntime(defaultDatabase, context, values)
@@ -36,11 +43,17 @@ func GenerateSql(defaultDatabase string, stmt ast.StmtNode, explain *explain.Sql
 		return nil, err
 	}
 
-	return genSqlWithRuntime(stmt, runtime)
+	return gen(stmt, runtime)
 }
 
-func genSqlWithRuntime(stmt ast.StmtNode, runtime *genRuntime) (map[string][]string, error) {
-	result := make(map[string][]string, len(runtime.databases))
+func gen(stmt ast.StmtNode, runtime *genRuntime) (*SqlGenResult, error) {
+
+	genResult := &SqlGenResult{
+		SqlCommands: make([]string, 0, runtime.GetShardLength()),
+		DataSources: runtime.databases,
+		Usage:       UsageShard,
+	}
+
 	for {
 		var firstDb string
 		if runtime.Next() {
@@ -53,25 +66,21 @@ func genSqlWithRuntime(stmt ast.StmtNode, runtime *genRuntime) (map[string][]str
 			}
 			if firstDb == currentDb {
 				sb := &strings.Builder{}
+				//迭代执行改写引擎
 				ctx := format.NewRestoreCtx(util.EscapeRestoreFlags, sb)
 				if restErr := stmt.Restore(ctx); restErr != nil {
 					return nil, restErr
 				}
 
 				var sql = sb.String()
-				var sqls []string
-				var ok bool
-				if sqls, ok = result[currentDb]; !ok {
-					sqls = make([]string, 0, runtime.GetShardLength())
-					result[currentDb] = sqls
-				}
-				sqls = append(sqls, sql)
+				genResult.SqlCommands = append(genResult.SqlCommands, sql)
 			} else { //其他数据库简单的使用之前的生成结果， 预留后期如果改写 DB 在这里处理代码块
-				return result, nil
+				return genResult, nil
 			}
 		} else {
+			//其他数据库循环重复生成目前没有意义，留作将来扩展
 			break
 		}
 	}
-	return result, nil
+	return genResult, nil
 }

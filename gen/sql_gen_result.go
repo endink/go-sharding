@@ -16,17 +16,20 @@
  *  File author: Anders Xiao
  */
 
-package explain
+package gen
 
-import (
-	"github.com/XiaoMi/Gaea/testkit"
-	"github.com/stretchr/testify/assert"
-	"testing"
+type Usage byte
+
+const (
+	//使用生成的值
+	UsageShard Usage = iota
+	//使用原始值
+	UsageRaw
 )
 
-func TestTableLookup(t *testing.T) {
-	var sql = "SELECT B, C, D FROM A WHERE ID = 12345 and name = 'gggg'"
-	//sql = "SELECT A.ID as AID, B.ID AS AID from student A,student B,student C"
-	stmt := testkit.ParseSelect(sql, t)
-	assert.NotNil(t, stmt)
+type SqlGenResult struct {
+	SqlCommands []string
+	DataSources []string
+	//指示用法，如果为 Raw 使用原始 SQL 执行分片数据库即可
+	Usage Usage
 }

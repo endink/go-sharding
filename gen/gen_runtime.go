@@ -31,10 +31,13 @@ var _ explain.Runtime = &genRuntime{}
 var ErrRuntimeResourceNotFound = errors.New("resource was not found in runtime")
 
 func NewGenerationRuntime(defaultDatabase string, context explain.Context, values map[string]*core.ShardingValues) (*genRuntime, error) {
-	shardingTables := context.TableLookup().GetTables()
+	//获取用于循环的所有分片表逻辑表名
+	shardingTables := context.TableLookup().ShardingTables()
+
 	if len(shardingTables) > 0 {
+
 		allTables := make([][]string, 0, len(shardingTables))
-		allDatabases := strset.New()
+		allDatabases := strset.New() //数据库有重复项,简单起见，使用 set
 
 		for _, table := range shardingTables {
 			shardingTable, hasTable := context.TableLookup().FindShardingTable(table)
@@ -42,12 +45,14 @@ func NewGenerationRuntime(defaultDatabase string, context explain.Context, value
 				return nil, fmt.Errorf("sharding table '%s' not existed", shardingTable)
 			}
 			shardingValues, _ := values[table]
+			//根据分片列的值计算数据库分片
 			databases, dbErr := shardDatabase(shardingValues, shardingTable, defaultDatabase)
 			if dbErr == nil {
 				return nil, dbErr
 			}
 			allDatabases.Add(databases...)
 
+			//根据分片表的值计算表分片，约定分片算法返回的物理表不会重复
 			physicalTables, tbErr := shardTables(shardingValues, shardingTable)
 			if tbErr == nil {
 				return nil, tbErr
@@ -55,13 +60,17 @@ func NewGenerationRuntime(defaultDatabase string, context explain.Context, value
 			allTables = append(allTables, physicalTables)
 		}
 
+		//整理一下，将数据库放在首位
 		dbs := allDatabases.List()
-		resources := make([][]string, len(shardingTables))
-		resources[0] = dbs
+		resources := make([][]string, 0, len(shardingTables)+1)
+		resources = append(resources, dbs)
 		resources = append(resources, allTables...)
 
+		//合并数据库、表形成资源清单（笛卡尔积），得到迭代器数据，或许这里可以优化，实际可以使用上面的数据来循环了
+		manifest := core.PermuteString(resources)
+
 		return &genRuntime{
-			resources:       core.PermuteString(resources),
+			resources:       manifest,
 			shardingTables:  shardingTables,
 			defaultDatabase: defaultDatabase,
 			databases:       dbs,
@@ -75,36 +84,41 @@ func NewGenerationRuntime(defaultDatabase string, context explain.Context, value
 func shardDatabase(shardingValues *core.ShardingValues, shardingTable *core.ShardingTable, defaultDb string) ([]string, error) {
 	if shardingValues == nil || shardingValues.IsEmpty() {
 		return shardingTable.GetDatabases(), nil
-	} else if !shardingTable.IsDbSharding() {
+	} else if !shardingTable.IsDbShardingSupported() {
 		return []string{defaultDb}, nil
 	} else {
 		allDatabases := shardingTable.GetDatabases()
-		physicalDbs, shardErr := shardingTable.DatabaseStrategy.Shard(allDatabases, shardingValues)
-		if shardErr != nil {
-			return nil, shardErr
+		if !core.RequireAllShard(shardingTable.DatabaseStrategy, shardingValues) {
+			physicalDbs, shardErr := shardingTable.DatabaseStrategy.Shard(allDatabases, shardingValues)
+			if shardErr != nil {
+				return nil, shardErr
+			}
+			return physicalDbs, nil
 		}
-		return physicalDbs, nil
+		return allDatabases, nil
 	}
 }
 
 func shardTables(shardingValues *core.ShardingValues, shardingTable *core.ShardingTable) ([]string, error) {
 	if shardingValues == nil || shardingValues.IsEmpty() {
 		return shardingTable.GetTables(), nil
-	} else if !shardingTable.IsTableSharding() {
+	} else if !shardingTable.IsTableShardingSupported() {
 		return []string{shardingTable.Name}, nil
 	} else {
-
 		allTables := shardingTable.GetTables()
-		physicalTables, shardErr := shardingTable.TableStrategy.Shard(allTables, shardingValues)
-		if shardErr != nil {
-			return nil, shardErr
+		if !core.RequireAllShard(shardingTable.TableStrategy, shardingValues) {
+			physicalTables, shardErr := shardingTable.TableStrategy.Shard(allTables, shardingValues)
+			if shardErr != nil {
+				return nil, shardErr
+			}
+			return physicalTables, nil
 		}
-		return physicalTables, nil
+		return allTables, nil
 	}
 }
 
 type genRuntime struct {
-	resources      [][]string //二维数值表示实际数据表，存在多个分片表时取得笛卡尔积, 其中最后一列表示数据库
+	resources      [][]string //二维数值表示实际数据表，存在多个分片表时取得笛卡尔积, 第一列表示数据库， 后续为物理表
 	shardingTables []string   //分片表逻辑表名
 	databases      []string
 
@@ -155,14 +169,13 @@ func (g *genRuntime) Next() bool {
 	if hasNext {
 		g.currentIndex++
 		resource := g.resources[g.currentIndex]
-		sourceLen := len(resource)
 		for i, s := range resource {
-			if i < (sourceLen - 1) {
-				shardTable := g.shardingTables[i]
+			if i == 0 {
+				g.currentDb = s
+			} else {
+				shardTable := g.shardingTables[i-1] //分片表从第二列开始
 				phyTable := s
 				g.currentTableMap[shardTable] = phyTable
-			} else { //最后一个元素是数据库名
-				g.currentDb = s
 			}
 		}
 	} else {

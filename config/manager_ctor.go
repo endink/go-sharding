@@ -25,6 +25,7 @@ import (
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/core/provider"
 	"go.uber.org/config"
+	"strings"
 )
 
 func NewManager() (Manager, error) {
@@ -89,4 +90,16 @@ func NewManagerFromYAML(yaml *config.YAML) (Manager, error) {
 	}
 
 	return bootCnf, nil
+}
+
+func NewManagerFromString(ymlContent string) (Manager, error) {
+	r := strings.NewReader(ymlContent)
+	opt := config.Source(r)
+	permissive := config.Permissive()
+	yml, err := config.NewYAML(opt, permissive)
+	if err != nil {
+		return nil, err
+	}
+
+	return NewManagerFromYAML(yml)
 }

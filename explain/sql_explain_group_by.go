@@ -43,7 +43,7 @@ func (s *SqlExplain) attachByItems(stmt *ast.SelectStmt, byItems []*ast.ByItem, 
 		if columnExpr, ok := item.Expr.(*ast.ColumnNameExpr); ok {
 			return fmt.Errorf("ByItem.Expr is not a ColumnNameExpr")
 		} else {
-			fieldName := columnExpr.Name.Name.L
+			fieldName := GetColumn(columnExpr.Name)
 			if s.CurrentContext().FieldLookup().FindByName(fieldName) < 0 {
 				field, e := s.newFieldFromByItem(item, rewriter)
 				if e != nil {

@@ -20,7 +20,6 @@ package testkit
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
 	"github.com/pingcap/parser"
 	"github.com/pingcap/parser/ast"
 	_ "github.com/pingcap/tidb/types/parser_driver"
@@ -35,6 +34,6 @@ func ParseSelect(sql string, t assert.TestingT) *ast.SelectStmt {
 		panic(err)
 	}
 	sel, ok := node.(*ast.SelectStmt)
-	assert.True(t, ok, fmt.Sprint("provided content is not select sql text", core.LineSeparator, "SQL:", core.LineSeparator, sql))
+	assert.True(t, ok, fmt.Sprint("provided content is not select sql text", "\n", "SQL:", "\n", sql))
 	return sel
 }

@@ -31,7 +31,7 @@ type TableLookup interface {
 	ExplicitShardingTableByColumn(column string) (*core.ShardingTable, error)
 	HasAlias(tableName string) bool
 	FindNameByAlias(tableName string) (model.CIStr, bool)
-	GetTables() []string
+	ShardingTables() []string
 }
 
 type tableLookup struct {
@@ -50,7 +50,7 @@ func newTableLookup() *tableLookup {
 	}
 }
 
-func (lookup *tableLookup) GetTables() []string {
+func (lookup *tableLookup) ShardingTables() []string {
 	return lookup.shardingTableNames
 }
 
@@ -95,24 +95,28 @@ func (lookup *tableLookup) addTable(table *ast.TableSource, provider ShardingPro
 	}
 	alias := table.AsName.L
 	shardingTable := tableName.Name.L
-	if alias != "" {
-		if n, ok := lookup.aliasToTableName[alias]; ok && n.L != shardingTable {
-			return fmt.Errorf("duplex table alias in sql, alias: %s, tables: %s, %s", alias, n.O, tableName.Name.O)
-		} else {
-			lookup.aliasToTableName[alias] = tableName.Name
+	added := lookup.addShardingTable(shardingTable, provider, alias)
+	if added {
+		if alias != "" {
+			if n, ok := lookup.aliasToTableName[alias]; ok && n.L != shardingTable {
+				return fmt.Errorf("duplex table alias in sql, alias: %s, tables: %s, %s", alias, n.O, tableName.Name.O)
+			} else {
+				lookup.aliasToTableName[alias] = tableName.Name
+			}
+		}
+		if _, ok := lookup.tables[shardingTable]; !ok {
+			lookup.tables[shardingTable] = tableName.Name
+			lookup.shardingTableNames = append(lookup.shardingTableNames, shardingTable)
 		}
 	}
-	if _, ok := lookup.tables[shardingTable]; !ok {
-		lookup.tables[shardingTable] = tableName.Name
-		lookup.shardingTableNames = append(lookup.shardingTableNames, shardingTable)
-	}
-	lookup.addShardingTable(shardingTable, provider, alias)
 	return nil
 }
 
-func (lookup *tableLookup) addShardingTable(table string, provider ShardingProvider, alias string) {
+func (lookup *tableLookup) addShardingTable(table string, provider ShardingProvider, alias string) bool {
+	var isShardingTable bool
+
 	if table == "" {
-		return
+		return false
 	}
 	sd, existed := lookup.shardingTables[table]
 	if !existed {
@@ -120,11 +124,14 @@ func (lookup *tableLookup) addShardingTable(table string, provider ShardingProvi
 			Logger.Warn("because ShardingProvider is null, table sharding is skipped")
 		} else {
 			if shardingTable, found := provider(table); found {
+				isShardingTable = true
+				sd = shardingTable
 				lookup.shardingTables[table] = shardingTable
 			}
 		}
 	}
-	if alias != "" && sd != nil {
+	if isShardingTable && alias != "" && sd != nil {
 		lookup.shardingTables[alias] = sd
 	}
+	return isShardingTable
 }

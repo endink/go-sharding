@@ -32,11 +32,6 @@ type ShardingTable struct {
 	databases        []string
 }
 
-var NilShardingTable = &ShardingTable{
-	TableStrategy:    NoneShardingStrategy,
-	DatabaseStrategy: NoneShardingStrategy,
-}
-
 func (t *ShardingTable) SetResources(databases []string, tables []string) {
 	dbSet := strset.New()
 	dbSet.Add(databases...)
@@ -59,11 +54,11 @@ func (t *ShardingTable) GetTables() []string {
 }
 
 func (t *ShardingTable) HasDbShardingColumn(column string) bool {
-	return t.IsDbSharding() && t.containsColumn(t.DatabaseStrategy.GetShardingColumns(), column)
+	return t.IsDbShardingSupported() && t.containsColumn(t.DatabaseStrategy.GetShardingColumns(), column)
 }
 
 func (t *ShardingTable) HasTableShardingColumn(column string) bool {
-	return t.IsTableSharding() && t.containsColumn(t.TableStrategy.GetShardingColumns(), column)
+	return t.IsTableShardingSupported() && t.containsColumn(t.TableStrategy.GetShardingColumns(), column)
 }
 
 func (t *ShardingTable) containsColumn(columns []string, column string) bool {
@@ -76,18 +71,16 @@ func (t *ShardingTable) containsColumn(columns []string, column string) bool {
 	return false
 }
 
-func (t *ShardingTable) IsDbSharding() bool {
-	return t.DatabaseStrategy != NoneShardingStrategy
+//返回 false 将会使用默认数据源
+func (t *ShardingTable) IsDbShardingSupported() bool {
+	return t.DatabaseStrategy.IsScalarValueSupported() || t.DatabaseStrategy.IsRangeValueSupported()
 }
 
-func (t *ShardingTable) IsTableSharding() bool {
-	return t.DatabaseStrategy != NoneShardingStrategy
+//返回 false 将会透传表名到目标数据库
+func (t *ShardingTable) IsTableShardingSupported() bool {
+	return t.TableStrategy.IsScalarValueSupported() || t.TableStrategy.IsRangeValueSupported()
 }
 
-func (t *ShardingTable) IsSharding() bool {
-	return t.IsDbSharding() || t.IsDbSharding()
-}
-
-func (t *ShardingTable) IsNil() bool {
-	return t == NilShardingTable
+func (t *ShardingTable) IsShardingSupported() bool {
+	return t.IsDbShardingSupported() || t.IsTableShardingSupported()
 }

@@ -26,3 +26,19 @@ type ShardingStrategy interface {
 
 	Shard(sources []string, values *ShardingValues) ([]string, error)
 }
+
+func RequireAllShard(s ShardingStrategy, values *ShardingValues) bool {
+	//TODO: 是否考虑优化交集结果为空的情况，改用 values.HasScalar, values.HasRange 判断
+	columns := s.GetShardingColumns()
+	colLength := len(columns)
+	for _, column := range columns {
+		if (s.IsRangeValueSupported() || !values.HasEffectiveRange(column)) &&
+			(s.IsScalarValueSupported() || !values.HasEffectiveScalar(column)) &&
+			(values.Logic(column) == LogicAnd || colLength == 1) {
+			continue
+		} else {
+			return true
+		}
+	}
+	return false
+}

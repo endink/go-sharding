@@ -16,21 +16,21 @@
  *  File author: Anders Xiao
  */
 
-package rewriting
+package explain
 
 import (
 	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/explain"
 	"github.com/pingcap/parser/ast"
 )
 
-var _ explain.RewriteNodeResult = &rewriteNodeResult{}
-var _ explain.RewriteExprResult = &rewriteExprResult{}
-var _ explain.RewriteLimitResult = &rewriteLimitResult{}
+var _ RewriteNodeResult = &rewriteNodeResult{}
+var _ RewriteExprResult = &rewriteExprResult{}
+var _ RewriteLimitResult = &rewriteLimitResult{}
 
 var NoneRewriteNodeResult = ResultFromNode(nil, nil)
-var NoneRewriteExprNodeResult = ResultFromExprNode(nil, nil)
+var NoneRewriteExprNodeResult = ResultFromExprNode(nil, nil, "")
 var NoneRewriteLimitResult = ResultFromLimit(nil)
+var NoneRewroteResult RewriteResult = &noneRewriteResult{}
 
 type rewriteNodeResult struct {
 	isRewrote     bool
@@ -39,7 +39,31 @@ type rewriteNodeResult struct {
 }
 
 type rewriteExprResult struct {
+	column string
 	*rewriteNodeResult
+}
+
+type noneRewriteResult struct {
+}
+
+func (n *noneRewriteResult) IsRewrote() bool {
+	return false
+}
+
+func (n *noneRewriteResult) Table() *core.ShardingTable {
+	return nil
+}
+
+func (r *rewriteExprResult) GetShardingTable() string {
+	if r.shardingTable != nil {
+		return r.shardingTable.Name
+	} else {
+		return ""
+	}
+}
+
+func (r *rewriteExprResult) GetColumn() string {
+	return r.column
 }
 
 type rewriteLimitResult struct {
@@ -76,10 +100,11 @@ func ResultFromNode(node ast.Node, table *core.ShardingTable) *rewriteNodeResult
 	}
 }
 
-func ResultFromExprNode(node ast.ExprNode, table *core.ShardingTable) *rewriteExprResult {
+func ResultFromExprNode(node ast.ExprNode, table *core.ShardingTable, column string) *rewriteExprResult {
 	r := ResultFromNode(node, table)
 	return &rewriteExprResult{
-		r,
+		rewriteNodeResult: r,
+		column:            column,
 	}
 }
 

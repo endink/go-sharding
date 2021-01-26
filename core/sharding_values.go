@@ -27,10 +27,25 @@ const (
 	LogicOr
 )
 
+func (l BinaryLogic) String() string {
+	switch l {
+	case LogicAnd:
+		return "and"
+	case LogicOr:
+		return "or"
+	}
+	return ""
+}
+
 type ShardingValues struct {
-	TableName    string
-	ScalarValues map[string][]interface{} //key: column, value: values
-	RangeValues  map[string][]Range
+	TableName        string
+	ScalarValues     map[string][]interface{} //key: column, value: values
+	RangeValues      map[string][]Range
+	rangeCount       map[string]int
+	scalarCount      map[string]int
+	totalRangeCount  int
+	totalScalarCount int
+	columnLogic      map[string]BinaryLogic
 }
 
 func ShardingValuesForSingleScalar(tableName string, column string) *ShardingValues {
@@ -44,29 +59,100 @@ func ShardingValuesForSingleScalar(tableName string, column string) *ShardingVal
 }
 
 func (values *ShardingValues) IsEmpty() bool {
-	return values.IsEmptyScalars() && values.IsEmptyRanges()
+	return values.totalRangeCount == 0 && values.totalScalarCount == 0
 }
 
-func (values *ShardingValues) IsEmptyScalars() bool {
-	return len(values.ScalarValues) == 0
+func (values *ShardingValues) HasEffectiveScalar(column string) bool {
+	if v, ok := values.ScalarValues[column]; ok {
+		return len(v) > 0
+	}
+	return false
 }
 
-func (values *ShardingValues) IsEmptyRanges() bool {
-	return len(values.RangeValues) == 0
+func (values *ShardingValues) HasEffectiveRange(column string) bool {
+	if v, ok := values.RangeValues[column]; ok {
+		return len(v) > 0
+	}
+	return false
+}
+
+func (values *ShardingValues) EffectiveScalarCount(column string) int {
+	c := 0
+	if v, ok := values.ScalarValues[column]; ok {
+		c = len(v)
+	}
+	return c
+}
+
+func (values *ShardingValues) EffectiveRangeCount(column string) int {
+	c := 0
+	if v, ok := values.RangeValues[column]; ok {
+		c = len(v)
+	}
+	return c
+}
+
+func (values *ShardingValues) HasScalar(column string) bool {
+	if v, ok := values.scalarCount[column]; ok {
+		return v > 0
+	}
+	return false
+}
+
+func (values *ShardingValues) HasRange(column string) bool {
+	if v, ok := values.rangeCount[column]; ok {
+		return v > 0
+	}
+	return false
+}
+
+func (values *ShardingValues) Logic(column string) BinaryLogic {
+	if lg, ok := values.columnLogic[column]; ok {
+		return lg
+	}
+	return LogicAnd
+}
+
+func (values *ShardingValues) ScalarCount(column string) int {
+	if values.scalarCount == nil {
+		return 0
+	}
+	if v, ok := values.scalarCount[column]; ok {
+		return v
+	}
+	return 0
+}
+
+func (values *ShardingValues) RangeCount(column string) int {
+	if values.rangeCount == nil {
+		return 0
+	}
+	if v, ok := values.rangeCount[column]; ok {
+		return v
+	}
+	return 0
+}
+
+func (values *ShardingValues) TotalScalarCount() int {
+	return values.totalScalarCount
+}
+
+func (values *ShardingValues) TotalRangeCount() int {
+	return values.totalRangeCount
 }
 
 func (values *ShardingValues) HasScalarColumn(column string) bool {
-	if values.ScalarValues == nil {
+	if values.scalarCount == nil {
 		return false
 	}
-	_, ok := values.ScalarValues[column]
+	_, ok := values.scalarCount[column]
 	return ok
 }
 
 func (values *ShardingValues) HasRangeColumn(column string) bool {
-	if values.RangeValues == nil {
+	if values.rangeCount == nil {
 		return false
 	}
-	_, ok := values.RangeValues[column]
+	_, ok := values.rangeCount[column]
 	return ok
 }

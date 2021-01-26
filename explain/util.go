@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/core/comparison"
-	"github.com/XiaoMi/Gaea/util"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
 	"github.com/pingcap/parser/opcode"
@@ -76,8 +75,43 @@ func IsSupportedOp(op opcode.Op) bool {
 
 // GetValueExprResult copy from ValueExpr.Restore()
 // TODO: 分表列是否需要支持等值比较NULL
+func GetExprValue(n *driver.ValueExpr) (interface{}, error) {
+	return GetExprValueStrictly(n, true, "")
+}
+
+func GetExprValueStrictly(n *driver.ValueExpr, allowNull bool, nullErrorMsg string) (interface{}, error) {
+	switch n.Kind() {
+	case types.KindNull:
+		if !allowNull {
+			return nil, errors.New(core.IfBlankAndTrim(nullErrorMsg, "column value can not be null"))
+		} else {
+			return nil, nil
+		}
+	case types.KindInt64:
+		return n.GetInt64(), nil
+	case types.KindUint64:
+		return n.GetUint64(), nil
+	case types.KindFloat32:
+		return n.GetFloat32(), nil
+	case types.KindFloat64:
+		return n.GetFloat64(), nil
+	case types.KindString, types.KindBytes:
+		return n.GetString(), nil
+	default:
+		s := &strings.Builder{}
+		ctx := format.NewRestoreCtx(EscapeRestoreFlags, s)
+		err := n.Restore(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return s.String(), nil
+	}
+}
+
+// GetValueExprResult copy from ValueExpr.Restore()
+// TODO: 分表列是否需要支持等值比较NULL
 func getValueFromExpr(n *driver.ValueExpr) (interface{}, error) {
-	return getValueFromExprEx(n, true, "")
+	return GetValueFromExprStrictly(n, true, "")
 }
 
 //将算数运算符转换为可以理解的 value 值( scalar 或者 range )
@@ -117,12 +151,31 @@ func GetValueFromOpValue(op opcode.Op, valueExpr *driver.ValueExpr) (interface{}
 	return nil, fmt.Errorf("explain value fault, known opcode: %s", op.String())
 }
 
+func GetValueFromPatternIn(n *ast.PatternInExpr, allowNull bool) ([]interface{}, error) {
+	if len(n.List) == 0 {
+		return nil, nil
+	}
+	values := make([]interface{}, 0, len(n.List))
+	for _, value := range n.List {
+		v, ok := value.(*driver.ValueExpr)
+		if !ok {
+			return nil, nil
+		}
+		vv, err := GetValueFromExprStrictly(v, allowNull, "pattern in null value is not supported")
+		if err != nil {
+			return nil, err
+		}
+		values = append(values, vv)
+	}
+	return values, nil
+}
+
 func GetValueFromValueFromBetween(n *ast.BetweenExpr) ([]core.Range, error) {
 	leftValueExpr, ok := n.Left.(*driver.ValueExpr)
 	if !ok {
 		return nil, fmt.Errorf("n.Left is not a ValueExpr, type: %T", n.Left)
 	}
-	leftValue, err := util.GetValueExprResult(leftValueExpr)
+	leftValue, err := getValueFromExpr(leftValueExpr)
 	if err != nil {
 		return nil, fmt.Errorf("get value from n.Left error: %v", err)
 	}
@@ -132,7 +185,7 @@ func GetValueFromValueFromBetween(n *ast.BetweenExpr) ([]core.Range, error) {
 		return nil, fmt.Errorf("n.Left is not a ValueExpr, type: %T", n.Right)
 	}
 
-	rightValue, err := util.GetValueExprResult(rightValueExpr)
+	rightValue, err := getValueFromExpr(rightValueExpr)
 	if err != nil {
 		return nil, fmt.Errorf("get value from n.Right error: %v", err)
 	}
@@ -167,7 +220,7 @@ func GetValueFromValueFromBetween(n *ast.BetweenExpr) ([]core.Range, error) {
 	}
 }
 
-func getValueFromExprEx(n *driver.ValueExpr, allowNull bool, nullErrorMsg string) (interface{}, error) {
+func GetValueFromExprStrictly(n *driver.ValueExpr, allowNull bool, nullErrorMsg string) (interface{}, error) {
 	switch n.Kind() {
 	case types.KindNull:
 		if !allowNull {
@@ -208,6 +261,6 @@ func getTableAndColumn(columnName *ast.ColumnName) (string, string) {
 	return columnName.Table.L, columnName.Name.L
 }
 
-func getColumn(columnName *ast.ColumnName) string {
+func GetColumn(columnName *ast.ColumnName) string {
 	return columnName.Name.L
 }

@@ -29,8 +29,6 @@ import (
 
 type RangeAction string
 
-var _ Range = &defaultRange{}
-
 type Range interface {
 	fmt.Stringer
 	LowerBound() interface{}

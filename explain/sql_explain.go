@@ -22,14 +22,12 @@ import (
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/util/sync2"
 	"github.com/emirpasic/gods/stacks/arraystack"
-	"sync"
 )
 
 type ShardingProvider func(table string) (*core.ShardingTable, bool)
 
 type SqlExplain struct {
-	tableLock        sync.Mutex
-	builders         map[string]*core.ShardingValuesBuilder
+	valueStack       *arraystack.Stack
 	shardingProvider ShardingProvider
 	ctx              Context
 	logicStack       *arraystack.Stack
@@ -40,8 +38,10 @@ type SqlExplain struct {
 }
 
 func NewSqlExplain(shardingProvider ShardingProvider) *SqlExplain {
+	valueStack := arraystack.New()
+	valueStack.Push(newValueScope(core.LogicAnd))
 	return &SqlExplain{
-		builders:         make(map[string]*core.ShardingValuesBuilder),
+		valueStack:       valueStack,
 		shardingProvider: shardingProvider,
 		logicStack:       arraystack.New(),
 		ctx:              NewContext(),
@@ -50,14 +50,39 @@ func NewSqlExplain(shardingProvider ShardingProvider) *SqlExplain {
 	}
 }
 
+func (s *SqlExplain) BeginValueGroup() {
+	ns := newValueScope(s.currentLogic())
+	s.valueStack.Push(ns)
+}
+
+func (s *SqlExplain) EndValueGroup() error {
+	if s.valueStack.Size() >= 2 {
+		ns := s.currentValueScope()
+		s.valueStack.Pop()
+		pre := s.currentValueScope()
+		for table, builder := range ns.builders {
+			if err := pre.table(table).Merge(builder, ns.logic); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func (s *SqlExplain) currentValueScope() *valueScope {
+	current, _ := s.valueStack.Peek()
+	return current.(*valueScope)
+}
+
 func (s *SqlExplain) CurrentContext() Context {
 	return s.ctx
 }
 
 func (s *SqlExplain) GetShardingValues() map[string]*core.ShardingValues {
+	scope := s.currentValueScope()
 	if s.valuesChanged { //暂时不需要线程安全
-		values := make(map[string]*core.ShardingValues, len(s.builders))
-		for tableName, builder := range s.builders {
+		values := make(map[string]*core.ShardingValues, len(scope.builders))
+		for tableName, builder := range scope.builders {
 			values[tableName] = builder.Build()
 		}
 		s.values = values
@@ -65,12 +90,38 @@ func (s *SqlExplain) GetShardingValues() map[string]*core.ShardingValues {
 	return s.values
 }
 
-func (s *SqlExplain) PushValue(table string, column string, value interface{}) error {
+func (s *SqlExplain) PushOrValueGroup(table string, column string, values ...interface{}) error {
+	return s.pushOrValueGroupWithLogic(table, column, core.LogicOr, values...)
+}
+
+func (s *SqlExplain) PushAndValueGroup(table string, column string, values ...interface{}) error {
+	return s.pushOrValueGroupWithLogic(table, column, core.LogicAnd, values...)
+}
+
+func (s *SqlExplain) PushOrValue(table string, column string, value interface{}) error {
+	return s.pushOrValueGroupWithLogic(table, column, core.LogicOr, value)
+}
+
+func (s *SqlExplain) PushAndValue(table string, column string, value interface{}) error {
+	return s.pushOrValueGroupWithLogic(table, column, core.LogicAnd, value)
+}
+
+func (s *SqlExplain) pushOrValueGroupWithLogic(table string, column string, logic core.BinaryLogic, values ...interface{}) error {
+	s.BeginValueGroup()
+	for _, v := range values {
+		if err := s.pushValueWitLogic(table, column, v, logic); err != nil {
+			return err
+		}
+	}
+	return s.EndValueGroup()
+}
+
+func (s *SqlExplain) pushValueWitLogic(table string, column string, value interface{}, logic core.BinaryLogic) error {
 	var err error
 	if rg, ok := value.(core.Range); ok {
-		err = s.pushRange(table, column, rg)
+		err = s.pushRange(table, column, rg, logic)
 	} else {
-		s.pushScalar(table, column, value)
+		s.pushScalar(table, column, value, logic)
 	}
 	if err == nil {
 		s.valuesChanged = true
@@ -78,9 +129,14 @@ func (s *SqlExplain) PushValue(table string, column string, value interface{}) e
 	return err
 }
 
-func (s *SqlExplain) pushScalar(table string, column string, value interface{}) {
-	b := s.table(table)
-	switch s.currentLogic() {
+func (s *SqlExplain) PushValue(table string, column string, value interface{}) error {
+	return s.pushValueWitLogic(table, column, value, s.currentLogic())
+}
+
+func (s *SqlExplain) pushScalar(table string, column string, value interface{}, logic core.BinaryLogic) {
+	scope := s.currentValueScope()
+	b := scope.table(table)
+	switch logic {
 	case core.LogicOr:
 		b.OrValue(column, value)
 	case core.LogicAnd:
@@ -88,29 +144,16 @@ func (s *SqlExplain) pushScalar(table string, column string, value interface{}) 
 	}
 }
 
-func (s *SqlExplain) pushRange(table string, column string, value core.Range) error {
-	b := s.table(table)
-	switch s.currentLogic() {
+func (s *SqlExplain) pushRange(table string, column string, value core.Range, logic core.BinaryLogic) error {
+	scope := s.currentValueScope()
+	b := scope.table(table)
+	switch logic {
 	case core.LogicOr:
 		return b.OrRange(column, value)
 	case core.LogicAnd:
 		return b.AndRange(column, value)
 	}
 	return nil
-}
-
-func (s *SqlExplain) table(tableName string) *core.ShardingValuesBuilder {
-	var builder *core.ShardingValuesBuilder
-	var ok bool
-	if builder, ok = s.builders[tableName]; !ok {
-		s.tableLock.Lock()
-		defer s.tableLock.Unlock()
-		if builder, ok = s.builders[tableName]; !ok {
-			builder = core.NewShardingValuesBuilder(tableName)
-			s.builders[tableName] = builder
-		}
-	}
-	return builder
 }
 
 func (s *SqlExplain) pushLogic(logic core.BinaryLogic) {

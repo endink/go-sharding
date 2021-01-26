@@ -20,7 +20,10 @@ package script
 
 import (
 	"errors"
+	"fmt"
 	"github.com/XiaoMi/Gaea/core"
+	"regexp"
+	"sync"
 )
 
 var _ InlineExpression = &inlineExpr{}
@@ -42,9 +45,7 @@ func (i *inlineExpr) Clone() InlineExpression {
 	var groups []*inlineSegmentGroup
 	if len(i.segments) > 0 {
 		groups = make([]*inlineSegmentGroup, len(i.segments))
-		for idx, segment := range i.segments {
-			groups[idx] = segment
-		}
+		copy(groups, i.segments)
 	}
 	return &inlineExpr{
 		expression: i.expression,
@@ -133,6 +134,20 @@ func (i *inlineExpr) wrapExecuteError(e error, vars ...*Variable) error {
 	return errors.New(sb.String())
 }
 
+var exprRegex *regexp.Regexp
+var exprRegexOnce sync.Once
+
+//验证由字母数字下划线组成的标识符，且必须以字母开头
+func validateExpression(identifier string) error {
+	exprRegexOnce.Do(func() {
+		exprRegex, _ = regexp.Compile("^\\.?[A-Za-z0-9_-]*\\.?$")
+	})
+	if !exprRegex.MatchString(identifier) {
+		return fmt.Errorf("identifier must starts with a letter and letters, numbers, underline(_), minus(-) are allowed, given value: %s", identifier)
+	}
+	return nil
+}
+
 func NewInlineExpression(expression string, variables ...*Variable) (InlineExpression, error) {
 	var names []string
 	if len(variables) > 0 {
@@ -144,7 +159,7 @@ func NewInlineExpression(expression string, variables ...*Variable) (InlineExpre
 
 	expr := &inlineExpr{expression: expression, varsNames: names}
 
-	if segments, err := splitSegments(expression, variables...); err != nil {
+	if segments, err := splitSegments(expression, validateExpression, variables...); err != nil {
 		return nil, err
 	} else {
 		expr.segments = segments

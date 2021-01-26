@@ -31,7 +31,7 @@ func TestBuild(t *testing.T) {
 	builder := NewShardingValuesBuilder(testTable)
 	var err error
 
-	builder.AndValue(testColumn, 2, 3)
+	builder.OrValue(testColumn, 2, 3)
 	builder.OrValue(testColumn, 4, 5, 6)
 
 	r := createRange(7, 10)
@@ -243,7 +243,7 @@ func TestAndRangeToScalar1(t *testing.T) {
 	*/
 	builder := NewShardingValuesBuilder(testTable)
 	var err error
-	builder.AndValue(testColumn, intArray(1, 10)...)
+	builder.OrValue(testColumn, intArray(1, 10)...)
 
 	err = builder.AndRange(testColumn, createRange(2, 5))
 	assert.Nil(t, err)
@@ -283,7 +283,7 @@ func TestAndRangeToScalar3(t *testing.T) {
 	*/
 	builder := NewShardingValuesBuilder(testTable)
 	var err error
-	builder.AndValue(testColumn, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+	builder.OrValue(testColumn, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
 	err = builder.AndRange(testColumn, createRange(-2, 8))
 	assert.Nil(t, err)
@@ -303,7 +303,7 @@ func TestAndRangeToScalar4(t *testing.T) {
 	*/
 	builder := NewShardingValuesBuilder(testTable)
 	var err error
-	builder.AndValue(testColumn, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+	builder.OrValue(testColumn, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
 	err = builder.AndRange(testColumn, createRange(8, 12))
 	assert.Nil(t, err)
@@ -323,7 +323,7 @@ func TestAndRangeToScalar5(t *testing.T) {
 	*/
 	builder := NewShardingValuesBuilder(testTable)
 	var err error
-	builder.AndValue(testColumn, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
+	builder.OrValue(testColumn, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10)
 
 	err = builder.AndRange(testColumn, createRange(1, 10))
 	assert.Nil(t, err)

@@ -29,7 +29,7 @@ type equatable interface {
 	Equals(v interface{}) bool
 }
 
-func errorDifferent(t assert.TestingT, excepted []interface{}, actual []interface{}) string {
+func errorDifferent(excepted []interface{}, actual []interface{}) string {
 	sb := newStringBuilder()
 	sb.WriteLine("array not same")
 
@@ -70,13 +70,17 @@ func AssertEmptyArray(t assert.TestingT, actual []interface{}, msgAndArgs ...int
 	return AssertArrayEquals(t, nil, actual, msgAndArgs...)
 }
 
+func AssertStrArrayEquals(t assert.TestingT, excepted []string, actual []string, msgAndArgs ...interface{}) bool {
+	return AssertArrayEquals(t, convertStrArray(excepted), convertStrArray(actual), msgAndArgs...)
+}
+
 func AssertArrayEquals(t assert.TestingT, excepted []interface{}, actual []interface{}, msgAndArgs ...interface{}) bool {
 	if excepted == nil && actual == nil {
 		return true
 	}
 
 	if len(excepted) != len(actual) {
-		msg := errorDifferent(t, excepted, actual)
+		msg := errorDifferent(excepted, actual)
 		return assert.Fail(t, msg, msgAndArgs)
 	}
 	var diff bool
@@ -88,11 +92,20 @@ func AssertArrayEquals(t assert.TestingT, excepted []interface{}, actual []inter
 	}
 
 	if diff {
-		msg := errorDifferent(t, excepted, actual)
+		msg := errorDifferent(excepted, actual)
 		return assert.Fail(t, msg, msgAndArgs)
 	}
 
 	return true
+}
+
+func convertStrArray(values []string) []interface{} {
+	r := make([]interface{}, len(values))
+
+	for i, value := range values {
+		r[i] = value
+	}
+	return r
 }
 
 func arrayContains(ranges []interface{}, value interface{}) bool {

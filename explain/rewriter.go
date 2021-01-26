@@ -23,8 +23,6 @@ import (
 	"github.com/pingcap/parser/ast"
 )
 
-var NoneRewroteResult RewriteResult = &noneRewriteResult{}
-
 type RewriteResult interface {
 	IsRewrote() bool
 	Table() *core.ShardingTable
@@ -36,6 +34,8 @@ type RewriteNodeResult interface {
 }
 
 type RewriteExprResult interface {
+	GetShardingTable() string
+	GetColumn() string
 	RewriteResult
 	GetNewNode() ast.ExprNode
 }
@@ -43,17 +43,6 @@ type RewriteExprResult interface {
 type RewriteLimitResult interface {
 	RewriteResult
 	GetNewNode() *ast.Limit
-}
-
-type noneRewriteResult struct {
-}
-
-func (n *noneRewriteResult) IsRewrote() bool {
-	return false
-}
-
-func (n *noneRewriteResult) Table() *core.ShardingTable {
-	return nil
 }
 
 //SQL 改写器

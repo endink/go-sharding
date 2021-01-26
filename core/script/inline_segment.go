@@ -24,6 +24,8 @@ import (
 	"strings"
 )
 
+type SegmentValidator func(string) error
+
 type inlineSegmentGroup struct {
 	segments []*inlineSegment
 }
@@ -66,7 +68,7 @@ func (seg *inlineSegment) isBlank() bool {
 	return strings.TrimSpace(seg.prefix) == "" && strings.TrimSpace(seg.rawScript) == ""
 }
 
-func splitSegments(exp string, variables ...*Variable) ([]*inlineSegmentGroup, error) {
+func splitSegments(exp string, validator SegmentValidator, variables ...*Variable) ([]*inlineSegmentGroup, error) {
 	isScript := false
 	scriptStart := false
 	expLen := len(exp)
@@ -79,7 +81,9 @@ func splitSegments(exp string, variables ...*Variable) ([]*inlineSegmentGroup, e
 		sb.WriteLine("inline expression syntax error")
 		sb.WriteLine(message)
 		sb.WriteLineF("expression: %s", exp)
-		sb.WriteLineF("char index: %d", index)
+		if index < 0 {
+			sb.WriteLineF("char index: %d", index)
+		}
 		return errors.New(sb.String())
 	}
 
@@ -134,15 +138,15 @@ func splitSegments(exp string, variables ...*Variable) ([]*inlineSegmentGroup, e
 		case '}':
 			if isScript {
 				isScript = false
-				if err = context.flushSegment(); err != nil {
+				if err = context.flushSegment(validator); err != nil {
 					return nil, syntaxError(err.Error(), i)
 				}
 			} else {
-				return nil, syntaxError("should not appear symbol '}'", i)
+				prefix.WriteByte(char)
 			}
 		case ',':
 			if !isScript {
-				if g, err := context.flushGroup(); err != nil {
+				if g, err := context.flushGroup(validator); err != nil {
 					return nil, syntaxError(err.Error(), i)
 				} else {
 					groups = append(groups, g)
@@ -160,7 +164,11 @@ func splitSegments(exp string, variables ...*Variable) ([]*inlineSegmentGroup, e
 
 	}
 
-	if g, err := context.flushGroup(); err != nil {
+	if isScript {
+		return nil, syntaxError("symbol '}' used to end the script are missing", -1)
+	}
+
+	if g, err := context.flushGroup(validator); err != nil {
 		return nil, syntaxError(err.Error(), expLen)
 	} else {
 		groups = append(groups, g)
@@ -168,8 +176,8 @@ func splitSegments(exp string, variables ...*Variable) ([]*inlineSegmentGroup, e
 	return groups, nil
 }
 
-func (context *splitContext) flushGroup() (*inlineSegmentGroup, error) {
-	if err := context.flushSegment(); err != nil {
+func (context *splitContext) flushGroup(validator SegmentValidator) (*inlineSegmentGroup, error) {
+	if err := context.flushSegment(validator); err != nil {
 		return nil, err
 	} else {
 		g := &inlineSegmentGroup{
@@ -180,7 +188,7 @@ func (context *splitContext) flushGroup() (*inlineSegmentGroup, error) {
 	}
 }
 
-func (context *splitContext) flushSegment() error {
+func (context *splitContext) flushSegment(validator SegmentValidator) error {
 	seg := &inlineSegment{
 		prefix:    strings.TrimSpace(context.prefix.String()),
 		rawScript: strings.TrimSpace(context.rawScript.String()),
@@ -192,6 +200,11 @@ func (context *splitContext) flushSegment() error {
 				return err
 			} else {
 				seg.script = s
+			}
+		}
+		if validator != nil {
+			if e := validator(seg.prefix); e != nil {
+				return e
 			}
 		}
 		context.segments = append(context.segments, seg)
