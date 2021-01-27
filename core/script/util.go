@@ -43,7 +43,7 @@ func outJoin(prefix []string, suffix []string) []string {
 	return r
 }
 
-func flatFill(prefix string, suffix []string) []string {
+func flatFill(prefix string, suffix ...string) []string {
 	if prefix == "" {
 		return suffix
 	}

@@ -35,6 +35,24 @@ func TestFlatNoScript(t *testing.T) {
 	assert.True(t, core.StringSliceEqual(list, []string{"ds_1", "ds_2", "ds_3"}))
 }
 
+func TestFlatScalar(t *testing.T) {
+	expr := "ds_${i % 2}_${b}"
+	vars := []*Variable{
+		{
+			Name:  "i",
+			Value: 100,
+		},
+		{
+			Name:  "b",
+			Value: "ccc",
+		},
+	}
+
+	result := FlatScalarInlineExpression(t, expr, vars...)
+
+	assert.Equal(t, "ds_0_ccc", result)
+}
+
 func TestFlatOneDepth(t *testing.T) {
 	expr := "ds_${range(1,3)}"
 	list := FlatInlineExpression(expr, t)
@@ -80,8 +98,15 @@ func printSorted(list []string) {
 	}
 }
 
-func GetInlineExpression(expression string, t *testing.T) InlineExpression {
-	v, err := NewInlineExpression(expression)
+func GetInlineExpression(expression string, t *testing.T, varNames ...string) InlineExpression {
+	vars := make([]*Variable, len(varNames))
+	if len(vars) > 0 {
+		for i, v := range varNames {
+			vars[i] = &Variable{Name: v, Value: nil}
+		}
+	}
+
+	v, err := NewInlineExpression(expression, vars...)
 	assert.Nil(t, err, "create inline expression fault: %s", expression)
 	return v
 }
@@ -91,4 +116,18 @@ func FlatInlineExpression(expression string, t *testing.T) []string {
 	list, err := expr.Flat()
 	assert.Nil(t, err, "flat inline expression fault: %s", expression)
 	return list
+}
+
+func FlatScalarInlineExpression(t *testing.T, expression string, vars ...*Variable) string {
+	names := make([]string, len(vars))
+	if len(vars) > 0 {
+		for i, v := range vars {
+			names[i] = v.Name
+		}
+	}
+
+	expr := GetInlineExpression(expression, t, names...)
+	str, err := expr.FlatScalar(vars...)
+	assert.Nil(t, err, "flat inline expression fault: %s", expression)
+	return str
 }

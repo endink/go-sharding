@@ -59,7 +59,7 @@ func (i *inlineExpr) RawExpresion() string {
 }
 
 func (i *inlineExpr) FlatScalar(variables ...*Variable) (string, error) {
-	if list, err := i.Flat(variables...); err != nil {
+	if list, err := i.flat(true, variables...); err != nil {
 		return "", err
 	} else {
 		for _, s := range list {
@@ -69,7 +69,7 @@ func (i *inlineExpr) FlatScalar(variables ...*Variable) (string, error) {
 	return "", nil
 }
 
-func (i *inlineExpr) Flat(variables ...*Variable) ([]string, error) {
+func (i *inlineExpr) flat(scalarReturn bool, variables ...*Variable) ([]string, error) {
 	set := make(map[string]struct{})
 	var list []string
 
@@ -82,12 +82,21 @@ func (i *inlineExpr) Flat(variables ...*Variable) ([]string, error) {
 						return nil, i.wrapExecuteError(err, variables...)
 					}
 				}
-				if l, err := s.script.ExecuteList(); err != nil {
-					return nil, i.wrapExecuteError(err, variables...)
+				var segStrings []string
+				if scalarReturn {
+					if result, err := s.script.ExecuteScalar(); err != nil {
+						return nil, i.wrapExecuteError(err, variables...)
+					} else {
+						segStrings = flatFill(s.prefix, result)
+					}
 				} else {
-					segStrings := flatFill(s.prefix, l)
-					current = outJoin(current, segStrings)
+					if l, err := s.script.ExecuteList(); err != nil {
+						return nil, i.wrapExecuteError(err, variables...)
+					} else {
+						segStrings = flatFill(s.prefix, l...)
+					}
 				}
+				current = outJoin(current, segStrings)
 			} else {
 				if s.prefix != "" {
 					current = append(current, s.prefix)
@@ -107,6 +116,10 @@ func (i *inlineExpr) Flat(variables ...*Variable) ([]string, error) {
 		list = make([]string, 0)
 	}
 	return list, nil
+}
+
+func (i *inlineExpr) Flat(variables ...*Variable) ([]string, error) {
+	return i.flat(false, variables...)
 }
 
 func varsArray(vars []*Variable) []interface{} {
