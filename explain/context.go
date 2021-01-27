@@ -31,8 +31,6 @@ type Context interface {
 	OrderByLookup() FieldLookup
 	FieldLookup() FieldLookup
 	LimitLookup() LimitLookup
-	Runtime() Runtime
-	UseRuntime(runtime Runtime)
 }
 
 type context struct {
@@ -42,7 +40,6 @@ type context struct {
 	orderByLookup FieldLookup
 	fieldLookup   FieldLookup
 	limitLookup   LimitLookup
-	runtime       Runtime
 }
 
 func NewContext() Context {
@@ -53,20 +50,11 @@ func NewContext() Context {
 		orderByLookup: newFieldLookup(),
 		fieldLookup:   newFieldLookup(),
 		limitLookup:   newLimitLookup(),
-		runtime:       NoneRuntime,
 	}
-}
-
-func (c *context) UseRuntime(runtime Runtime) {
-	c.runtime = runtime
 }
 
 func (c *context) LimitLookup() LimitLookup {
 	return c.limitLookup
-}
-
-func (c *context) Runtime() Runtime {
-	return c.runtime
 }
 
 func (c *context) OrderByLookup() FieldLookup {

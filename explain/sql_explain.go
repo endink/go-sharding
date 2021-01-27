@@ -24,30 +24,39 @@ import (
 	"github.com/emirpasic/gods/stacks/arraystack"
 )
 
-type ShardingProvider func(table string) (*core.ShardingTable, bool)
-
 type SqlExplain struct {
-	valueStack       *arraystack.Stack
-	shardingProvider ShardingProvider
-	ctx              Context
-	logicStack       *arraystack.Stack
-	subQueryDepth    sync2.AtomicInt32
-	maxSubQueryDepth int32
-	valuesChanged    bool
-	values           map[string]*core.ShardingValues
+	valueStack            *arraystack.Stack
+	shardingTableProvider ShardingTableProvider
+	ctx                   Context
+	logicStack            *arraystack.Stack
+	subQueryDepth         sync2.AtomicInt32
+	maxSubQueryDepth      int32
+	valuesChanged         bool
+	values                map[string]*core.ShardingValues
 }
 
-func NewSqlExplain(shardingProvider ShardingProvider) *SqlExplain {
+func MockSqlExplain(shardingTables ...*ShardingTableMocked) *SqlExplain {
+	provider := MockShardingTableProvider(shardingTables...)
+	exp := NewSqlExplain(provider)
+	return exp
+}
+
+func NewSqlExplain(stProvider ShardingTableProvider) *SqlExplain {
 	valueStack := arraystack.New()
 	valueStack.Push(newValueScope(core.LogicAnd))
 	return &SqlExplain{
-		valueStack:       valueStack,
-		shardingProvider: shardingProvider,
-		logicStack:       arraystack.New(),
-		ctx:              NewContext(),
-		maxSubQueryDepth: int32(5),
-		values:           make(map[string]*core.ShardingValues, 0),
+		valueStack:            valueStack,
+		shardingTableProvider: stProvider,
+		logicStack:            arraystack.New(),
+		ctx:                   NewContext(),
+		maxSubQueryDepth:      int32(5),
+		values:                make(map[string]*core.ShardingValues, 0),
+		valuesChanged:         true,
 	}
+}
+
+func (s *SqlExplain) GetShardingTable(table string) (*core.ShardingTable, bool) {
+	return s.shardingTableProvider.GetShardingTable(table)
 }
 
 func (s *SqlExplain) BeginValueGroup() {
@@ -74,7 +83,7 @@ func (s *SqlExplain) currentValueScope() *valueScope {
 	return current.(*valueScope)
 }
 
-func (s *SqlExplain) CurrentContext() Context {
+func (s *SqlExplain) currentContext() Context {
 	return s.ctx
 }
 

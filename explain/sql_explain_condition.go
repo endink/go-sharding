@@ -65,7 +65,7 @@ func (s *SqlExplain) rewriteField(rewriter Rewriter, errMsg string, expr ...ast.
 	}()
 	for _, node := range expr {
 		if node != nil {
-			columnNameRewriter := NewFieldVisitor(rewriter, s.CurrentContext())
+			columnNameRewriter := NewFieldVisitor(rewriter, s.currentContext())
 			node.Accept(columnNameRewriter)
 		}
 	}
@@ -75,7 +75,7 @@ func (s *SqlExplain) rewriteField(rewriter Rewriter, errMsg string, expr ...ast.
 
 // column in (xxx, xxx) 解释器
 func (s *SqlExplain) explainBetween(expr *ast.BetweenExpr, rewriter Rewriter) (ast.ExprNode, error) {
-	result, err := rewriter.RewriteBetween(expr, s.CurrentContext())
+	result, err := rewriter.RewriteBetween(expr, s.currentContext())
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +102,7 @@ func (s *SqlExplain) explainBetween(expr *ast.BetweenExpr, rewriter Rewriter) (a
 
 // column in (xxx, xxx) 解释器
 func (s *SqlExplain) explainPatternIn(expr *ast.PatternInExpr, rewriter Rewriter) (ast.ExprNode, error) {
-	result, err := rewriter.RewritePatterIn(expr, s.CurrentContext())
+	result, err := rewriter.RewritePatterIn(expr, s.currentContext())
 	if err != nil {
 		return nil, err
 	}
@@ -249,7 +249,7 @@ func (s *SqlExplain) explainColumnAndValue(expr *ast.BinaryOperationExpr, rewrit
 				if e != nil {
 					return nil, err
 				}
-				err = s.PushValue(r.Table().Name, columnName, value)
+				err = s.PushValue(r.GetShardingTable(), columnName, value)
 				if err != nil {
 					return nil, err
 				}
@@ -262,9 +262,9 @@ func (s *SqlExplain) explainColumnAndValue(expr *ast.BinaryOperationExpr, rewrit
 func (s *SqlExplain) rewriteLeftColumn(expr *ast.BinaryOperationExpr, rewriter Rewriter) (RewriteResult, error) {
 	leftCol, ok := expr.L.(*ast.ColumnNameExpr)
 	if !ok {
-		return NoneRewroteResult, nil
+		return NoneRewriteResult, nil
 	}
-	result, err := rewriter.RewriteColumn(leftCol, s.CurrentContext())
+	result, err := rewriter.RewriteColumn(leftCol, s.currentContext())
 	if err != nil {
 		return nil, err
 	}
@@ -277,9 +277,9 @@ func (s *SqlExplain) rewriteLeftColumn(expr *ast.BinaryOperationExpr, rewriter R
 func (s *SqlExplain) rewriteRightColumn(expr *ast.BinaryOperationExpr, rewriter Rewriter) (RewriteResult, error) {
 	col, ok := expr.R.(*ast.ColumnNameExpr)
 	if !ok {
-		return NoneRewroteResult, nil
+		return NoneRewriteResult, nil
 	}
-	result, err := rewriter.RewriteColumn(col, s.CurrentContext())
+	result, err := rewriter.RewriteColumn(col, s.currentContext())
 	if err != nil {
 		return nil, err
 	}

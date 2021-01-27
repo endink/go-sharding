@@ -19,7 +19,6 @@
 package explain
 
 import (
-	"github.com/XiaoMi/Gaea/core"
 	"github.com/pingcap/parser/ast"
 )
 
@@ -27,14 +26,14 @@ var _ RewriteNodeResult = &rewriteNodeResult{}
 var _ RewriteExprResult = &rewriteExprResult{}
 var _ RewriteLimitResult = &rewriteLimitResult{}
 
-var NoneRewriteNodeResult = ResultFromNode(nil, nil)
-var NoneRewriteExprNodeResult = ResultFromExprNode(nil, nil, "")
+var NoneRewriteNodeResult = ResultFromNode(nil, "")
+var NoneRewriteExprResult = ResultFromExrp(nil, "", "")
 var NoneRewriteLimitResult = ResultFromLimit(nil)
-var NoneRewroteResult RewriteResult = &noneRewriteResult{}
+var NoneRewriteResult RewriteResult = &noneRewriteResult{}
 
 type rewriteNodeResult struct {
 	isRewrote     bool
-	shardingTable *core.ShardingTable
+	shardingTable string
 	node          ast.Node
 }
 
@@ -50,16 +49,12 @@ func (n *noneRewriteResult) IsRewrote() bool {
 	return false
 }
 
-func (n *noneRewriteResult) Table() *core.ShardingTable {
-	return nil
+func (n *noneRewriteResult) GetShardingTable() string {
+	return ""
 }
 
-func (r *rewriteExprResult) GetShardingTable() string {
-	if r.shardingTable != nil {
-		return r.shardingTable.Name
-	} else {
-		return ""
-	}
+func (r *rewriteNodeResult) GetShardingTable() string {
+	return r.shardingTable
 }
 
 func (r *rewriteExprResult) GetColumn() string {
@@ -72,10 +67,6 @@ type rewriteLimitResult struct {
 
 func (r *rewriteNodeResult) IsRewrote() bool {
 	return r.isRewrote
-}
-
-func (r *rewriteNodeResult) Table() *core.ShardingTable {
-	return r.shardingTable
 }
 
 func (r *rewriteNodeResult) GetNewNode() ast.Node {
@@ -92,16 +83,16 @@ func (r *rewriteLimitResult) GetNewNode() *ast.Limit {
 	return expr
 }
 
-func ResultFromNode(node ast.Node, table *core.ShardingTable) *rewriteNodeResult {
+func ResultFromNode(node ast.Node, shardingTable string) *rewriteNodeResult {
 	return &rewriteNodeResult{
 		isRewrote:     node != nil,
-		shardingTable: table,
+		shardingTable: shardingTable,
 		node:          node,
 	}
 }
 
-func ResultFromExprNode(node ast.ExprNode, table *core.ShardingTable, column string) *rewriteExprResult {
-	r := ResultFromNode(node, table)
+func ResultFromExrp(node ast.ExprNode, shardingTable string, column string) *rewriteExprResult {
+	r := ResultFromNode(node, shardingTable)
 	return &rewriteExprResult{
 		rewriteNodeResult: r,
 		column:            column,
@@ -109,7 +100,7 @@ func ResultFromExprNode(node ast.ExprNode, table *core.ShardingTable, column str
 }
 
 func ResultFromLimit(node *ast.Limit) *rewriteLimitResult {
-	r := ResultFromNode(node, nil)
+	r := ResultFromNode(node, "")
 	return &rewriteLimitResult{
 		r,
 	}

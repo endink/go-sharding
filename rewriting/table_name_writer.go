@@ -20,7 +20,6 @@ package rewriting
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/explain"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
 )
@@ -29,18 +28,18 @@ var _ ast.Node = &TableNameWriter{}
 
 type TableNameWriter struct {
 	origin        *ast.TableName
-	runtime       explain.Runtime
+	runtime       Runtime
 	shardingTable string
 }
 
-func NewTableNameWriter(n *ast.TableName, context explain.Context) (*TableNameWriter, error) {
+func NewTableNameWriter(n *ast.TableName, runtime Runtime) (*TableNameWriter, error) {
 	if len(n.PartitionNames) != 0 {
 		return nil, fmt.Errorf("TableName does not support PartitionNames in sharding")
 	}
 
 	ret := &TableNameWriter{
 		origin:        n,
-		runtime:       context.Runtime(),
+		runtime:       runtime,
 		shardingTable: n.Name.L,
 	}
 

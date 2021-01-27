@@ -19,13 +19,12 @@
 package explain
 
 import (
-	"github.com/XiaoMi/Gaea/core"
 	"github.com/pingcap/parser/ast"
 )
 
 type RewriteResult interface {
 	IsRewrote() bool
-	Table() *core.ShardingTable
+	GetShardingTable() string
 }
 
 type RewriteNodeResult interface {
@@ -34,7 +33,6 @@ type RewriteNodeResult interface {
 }
 
 type RewriteExprResult interface {
-	GetShardingTable() string
 	GetColumn() string
 	RewriteResult
 	GetNewNode() ast.ExprNode

@@ -23,28 +23,36 @@ import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/explain"
+	"github.com/XiaoMi/Gaea/rewriting"
 	"github.com/scylladb/go-set/strset"
 )
 
-var _ explain.Runtime = &genRuntime{}
+var _ rewriting.Runtime = &genRuntime{}
 
 var ErrRuntimeResourceNotFound = errors.New("resource was not found in runtime")
 
-func NewGenerationRuntime(defaultDatabase string, context explain.Context, values map[string]*core.ShardingValues) (*genRuntime, error) {
+func NewGenerationRuntime(defaultDatabase string, shardingTableProvider explain.ShardingTableProvider, values map[string]*core.ShardingValues) (*genRuntime, error) {
 	//获取用于循环的所有分片表逻辑表名
-	shardingTables := context.TableLookup().ShardingTables()
 
-	if len(shardingTables) > 0 {
+	usedShardingTables := make([]*core.ShardingTable, 0, len(values))
+	shardingTableNames := make([]string, 0, len(values))
 
-		allTables := make([][]string, 0, len(shardingTables))
+	for table, _ := range values {
+		sd, ok := shardingTableProvider.GetShardingTable(table)
+		if !ok {
+			return nil, fmt.Errorf("sharding table '%s' is not found", table)
+		}
+		usedShardingTables = append(usedShardingTables, sd)
+		shardingTableNames = append(shardingTableNames, sd.Name)
+	}
+
+	if len(usedShardingTables) > 0 {
+
+		allTables := make([][]string, 0, len(usedShardingTables))
 		allDatabases := strset.New() //数据库有重复项,简单起见，使用 set
 
-		for _, table := range shardingTables {
-			shardingTable, hasTable := context.TableLookup().FindShardingTable(table)
-			if !hasTable {
-				return nil, fmt.Errorf("sharding table '%s' not existed", shardingTable)
-			}
-			shardingValues, _ := values[table]
+		for _, shardingTable := range usedShardingTables {
+			shardingValues, _ := values[shardingTable.Name]
 			//根据分片列的值计算数据库分片
 			databases, dbErr := shardDatabase(shardingValues, shardingTable, defaultDatabase)
 			if dbErr == nil {
@@ -62,7 +70,7 @@ func NewGenerationRuntime(defaultDatabase string, context explain.Context, value
 
 		//整理一下，将数据库放在首位
 		dbs := allDatabases.List()
-		resources := make([][]string, 0, len(shardingTables)+1)
+		resources := make([][]string, 0, len(usedShardingTables)+1)
 		resources = append(resources, dbs)
 		resources = append(resources, allTables...)
 
@@ -71,11 +79,11 @@ func NewGenerationRuntime(defaultDatabase string, context explain.Context, value
 
 		return &genRuntime{
 			resources:       manifest,
-			shardingTables:  shardingTables,
+			shardingTables:  shardingTableNames,
 			defaultDatabase: defaultDatabase,
 			databases:       dbs,
 			currentIndex:    -1,
-			currentTableMap: make(map[string]string, len(shardingTables)),
+			currentTableMap: make(map[string]string, len(usedShardingTables)),
 		}, nil
 	}
 	return nil, fmt.Errorf("have no any sharding table used in sql")

@@ -25,8 +25,8 @@ import (
 
 func (s *SqlExplain) ExplainLimit(stmt *ast.SelectStmt, rewriter Rewriter) error {
 	if stmt.Limit != nil {
-		s.CurrentContext().LimitLookup().setLimit(stmt.Limit)
-		result, err := rewriter.RewriteLimit(stmt.Limit, s.CurrentContext())
+		s.currentContext().LimitLookup().setLimit(stmt.Limit)
+		result, err := rewriter.RewriteLimit(stmt.Limit, s.currentContext())
 		if err != nil {
 			return err
 		}

@@ -26,7 +26,7 @@ import (
 )
 
 type TableLookup interface {
-	addTable(table *ast.TableSource, provider ShardingProvider) error
+	addTable(table *ast.TableSource, provider ShardingTableProvider) error
 	FindShardingTable(tableOrAlias string) (*core.ShardingTable, bool)
 	ExplicitShardingTableByColumn(column string) (*core.ShardingTable, error)
 	HasAlias(tableName string) bool
@@ -88,7 +88,7 @@ func (lookup *tableLookup) ExplicitShardingTableByColumn(column string) (*core.S
 	}
 }
 
-func (lookup *tableLookup) addTable(table *ast.TableSource, provider ShardingProvider) error {
+func (lookup *tableLookup) addTable(table *ast.TableSource, provider ShardingTableProvider) error {
 	tableName, isTableName := table.Source.(*ast.TableName)
 	if !isTableName {
 		return fmt.Errorf("table source is not type of TableName, type: %T", table.Source)
@@ -112,7 +112,7 @@ func (lookup *tableLookup) addTable(table *ast.TableSource, provider ShardingPro
 	return nil
 }
 
-func (lookup *tableLookup) addShardingTable(table string, provider ShardingProvider, alias string) bool {
+func (lookup *tableLookup) addShardingTable(table string, provider ShardingTableProvider, alias string) bool {
 	var isShardingTable bool
 
 	if table == "" {
@@ -123,7 +123,7 @@ func (lookup *tableLookup) addShardingTable(table string, provider ShardingProvi
 		if provider == nil {
 			Logger.Warn("because ShardingProvider is null, table sharding is skipped")
 		} else {
-			if shardingTable, found := provider(table); found {
+			if shardingTable, found := provider.GetShardingTable(table); found {
 				isShardingTable = true
 				sd = shardingTable
 				lookup.shardingTables[table] = shardingTable

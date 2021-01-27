@@ -102,16 +102,16 @@ func (s *SqlExplain) explainJoinOn(on *ast.OnCondition, rewriter Rewriter) error
 }
 
 func (s *SqlExplain) rewriteTableSource(table *ast.TableSource, rewriter Rewriter) error {
-	lookup := s.CurrentContext().TableLookup()
+	lookup := s.currentContext().TableLookup()
 	switch name := table.Source.(type) {
 	case *ast.TableName:
 		if s.subQueryDepth.Get() == 0 {
-			err := lookup.addTable(table, s.shardingProvider)
+			err := lookup.addTable(table, s.shardingTableProvider)
 			if err != nil {
 				return err
 			}
 		}
-		result, e := rewriter.RewriteTable(name, s.CurrentContext())
+		result, e := rewriter.RewriteTable(name, s.currentContext())
 		if e != nil {
 			return fmt.Errorf("rewrite left TableSource error: %v", e)
 		}

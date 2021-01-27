@@ -33,7 +33,7 @@ func (s *SqlExplain) ExplainGroupBy(stmt *ast.SelectStmt, rewriter Rewriter) err
 	//if err != nil {
 	//	return fmt.Errorf("get group by fields error: %v", err)
 	//}
-	groupByLookup := s.CurrentContext().GroupByLookup()
+	groupByLookup := s.currentContext().GroupByLookup()
 	return s.attachByItems(stmt, stmt.GroupBy.Items, groupByLookup, rewriter)
 }
 
@@ -44,7 +44,7 @@ func (s *SqlExplain) attachByItems(stmt *ast.SelectStmt, byItems []*ast.ByItem, 
 			return fmt.Errorf("ByItem.Expr is not a ColumnNameExpr")
 		} else {
 			fieldName := GetColumn(columnExpr.Name)
-			if s.CurrentContext().FieldLookup().FindByName(fieldName) < 0 {
+			if s.currentContext().FieldLookup().FindByName(fieldName) < 0 {
 				field, e := s.newFieldFromByItem(item, rewriter)
 				if e != nil {
 					return e
@@ -52,7 +52,7 @@ func (s *SqlExplain) attachByItems(stmt *ast.SelectStmt, byItems []*ast.ByItem, 
 				//附加到查询结果列
 				stmt.Fields.Fields = append(stmt.Fields.Fields, field)
 				if _, isColumnExpr := field.Expr.(*ast.ColumnNameExpr); isColumnExpr {
-					e = s.CurrentContext().FieldLookup().addField(index, field)
+					e = s.currentContext().FieldLookup().addField(index, field)
 					if e != nil {
 						return e
 					}
@@ -98,7 +98,7 @@ func (s *SqlExplain) newFieldFromByItem(item *ast.ByItem, rewriter Rewriter) (*a
 		return nil, fmt.Errorf("ByItem.Expr is not a ColumnNameExpr")
 	}
 
-	result, err := rewriter.RewriteField(columnExpr, s.CurrentContext())
+	result, err := rewriter.RewriteField(columnExpr, s.currentContext())
 	if err != nil {
 		return nil, err
 	}

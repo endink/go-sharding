@@ -18,7 +18,17 @@
 
 package core
 
+import "fmt"
+
 var _ ShardingStrategy = &mockedShardingStrategy{}
+
+func MockShardingTableSimple(name string, columns ...string) *ShardingTable {
+	return MockShardingTable(
+		name,
+		[]string{"mock_db"},
+		[]string{fmt.Sprint("mock_", name)},
+		columns)
+}
 
 func MockShardingTable(
 	name string,

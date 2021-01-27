@@ -43,16 +43,17 @@ type PatternInWriter struct {
 	tableValues map[string][]ast.ExprNode // table - columnValue
 
 	shardingTable *core.ShardingTable
-	runtime       explain.Runtime
+	runtime       Runtime
 }
 
 func NewPatternInWriter(
 	n *ast.PatternInExpr,
 	context explain.Context,
+	runtime Runtime,
 	shardingTable *core.ShardingTable) (*PatternInWriter, error) {
 
 	columnNameExpr := n.Expr.(*ast.ColumnNameExpr)
-	colWriter, colErr := NewColumnNameWriter(columnNameExpr, context, shardingTable.Name)
+	colWriter, colErr := NewColumnNameWriter(columnNameExpr, context, runtime, shardingTable.Name)
 	if colErr != nil {
 		return nil, fmt.Errorf("create pattern in writer fault: %v", colErr)
 	}
@@ -67,7 +68,7 @@ func NewPatternInWriter(
 		//List:        n.List,
 		Not:           n.Not,
 		shardingTable: shardingTable,
-		runtime:       context.Runtime(),
+		runtime:       runtime,
 		tables:        tables,
 		tableValues:   valueMap,
 	}

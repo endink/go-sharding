@@ -31,13 +31,13 @@ type ColumnNameWriter struct {
 	*ast.ColumnNameExpr
 	columnName    *ast.ColumnName
 	isAlias       bool
-	runtime       explain.Runtime
+	runtime       Runtime
 	shardingTable string
 }
 
-func NewColumnNameWriter(n *ast.ColumnNameExpr, context explain.Context, shardingTable string) (*ColumnNameWriter, error) {
+func NewColumnNameWriter(n *ast.ColumnNameExpr, context explain.Context, runtime Runtime, shardingTable string) (*ColumnNameWriter, error) {
 	name := n.Name
-	tableName, err := GetColumnTableName(name, context)
+	tableName, err := explain.GetTable(name, runtime.GetServerSchema())
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +46,7 @@ func NewColumnNameWriter(n *ast.ColumnNameExpr, context explain.Context, shardin
 		ColumnNameExpr: n,
 		columnName:     n.Name,
 		isAlias:        context.TableLookup().HasAlias(tableName),
-		runtime:        context.Runtime(),
+		runtime:        runtime,
 		shardingTable:  shardingTable,
 	}, nil
 }

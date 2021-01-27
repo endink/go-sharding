@@ -16,93 +16,40 @@
  *  File author: Anders Xiao
  */
 
-package rewriting
+package explain
 
 import (
-	"github.com/XiaoMi/Gaea/config"
 	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/explain"
 	"github.com/XiaoMi/Gaea/testkit"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-const testConfigYaml = `
-sources:
-  ds0: 
-    endpoint: localhost:3306
-    schema: test_db
-    username: root
-    password: 
-  ds1:
-    endpoint: localhost:3306
-    schema: test_db
-    username: root
-    password: 
+func parseExplainTables(t *testing.T, sql string, shardingTables ...*ShardingTableMocked) map[string]*core.ShardingValues {
 
-default-source: ds0
+	//sql = "SELECT A.ID as AID, B.ID AS AID from student A,student B,student C"
+	stmt := testkit.ParseSelect(sql, t)
+	assert.NotNil(t, stmt)
 
-rule:  
-  tables:
-    t_order: 
-      resources: ds${range(0,1)}.t_order${[0,1]}
-      db-strategy:
-        inline:
-          sharding-columns: user_id
-          expression: ds${user_id % 2}
-      table-strategy: 
-        inline:
-          sharding-columns: order_id
-          expression: t_order_${order_id % 2}
-      keyGenerator:
-        type: SNOWFLAKE
-        column: order_id
-    t_order_item:
-      resources: ds${range(0,1)}.t_order_item${range(0,1)}
-      db-strategy:
-        inline:
-          sharding-columns: user_id
-          expression: ds${user_id % 2}
-      table-strategy:
-        inline:
-          sharding-columns: order_id, id
-          expression: t_order_item_${order_id % 2}_${id *2}
-    t_product:
-      db-strategy: none
-      table-strategy: none
+	explain := MockSqlExplain(shardingTables...)
+	err := explain.ExplainTables(stmt, NoneRewriter)
+	assert.Nil(t, err)
 
-server: 
-  port: 13308
-  username: root
-  password: root2
-  schema: test
-`
-
-type ExplainTestSession struct {
-	ConfigManager       config.Manager
-	ShardingTableFinder func(table string) (*core.ShardingTable, bool)
-	SqlExplain          *explain.SqlExplain
+	return explain.GetShardingValues()
 }
 
-func (s *ExplainTestSession) Context() explain.Context {
-	return s.SqlExplain.CurrentContext()
-}
+func parseExplainWhere(t *testing.T, sql string, shardingTables ...*ShardingTableMocked) map[string]*core.ShardingValues {
+	//sql = "SELECT A.ID as AID, B.ID AS AID from student A,student B,student C"
+	stmt := testkit.ParseSelect(sql, t)
+	assert.NotNil(t, stmt)
 
-func NewExplainTestSession(t *testing.T, yaml string) *ExplainTestSession {
-	mgr, err := config.NewManagerFromString(yaml)
-	assert.Nil(t, err, "create config manager from yaml fault")
-	finder := func(shardingTable string) (*core.ShardingTable, bool) {
-		t, ok := mgr.GetSettings().ShardingRule.Tables[shardingTable]
-		return t, ok
+	explain := MockSqlExplain(shardingTables...)
+	if assert.NotNil(t, stmt.Where, "where statement requried") {
+		err := explain.ExplainWhere(stmt, NoneRewriter)
+		assert.Nil(t, err)
+		return explain.GetShardingValues()
 	}
-
-	exp := explain.NewSqlExplain(finder)
-
-	return &ExplainTestSession{
-		ConfigManager:       mgr,
-		ShardingTableFinder: finder,
-		SqlExplain:          exp,
-	}
+	return nil
 }
 
 func assertShardingValuesInTable(t *testing.T, table string, values map[string]*core.ShardingValues, hasValue bool) *core.ShardingValues {
@@ -125,32 +72,53 @@ func getShardingColumnValues(t *testing.T, column string, values *core.ShardingV
 }
 
 func assertShardingColumnValuesAndCounter(t *testing.T, column string, values *core.ShardingValues, scalarCount int, rangeCount int) ([]interface{}, []core.Range) {
-	scalarValues, _ := values.ScalarValues[column]
-	rangeValues, _ := values.RangeValues[column]
-	if scalarCount >= 0 {
-		assert.Equal(t, scalarCount, values.ScalarCount(column), "sharding scalar values count is wrong for column '%s', table '%s'", column, values.TableName)
-	}
-	if rangeCount >= 0 {
-		assert.Equal(t, rangeCount, values.RangeCount(column), "sharding range values count is wrong for column '%s', table, '%s'", column, values.TableName)
-	}
+	noNil := assert.NotNil(t, values, "column '%s' values can not be nil", column)
+	if noNil {
+		scalarValues, _ := values.ScalarValues[column]
+		rangeValues, _ := values.RangeValues[column]
+		if scalarCount >= 0 {
+			assert.Equal(t, scalarCount, values.ScalarCount(column), "sharding scalar values count is wrong for column '%s', table '%s'", column, values.TableName)
+		}
+		if rangeCount >= 0 {
+			assert.Equal(t, rangeCount, values.RangeCount(column), "sharding range values count is wrong for column '%s', table, '%s'", column, values.TableName)
+		}
 
-	return scalarValues, rangeValues
+		return scalarValues, rangeValues
+	}
+	return make([]interface{}, 0), make([]core.Range, 0)
 }
 
-func assertTableLookup(t *testing.T, sql string, exceptedTables ...string) {
+func assertTableAlias(t *testing.T, sql string, mockedShardingTables []*ShardingTableMocked, exceptedAlias ...string) {
 
 	//sql = "SELECT A.ID as AID, B.ID AS AID from student A,student B,student C"
 	stmt := testkit.ParseSelect(sql, t)
 	assert.NotNil(t, stmt)
 
-	session := NewExplainTestSession(t, testConfigYaml)
-	rw := NewRewritingEngine(session.Context())
+	explain := MockSqlExplain(mockedShardingTables...)
 
-	err := session.SqlExplain.ExplainTables(stmt, rw)
+	err := explain.ExplainTables(stmt, NoneRewriter)
 	assert.Nil(t, err)
 
-	shardingTables := session.Context().TableLookup().ShardingTables()
-	assert.Equal(t, len(exceptedTables), len(shardingTables))
+	lookup := explain.currentContext().TableLookup()
+	if len(exceptedAlias) > 0 {
+		for _, alias := range exceptedAlias {
+			assert.True(t, lookup.HasAlias(core.TrimAndLower(alias)), "should has alias: '%s'", alias)
+		}
+	}
+}
+
+func assertTableLookup(t *testing.T, sql string, mockedShardingTables []*ShardingTableMocked, exceptedTables ...string) {
+
+	//sql = "SELECT A.ID as AID, B.ID AS AID from student A,student B,student C"
+	stmt := testkit.ParseSelect(sql, t)
+	assert.NotNil(t, stmt)
+
+	explain := MockSqlExplain(mockedShardingTables...)
+
+	err := explain.ExplainTables(stmt, NoneRewriter)
+	assert.Nil(t, err)
+
+	shardingTables := explain.currentContext().TableLookup().ShardingTables()
 
 	testkit.AssertStrArrayEquals(t, exceptedTables, shardingTables)
 }

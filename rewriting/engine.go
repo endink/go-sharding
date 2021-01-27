@@ -27,23 +27,23 @@ import (
 var _ explain.Rewriter = &Engine{}
 
 type Engine struct {
-	context explain.Context
+	runtime Runtime
 }
 
-func NewRewritingEngine(context explain.Context) *Engine {
+func NewRewritingEngine(runtime Runtime) *Engine {
 	return &Engine{
-		context: context,
+		runtime: runtime,
 	}
 }
 
-func (s *Engine) RewriteTable(tableName *ast.TableName, explainContext explain.Context) (explain.RewriteNodeResult, error) {
-	sd, ok, fe := FindShardingTable(tableName, explainContext)
+func (engine *Engine) RewriteTable(tableName *ast.TableName, explainContext explain.Context) (explain.RewriteNodeResult, error) {
+	sd, ok, fe := explain.FindShardingTableByTable(tableName, explainContext, "")
 	if fe != nil {
 		return nil, fe
 	}
 	if ok {
-		if writer, err := NewTableNameWriter(tableName, explainContext); err == nil {
-			return explain.ResultFromNode(writer, sd), nil
+		if writer, err := NewTableNameWriter(tableName, engine.runtime); err == nil {
+			return explain.ResultFromNode(writer, sd.Name), nil
 		} else {
 			return nil, err
 		}
@@ -51,75 +51,75 @@ func (s *Engine) RewriteTable(tableName *ast.TableName, explainContext explain.C
 	return explain.NoneRewriteNodeResult, nil
 }
 
-func (s *Engine) RewriteField(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
-	sd, ok, err := FindShardingTableByColumn(columnName, explainContext, false)
+func (engine *Engine) RewriteField(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
+	sd, ok, err := explain.FindShardingTableByColumn(columnName, explainContext, false)
 	if err != nil {
 		return nil, err
 	}
 	if ok {
-		if writer, e := NewColumnNameWriter(columnName, explainContext, sd.Name); e == nil {
-			return explain.ResultFromExprNode(writer, sd, explain.GetColumn(columnName.Name)), nil
+		if writer, e := NewColumnNameWriter(columnName, explainContext, engine.runtime, sd.Name); e == nil {
+			return explain.ResultFromExrp(writer, sd.Name, explain.GetColumn(columnName.Name)), nil
 		} else {
 			return nil, e
 		}
 	}
-	return explain.NoneRewriteExprNodeResult, nil
+	return explain.NoneRewriteExprResult, nil
 }
 
-func (s *Engine) RewriteColumn(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
-	sd, ok, err := FindShardingTableByColumn(columnName, explainContext, true)
+func (engine *Engine) RewriteColumn(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
+	sd, ok, err := explain.FindShardingTableByColumn(columnName, explainContext, true)
 	if err != nil {
 		return nil, err
 	}
 	if ok {
-		if writer, e := NewColumnNameWriter(columnName, explainContext, sd.Name); e == nil {
-			return explain.ResultFromExprNode(writer, sd, explain.GetColumn(columnName.Name)), nil
+		if writer, e := NewColumnNameWriter(columnName, explainContext, engine.runtime, sd.Name); e == nil {
+			return explain.ResultFromExrp(writer, sd.Name, explain.GetColumn(columnName.Name)), nil
 		} else {
 			return nil, e
 		}
 	}
-	return explain.NoneRewriteExprNodeResult, nil
+	return explain.NoneRewriteExprResult, nil
 }
 
-func (s *Engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
+func (engine *Engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
 	columnNameExpr, ok := patternIn.Expr.(*ast.ColumnNameExpr)
 	if !ok {
 		return nil, errors.New("pattern in statement required ColumnNameExpr")
 	}
-	sd, ok, err := FindShardingTableByColumn(columnNameExpr, explainContext, true)
+	sd, ok, err := explain.FindShardingTableByColumn(columnNameExpr, explainContext, true)
 	if err != nil {
 		return nil, err
 	}
 	if ok {
-		if writer, e := NewPatternInWriter(patternIn, explainContext, sd); e == nil {
-			return explain.ResultFromExprNode(writer, sd, explain.GetColumn(columnNameExpr.Name)), nil
+		if writer, e := NewPatternInWriter(patternIn, explainContext, engine.runtime, sd); e == nil {
+			return explain.ResultFromExrp(writer, sd.Name, explain.GetColumn(columnNameExpr.Name)), nil
 		} else {
 			return nil, e
 		}
 	}
-	return explain.NoneRewriteExprNodeResult, nil
+	return explain.NoneRewriteExprResult, nil
 }
 
-func (s *Engine) RewriteBetween(between *ast.BetweenExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
+func (engine *Engine) RewriteBetween(between *ast.BetweenExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
 	columnNameExpr, ok := between.Expr.(*ast.ColumnNameExpr)
 	if !ok {
 		return nil, errors.New("between and statement required ColumnNameExpr")
 	}
-	sd, ok, err := FindShardingTableByColumn(columnNameExpr, explainContext, true)
+	sd, ok, err := explain.FindShardingTableByColumn(columnNameExpr, explainContext, true)
 	if err != nil {
 		return nil, err
 	}
 	if ok {
-		if writer, e := NewBetweenWriter(between, explainContext, sd); e == nil {
-			return explain.ResultFromExprNode(writer, sd, explain.GetColumn(columnNameExpr.Name)), nil
+		if writer, e := NewBetweenWriter(between, explainContext, engine.runtime, sd); e == nil {
+			return explain.ResultFromExrp(writer, sd.Name, explain.GetColumn(columnNameExpr.Name)), nil
 		} else {
 			return nil, e
 		}
 	}
-	return explain.NoneRewriteExprNodeResult, nil
+	return explain.NoneRewriteExprResult, nil
 }
 
-func (s *Engine) RewriteLimit(limit *ast.Limit, explainContext explain.Context) (explain.RewriteLimitResult, error) {
+func (engine *Engine) RewriteLimit(limit *ast.Limit, explainContext explain.Context) (explain.RewriteLimitResult, error) {
 	lookup := explainContext.LimitLookup()
 	if lookup.HasLimit() && lookup.HasOffset() {
 		writer, err := NewLimitWriter(explainContext)

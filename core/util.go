@@ -176,6 +176,14 @@ func TrimAndLower(v string) string {
 	return strings.ToLower(strings.TrimSpace(v))
 }
 
+func TrimAndLowerArray(array []string) []string {
+	result := make([]string, len(array))
+	for i, s := range array {
+		result[i] = TrimAndLower(s)
+	}
+	return result
+}
+
 //求并集
 func Union(slice1, slice2 []string) []string {
 	m := make(map[string]int)

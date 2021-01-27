@@ -36,13 +36,13 @@ type BetweenWriter struct {
 	tables []string
 
 	rule    router.Rule
-	runtime explain.Runtime
+	runtime Runtime
 }
 
 // NewBetweenWriter create BetweenExprDecorator
-func NewBetweenWriter(n *ast.BetweenExpr, context explain.Context, shardingTable *core.ShardingTable) (*BetweenWriter, error) {
+func NewBetweenWriter(n *ast.BetweenExpr, context explain.Context, runtime Runtime, shardingTable *core.ShardingTable) (*BetweenWriter, error) {
 	columnNameExpr := n.Expr.(*ast.ColumnNameExpr)
-	columnNameExprDecorator, err := NewColumnNameWriter(columnNameExpr, context, shardingTable.Name)
+	columnNameExprDecorator, err := NewColumnNameWriter(columnNameExpr, context, runtime, shardingTable.Name)
 	if err != nil {
 		return nil, err
 	}

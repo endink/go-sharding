@@ -18,16 +18,8 @@
 
 package explain
 
-import (
-	"github.com/pingcap/parser/ast"
-)
+import "github.com/XiaoMi/Gaea/core"
 
-func (s *SqlExplain) ExplainOrderBy(stmt *ast.SelectStmt, rewriter Rewriter) error {
-
-	if stmt.OrderBy == nil {
-		return nil
-	}
-
-	orderByLookup := s.currentContext().OrderByLookup()
-	return s.attachByItems(stmt, stmt.GroupBy.Items, orderByLookup, rewriter)
+type ShardingTableProvider interface {
+	GetShardingTable(table string) (*core.ShardingTable, bool)
 }

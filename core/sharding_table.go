@@ -62,9 +62,11 @@ func (t *ShardingTable) HasTableShardingColumn(column string) bool {
 }
 
 func (t *ShardingTable) containsColumn(columns []string, column string) bool {
-	c := TrimAndLower(column)
+	if len(columns) == 0 {
+		return false
+	}
 	for _, s := range columns {
-		if s == c {
+		if s == column {
 			return true
 		}
 	}
@@ -73,12 +75,12 @@ func (t *ShardingTable) containsColumn(columns []string, column string) bool {
 
 //返回 false 将会使用默认数据源
 func (t *ShardingTable) IsDbShardingSupported() bool {
-	return t.DatabaseStrategy.IsScalarValueSupported() || t.DatabaseStrategy.IsRangeValueSupported()
+	return t.DatabaseStrategy != nil && (t.DatabaseStrategy.IsScalarValueSupported() || t.DatabaseStrategy.IsRangeValueSupported())
 }
 
 //返回 false 将会透传表名到目标数据库
 func (t *ShardingTable) IsTableShardingSupported() bool {
-	return t.TableStrategy.IsScalarValueSupported() || t.TableStrategy.IsRangeValueSupported()
+	return t.TableStrategy != nil && (t.TableStrategy.IsScalarValueSupported() || t.TableStrategy.IsRangeValueSupported())
 }
 
 func (t *ShardingTable) IsShardingSupported() bool {

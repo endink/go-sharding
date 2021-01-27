@@ -249,18 +249,39 @@ func GetValueFromExprStrictly(n *driver.ValueExpr, allowNull bool, nullErrorMsg 
 	}
 }
 
-func getFullColumnInfo(columnName *ast.ColumnName) (schema string, table string, name string) {
-	return columnName.Schema.L, columnName.Table.L, columnName.Name.L
-}
-
-func getTable(columnName *ast.ColumnName) string {
-	return columnName.Table.L
-}
-
-func getTableAndColumn(columnName *ast.ColumnName) (string, string) {
-	return columnName.Table.L, columnName.Name.L
-}
-
 func GetColumn(columnName *ast.ColumnName) string {
 	return columnName.Name.L
+}
+
+func GetTable(c *ast.ColumnName, allowedDbName string) (string, error) {
+	db := c.Schema.O
+	if db != "" && db != allowedDbName {
+		return "", fmt.Errorf("cross database is not supported")
+	}
+
+	return c.Table.L, nil
+}
+
+func FindShardingTableByTable(t *ast.TableName, context Context, allowedDb string) (*core.ShardingTable, bool, error) {
+	db := t.Schema.O
+	if db != "" && db != allowedDb {
+		return nil, false, fmt.Errorf("cross database is not supported")
+	}
+	shardingTable, ok := context.TableLookup().FindShardingTable(t.Name.L)
+	return shardingTable, ok, nil
+}
+
+func FindShardingTableByColumn(columnName *ast.ColumnNameExpr, explainContext Context, explicit bool) (*core.ShardingTable, bool, error) {
+	c := GetColumn(columnName.Name)
+	if columnName.Name.Table.O != "" {
+		sd, hasTable := explainContext.TableLookup().FindShardingTable(columnName.Name.Table.O)
+		if !hasTable || (!sd.HasTableShardingColumn(c) && !sd.HasDbShardingColumn(c)) {
+			return nil, false, nil
+		}
+		return sd, true, nil
+	} else if explicit {
+		sd, err := explainContext.TableLookup().ExplicitShardingTableByColumn(c)
+		return sd, sd != nil, err
+	}
+	return nil, false, nil
 }

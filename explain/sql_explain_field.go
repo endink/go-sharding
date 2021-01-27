@@ -32,7 +32,7 @@ func (s *SqlExplain) ExplainFields(stmt *ast.SelectStmt, rewriter Rewriter) erro
 		return e
 	}
 
-	ctx := s.CurrentContext()
+	ctx := s.currentContext()
 	for i, field := range stmt.Fields.Fields {
 		err := ctx.AggLookup().visit(i, field)
 		if err == nil {

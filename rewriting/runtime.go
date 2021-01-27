@@ -16,36 +16,11 @@
  *  File author: Anders Xiao
  */
 
-package explain
-
-import "errors"
+package rewriting
 
 type Runtime interface {
 	GetCurrent(shardingTable string) (database string, table string, err error)
 	GetCurrentTable(shardingTable string) (string, error)
 	GetCurrentDatabase() (string, error)
 	GetServerSchema() string
-}
-
-var ErrNoneRuntime = errors.New("there are no runtimes attached to the current context")
-
-var NoneRuntime Runtime = &noneRuntime{}
-
-type noneRuntime struct {
-}
-
-func (i *noneRuntime) GetCurrent(shardingTable string) (database string, table string, err error) {
-	return "", "", ErrNoneRuntime
-}
-
-func (i *noneRuntime) GetCurrentTable(shardingTable string) (string, error) {
-	return "", ErrNoneRuntime
-}
-
-func (i *noneRuntime) GetCurrentDatabase() (string, error) {
-	return "", ErrNoneRuntime
-}
-
-func (i *noneRuntime) GetServerSchema() string {
-	return "none-db"
 }
