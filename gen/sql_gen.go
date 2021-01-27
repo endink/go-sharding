@@ -26,7 +26,7 @@ import (
 	"strings"
 )
 
-func GenerateSql(defaultDatabase string, provider explain.ShardingTableProvider, stmt ast.StmtNode, explain *explain.SqlExplain) (*SqlGenResult, error) {
+func GenerateSql(defaultDatabase string, stmt ast.StmtNode, explain *explain.SqlExplain) (*SqlGenResult, error) {
 	values := explain.GetShardingValues()
 
 	if len(values) == 0 { //没有存在任何分片表数据
@@ -36,7 +36,7 @@ func GenerateSql(defaultDatabase string, provider explain.ShardingTableProvider,
 		}, nil
 	}
 
-	runtime, err := NewGenerationRuntime(defaultDatabase, provider, values)
+	runtime, err := NewRuntime(defaultDatabase, explain, values)
 
 	if err != nil {
 		return nil, err

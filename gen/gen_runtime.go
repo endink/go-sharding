@@ -31,7 +31,7 @@ var _ rewriting.Runtime = &genRuntime{}
 
 var ErrRuntimeResourceNotFound = errors.New("resource was not found in runtime")
 
-func NewGenerationRuntime(defaultDatabase string, shardingTableProvider explain.ShardingTableProvider, values map[string]*core.ShardingValues) (*genRuntime, error) {
+func NewRuntime(defaultDatabase string, shardingTableProvider explain.ShardingTableProvider, values map[string]*core.ShardingValues) (*genRuntime, error) {
 	//获取用于循环的所有分片表逻辑表名
 
 	usedShardingTables := make([]*core.ShardingTable, 0, len(values))
