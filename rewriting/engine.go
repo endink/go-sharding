@@ -30,7 +30,7 @@ type Engine struct {
 	runtime Runtime
 }
 
-func NewRewritingEngine(runtime Runtime) *Engine {
+func NewEngine(runtime Runtime) *Engine {
 	return &Engine{
 		runtime: runtime,
 	}
