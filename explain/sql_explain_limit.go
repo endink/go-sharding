@@ -20,7 +20,6 @@ package explain
 
 import (
 	"github.com/pingcap/parser/ast"
-	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
 func (s *SqlExplain) ExplainLimit(stmt *ast.SelectStmt, rewriter Rewriter) error {
@@ -35,31 +34,4 @@ func (s *SqlExplain) ExplainLimit(stmt *ast.SelectStmt, rewriter Rewriter) error
 		}
 	}
 	return nil
-}
-
-func NeedRewriteLimitOrCreateRewrite(stmt *ast.SelectStmt) (bool, int64, int64, *ast.Limit) {
-	limit := stmt.Limit
-	if limit == nil {
-		return false, -1, -1, nil
-	}
-
-	count := limit.Count.(*driver.ValueExpr).GetInt64()
-
-	if limit.Offset == nil {
-		return false, 0, count, nil
-	}
-
-	offset := limit.Offset.(*driver.ValueExpr).GetInt64()
-
-	if offset == 0 {
-		return false, 0, count, nil
-	}
-
-	newCount := count + offset
-	nv := &driver.ValueExpr{}
-	nv.SetInt64(newCount)
-	newLimit := &ast.Limit{
-		Count: nv,
-	}
-	return true, offset, count, newLimit
 }
