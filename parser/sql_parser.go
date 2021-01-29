@@ -16,12 +16,12 @@
  *  File author: Anders Xiao
  */
 
-package mysql
+package parser
 
-type SqlStatement interface {
-	GetParamsCount() uint16
-}
+import "github.com/pingcap/parser/ast"
+
+var sqlParser SqlParser
 
 type SqlParser interface {
-	Parse(sql string) (SqlStatement, error)
+	Parse(sql string) (ast.StmtNode, error)
 }

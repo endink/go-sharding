@@ -24,6 +24,7 @@ import (
 	"flag"
 	"fmt"
 	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/XiaoMi/Gaea/parser"
 	"github.com/XiaoMi/Gaea/util"
 	"github.com/XiaoMi/Gaea/util/bucketpool"
 	"github.com/XiaoMi/Gaea/util/sync2"
@@ -162,8 +163,6 @@ type Conn struct {
 
 	// Packet encoding variables.
 	sequence uint8
-
-	sqlParser SqlParser
 
 	cachingSha2FullAuth bool
 
@@ -1118,7 +1117,7 @@ func (c *Conn) handleComPrepare(handler Handler, data []byte) bool {
 		PrepareStmt: query,
 	}
 
-	statement, err := c.sqlParser.Parse(query)
+	paramCount, err := parser.DetectSqlParamCount(query)
 	if err != nil {
 		log.Errorf("Conn %v: Error parsing prepared statement: %v", c, err)
 		if !c.writeErrorPacketFromErrorAndLog(err) {
@@ -1126,7 +1125,7 @@ func (c *Conn) handleComPrepare(handler Handler, data []byte) bool {
 		}
 	}
 
-	paramsCount := statement.GetParamsCount()
+	paramsCount := paramCount
 
 	if paramsCount > 0 {
 		prepare.ParamsCount = paramsCount
