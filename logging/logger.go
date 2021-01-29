@@ -13,8 +13,8 @@ var loggerMutex sync.RWMutex // guards access to global logger state
 var loggers = make(map[string]*zap.SugaredLogger)
 
 var levels = make(map[string]zap.AtomicLevel)
-var defaultLevel zapcore.Level = zapcore.InfoLevel
-var output = zapcore.Lock(os.Stdout)
+var defaultLevel = zapcore.InfoLevel
+var output = zapcore.AddSync(os.Stdout)
 
 var logCore = newCore(ColorizedOutput, output, defaultLevel)
 

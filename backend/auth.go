@@ -45,7 +45,7 @@ func (dc *DirectConnection) readAuthResult() ([]byte, string, error) {
 		_, err := dc.handleOKPacket(data)
 		return nil, "", err
 
-	case mysql.MoreDataHeader:
+	case mysql.MoreDataPacket:
 		return data[1:], "", err
 
 	case mysql.EOFHeader:
@@ -84,40 +84,6 @@ func (dc *DirectConnection) WriteAuthSwitchPacket(authData []byte, addNUL bool) 
 	err := dc.writePacket(data)
 
 	return err
-}
-
-// WritePublicKeyAuthPacket: Caching sha2 authentication. Public key request and send encrypted password
-// http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::AuthSwitchResponse
-func (dc *DirectConnection) WritePublicKeyAuthPacket(password string, cipher []byte) error {
-	// request public key
-	data := make([]byte, 1)
-	data[0] = 2 // cachingSha2PasswordRequestPublicKey
-	if err := dc.writePacket(data); err != nil {
-		return err
-	}
-
-	data, err := dc.readPacket()
-	if err != nil {
-		return err
-	}
-
-	block, _ := pem.Decode(data[1:])
-	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
-	if err != nil {
-		return err
-	}
-
-	plain := make([]byte, len(password)+1)
-	copy(plain, password)
-	for i := range plain {
-		j := i % len(cipher)
-		plain[i] ^= cipher[j]
-	}
-	sha1v := sha1.New()
-	enc, _ := rsa.EncryptOAEP(sha1v, rand.Reader, pub.(*rsa.PublicKey), plain, nil)
-	data = make([]byte, 4+len(enc))
-	copy(data[4:], enc)
-	return dc.writePacket(data)
 }
 
 func (c *DirectConnection) WriteEncryptedPassword(password string, seed []byte, pub *rsa.PublicKey) error {

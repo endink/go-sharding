@@ -35,17 +35,6 @@ type ClientConn struct {
 	namespace string // TODO: remove it when refactor is done
 }
 
-// HandshakeResponseInfo handshake response information
-type HandshakeResponseInfo struct {
-	CollationID      mysql.CollationID
-	User             string
-	AuthResponse     []byte
-	Salt             []byte
-	Database         string
-	AuthPlugin       string
-	ClientPluginAuth bool
-}
-
 // NewClientConn constructor of ClientConn
 func NewClientConn(c *mysql.Conn, manager *Manager) *ClientConn {
 	salt, _ := mysql.RandomBuf(20)
@@ -304,7 +293,7 @@ func (cc *ClientConn) writeOK(status uint16) error {
 func (cc *ClientConn) writeMoreDataFlag(value byte) error {
 	data := cc.StartEphemeralPacket(2)
 	pos := 0
-	pos = mysql.WriteByte(data, pos, mysql.MoreDataHeader)
+	pos = mysql.WriteByte(data, pos, mysql.MoreDataPacket)
 	mysql.WriteByte(data, pos, value)
 	return cc.WriteEphemeralPacket()
 }

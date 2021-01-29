@@ -16,20 +16,15 @@ package mysql
 
 import (
 	"errors"
+	"strings"
 )
 
 // CollationID means collation type
 type CollationID uint16
 
-// MySQL collation information.
 const (
-	// KeywordDefault means default
-	KeywordDefault = "default"
-
-	DefaultCharset = "utf8mb4"
-	// DefaultCollationID is utf8mb4_0900_ai_ci(255)
-	DefaultCollationID   = CollationID(255)
-	DefaultCollationName = "utf8mb4_0900_ai_ci"
+	CharsetUtf8mb4 CollationID = 255
+	CharsetBinary  CollationID = 64
 )
 
 // CharsetIds maps charset name to its default collation ID.
@@ -855,6 +850,15 @@ var CollationNameToCharset = map[string]string{
 func IsValidCharset(charset string) bool {
 	_, ok := CharsetsToCollationNames[charset]
 	return ok
+}
+
+func CharsetsToCollationId(charset string) (CollationID, bool) {
+	name, ok := CharsetsToCollationNames[strings.ToLower(charset)]
+	if ok {
+		c, has := CollationIds[name]
+		return c, has
+	}
+	return DefaultCollationID, false
 }
 
 // VerifyCharset verify charset

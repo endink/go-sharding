@@ -261,7 +261,7 @@ func (dc *DirectConnection) CalcPassword(authData []byte) ([]byte, error) {
 	// password hashing
 	switch dc.authPluginName {
 	case mysql.AUTH_NATIVE_PASSWORD:
-		return mysql.CalcPassword(authData[:20], []byte(dc.password)), nil
+		return mysql.CalcMySqlNativePassword(authData[:20], []byte(dc.password)), nil
 	case mysql.AUTH_CACHING_SHA2_PASSWORD:
 		return mysql.CalcCachingSha2Password(authData, dc.password), nil
 	//case mysql.AUTH_SHA256_PASSWORD:

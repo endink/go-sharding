@@ -10,6 +10,7 @@ require (
 	github.com/gin-gonic/gin v1.5.0
 	github.com/go-ini/ini v1.42.0
 	github.com/golang/mock v1.3.1
+	github.com/google/go-cmp v0.4.0
 	github.com/pingcap/check v0.0.0-20200212061837-5e12011dc712
 	github.com/pingcap/errors v0.11.5-0.20190809092503-95897b64e011
 	github.com/pingcap/parser v0.0.0-20200623164729-3a18f1e5dceb

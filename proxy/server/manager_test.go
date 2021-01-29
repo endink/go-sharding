@@ -289,7 +289,7 @@ func TestUserManager_CheckPassword(t *testing.T) {
 	}
 	for _, test := range tests {
 		t.Run(test.username, func(t *testing.T) {
-			auth := mysql.CalcPassword(salt, []byte(test.password))
+			auth := mysql.CalcMySqlNativePassword(salt, []byte(test.password))
 			actualValid, actualPassword := userManager.CheckPassword(test.username, salt, auth)
 			if actualValid == test.valid {
 				if actualValid && (actualPassword != test.password) {

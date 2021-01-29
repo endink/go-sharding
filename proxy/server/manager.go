@@ -584,7 +584,7 @@ func (u *UserManager) CheckUser(user string) bool {
 // CheckPassword check if right password with specific user
 func (u *UserManager) CheckPassword(user string, salt, auth []byte) (bool, string) {
 	for _, password := range u.users[user] {
-		checkAuth := mysql.CalcPassword(salt, []byte(password))
+		checkAuth := mysql.CalcMySqlNativePassword(salt, []byte(password))
 		if bytes.Equal(auth, checkAuth) {
 			return true, password
 		}

@@ -140,7 +140,7 @@ func (s *Server) onConn(c net.Conn) {
 	}
 
 	// added into time wheel
-	s.tw.Add(s.sessionTimeout, cc, func() {
+	_ = s.tw.Add(s.sessionTimeout, cc, func() {
 		cc.Close()
 		//conn.Close()
 	})

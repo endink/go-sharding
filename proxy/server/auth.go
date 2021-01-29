@@ -96,7 +96,7 @@ func scrambleValidation(cached, nonce, scramble []byte) bool {
 }
 
 func (c *Session) compareNativePasswordAuthData(clientAuthData []byte, password string) error {
-	if bytes.Equal(mysql.CalcPassword(c.c.salt, []byte(password)), clientAuthData) {
+	if bytes.Equal(mysql.CalcMySqlNativePassword(c.c.salt, []byte(password)), clientAuthData) {
 		return nil
 	}
 	return ErrAccessDenied
@@ -208,7 +208,7 @@ func (c *Session) handleAuthSwitchResponse(info HandshakeResponseInfo, password 
 
 	switch info.AuthPlugin {
 	case mysql.AUTH_NATIVE_PASSWORD:
-		if !bytes.Equal(mysql.CalcPassword(c.c.salt, []byte(password)), authData) {
+		if !bytes.Equal(mysql.CalcMySqlNativePassword(c.c.salt, []byte(password)), authData) {
 			return ErrAccessDenied
 		}
 		return nil

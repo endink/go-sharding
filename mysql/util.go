@@ -1,49 +1,81 @@
-// Copyright 2016 The kingshard Authors. All rights reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License"): you may
-// not use this file except in compliance with the License. You may obtain
-// a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
-// WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
-// License for the specific language governing permissions and limitations
-// under the License.
-
-// Copyright 2019 The Gaea Authors. All Rights Reserved.
-//
-// Licensed under the Apache License, Version 2.0 (the "License");
-// you may not use this file except in compliance with the License.
-// You may obtain a copy of the License at
-//
-//     http://www.apache.org/licenses/LICENSE-2.0
-//
-// Unless required by applicable law or agreed to in writing, software
-// distributed under the License is distributed on an "AS IS" BASIS,
-// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-// See the License for the specific language governing permissions and
-// limitations under the License.
+/*
+ * Copyright 2021. Go-Sharding Author All Rights Reserved.
+ *
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ *  File author: Anders Xiao
+ */
 
 package mysql
 
 import (
-	rand2 "crypto/rand"
+	"bytes"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
 	"crypto/sha256"
-	"math/rand"
-	"time"
-	"unicode/utf8"
+	"fmt"
+	"github.com/XiaoMi/Gaea/logging"
 )
 
-var (
-	dontEscape = byte(255)
-	encodeMap  [256]byte
-)
+var log = logging.GetLogger("mysql-protocol")
 
-func CalcPassword(salt, password []byte) []byte {
+// NewSalt returns a 20 character salt.
+func NewSalt() ([]byte, error) {
+	salt := make([]byte, 20)
+	if _, err := rand.Read(salt); err != nil {
+		return nil, err
+	}
+
+	// Salt must be a legal UTF8 string.
+	for i := 0; i < len(salt); i++ {
+		salt[i] &= 0x7f
+		if salt[i] == '\x00' || salt[i] == '$' {
+			salt[i]++
+		}
+	}
+
+	return salt, nil
+}
+
+func compareNativePasswordAuthData(clientAuthData []byte, salt []byte, password string) error {
+	if bytes.Equal(CalcMySqlNativePassword(salt, []byte(password)), clientAuthData) {
+		return nil
+	}
+	return ErrAccessDenied
+}
+
+func compareScrambleSha2(cached, nonce, scramble []byte) bool {
+	// SHA256(SHA256(SHA256(STORED_PASSWORD)), NONCE)
+	crypt := sha256.New()
+	crypt.Write(cached)
+	crypt.Write(nonce)
+	message2 := crypt.Sum(nil)
+	// SHA256(PASSWORD)
+	if len(message2) != len(scramble) {
+		return false
+	}
+	for i := range message2 {
+		message2[i] ^= scramble[i]
+	}
+	// SHA256(SHA256(PASSWORD)
+	crypt.Reset()
+	crypt.Write(message2)
+	m := crypt.Sum(nil)
+	return bytes.Equal(m, cached)
+}
+
+func CalcMySqlNativePassword(salt, password []byte) []byte {
 	if len(password) == 0 {
 		return nil
 	}
@@ -80,7 +112,7 @@ func EncryptPassword(password string, seed []byte, pub *rsa.PublicKey) ([]byte, 
 		plain[i] ^= seed[j]
 	}
 	sha1v := sha1.New()
-	return rsa.EncryptOAEP(sha1v, rand2.Reader, pub, plain, nil)
+	return rsa.EncryptOAEP(sha1v, rand.Reader, pub, plain, nil)
 }
 
 // CalcCachingSha2Password: Hash password using MySQL 8+ method (SHA256)
@@ -111,132 +143,48 @@ func CalcCachingSha2Password(salt []byte, password string) []byte {
 	return message1
 }
 
-// RandomBuf return random salt, seed must be in the range of ascii
-func RandomBuf(size int) ([]byte, error) {
-	buf := make([]byte, size)
-	rand.Seed(time.Now().UTC().UnixNano())
-	min, max := 30, 127
-	for i := 0; i < size; i++ {
-		buf[i] = byte(min + rand.Intn(max-min))
+// AppendLenEncInt append LenEncInt []byte to data
+func AppendLenEncInt(data []byte, i uint64) []byte {
+	switch {
+	case i <= 250:
+		return append(data, byte(i))
+
+	case i <= 0xffff:
+		return append(data, 0xfc, byte(i), byte(i>>8))
+
+	case i <= 0xffffff:
+		return append(data, 0xfd, byte(i), byte(i>>8), byte(i>>16))
+
+	case i <= 0xffffffffffffffff:
+		return append(data, 0xfe, byte(i), byte(i>>8), byte(i>>16), byte(i>>24),
+			byte(i>>32), byte(i>>40), byte(i>>48), byte(i>>56))
 	}
-	return buf, nil
+
+	return data
 }
 
-// Escape remove exceptional character
-func Escape(sql string) string {
-	dest := make([]byte, 0, 2*len(sql))
-
-	for i, w := 0, 0; i < len(sql); i += w {
-		runeValue, width := utf8.DecodeRuneInString(sql[i:])
-		if c := encodeMap[byte(runeValue)]; c == dontEscape {
-			dest = append(dest, sql[i:i+width]...)
+func genClientAuthData(authPluginName string, password string, salt []byte, isTLSConnection bool) ([]byte, error) {
+	// password hashing
+	switch authPluginName {
+	case MysqlNativePassword:
+		return CalcMySqlNativePassword(salt[:20], []byte(password)), nil
+	case MysqlCachingSha2Password:
+		return CalcCachingSha2Password(salt, password), nil
+	case MysqlSha256Password:
+		if len(password) == 0 {
+			return nil, nil
+		}
+		if isTLSConnection {
+			// write cleartext auth packet
+			// see: https://dev.mysql.com/doc/refman/8.0/en/sha256-pluggable-authentication.html
+			return []byte(password), nil
 		} else {
-			dest = append(dest, '\\', c)
+			// request public key from server
+			// see: https://dev.mysql.com/doc/internals/en/public-key-retrieval.html
+			return []byte{1}, nil
 		}
-		w = width
-	}
-
-	return string(dest)
-}
-
-var encodeRef = map[byte]byte{
-	'\x00': '0',
-	'\'':   '\'',
-	'"':    '"',
-	'\b':   'b',
-	'\n':   'n',
-	'\r':   'r',
-	'\t':   't',
-	26:     'Z', // ctl-Z
-	'\\':   '\\',
-}
-
-type lengthAndDecimal struct {
-	length  int
-	decimal int
-}
-
-// defaultLengthAndDecimal provides default Flen and Decimal for fields
-// from CREATE TABLE when they are unspecified.
-var defaultLengthAndDecimal = map[byte]lengthAndDecimal{
-	TypeBit:        {1, 0},
-	TypeTiny:       {4, 0},
-	TypeShort:      {6, 0},
-	TypeInt24:      {9, 0},
-	TypeLong:       {11, 0},
-	TypeLonglong:   {20, 0},
-	TypeDouble:     {22, -1},
-	TypeFloat:      {12, -1},
-	TypeNewDecimal: {11, 0},
-	TypeDuration:   {10, 0},
-	TypeDate:       {10, 0},
-	TypeTimestamp:  {19, 0},
-	TypeDatetime:   {19, 0},
-	TypeYear:       {4, 0},
-	TypeString:     {1, 0},
-	TypeVarchar:    {5, 0},
-	TypeVarString:  {5, 0},
-	TypeTinyBlob:   {255, 0},
-	TypeBlob:       {65535, 0},
-	TypeMediumBlob: {16777215, 0},
-	TypeLongBlob:   {4294967295, 0},
-	TypeJSON:       {4294967295, 0},
-	TypeNull:       {0, 0},
-	TypeSet:        {-1, 0},
-	TypeEnum:       {-1, 0},
-}
-
-// IsIntegerType indicate whether tp is an integer type.
-func IsIntegerType(tp byte) bool {
-	switch tp {
-	case TypeTiny, TypeShort, TypeInt24, TypeLong, TypeLonglong:
-		return true
-	}
-	return false
-}
-
-// GetDefaultFieldLengthAndDecimal returns the default display length (flen) and decimal length for column.
-// Call this when no Flen assigned in ddl.
-// or column value is calculated from an expression.
-// For example: "select count(*) from t;", the column type is int64 and Flen in ResultField will be 21.
-// See https://dev.mysql.com/doc/refman/5.7/en/storage-requirements.html
-func GetDefaultFieldLengthAndDecimal(tp byte) (flen int, decimal int) {
-	val, ok := defaultLengthAndDecimal[tp]
-	if ok {
-		return val.length, val.decimal
-	}
-	return -1, -1
-}
-
-// defaultLengthAndDecimal provides default Flen and Decimal for fields
-// from CAST when they are unspecified.
-var defaultLengthAndDecimalForCast = map[byte]lengthAndDecimal{
-	TypeString:     {0, -1}, // Flen & Decimal differs.
-	TypeDate:       {10, 0},
-	TypeDatetime:   {19, 0},
-	TypeNewDecimal: {11, 0},
-	TypeDuration:   {10, 0},
-	TypeLonglong:   {22, 0},
-	TypeJSON:       {4194304, 0}, // Flen differs.
-}
-
-// GetDefaultFieldLengthAndDecimalForCast returns the default display length (flen) and decimal length for casted column
-// when flen or decimal is not specified.
-func GetDefaultFieldLengthAndDecimalForCast(tp byte) (flen int, decimal int) {
-	val, ok := defaultLengthAndDecimalForCast[tp]
-	if ok {
-		return val.length, val.decimal
-	}
-	return -1, -1
-}
-
-func init() {
-	for i := range encodeMap {
-		encodeMap[i] = dontEscape
-	}
-	for i := range encodeMap {
-		if to, ok := encodeRef[byte(i)]; ok {
-			encodeMap[byte(i)] = to
-		}
+	default:
+		// not reachable
+		return nil, fmt.Errorf("auth plugin '%s' is not supported", authPluginName)
 	}
 }
