@@ -1117,7 +1117,7 @@ func (c *Conn) handleComPrepare(handler Handler, data []byte) bool {
 		PrepareStmt: query,
 	}
 
-	paramCount, err := parser.DetectSqlParamCount(query)
+	paramCount, err := parser.ParseSqlParamCount(query)
 	if err != nil {
 		log.Errorf("Conn %v: Error parsing prepared statement: %v", c, err)
 		if !c.writeErrorPacketFromErrorAndLog(err) {

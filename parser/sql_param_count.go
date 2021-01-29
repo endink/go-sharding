@@ -42,8 +42,8 @@ func (v *paramVisitor) Leave(in ast.Node) (ast.Node, bool) {
 	return in, true
 }
 
-func DetectSqlParamCount(sql string) (uint16, error) {
-	stmt, err := sqlParser.Parse(sql)
+func ParseSqlParamCount(sql string) (uint16, error) {
+	stmt, err := ParseSQL(sql)
 	if err != nil {
 		return 0, err
 	}

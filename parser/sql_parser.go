@@ -18,10 +18,26 @@
 
 package parser
 
-import "github.com/pingcap/parser/ast"
+import (
+	tidb "github.com/pingcap/parser"
+	"github.com/pingcap/parser/ast"
+	_ "github.com/pingcap/tidb/types/parser_driver"
+	"sync"
+)
 
-var sqlParser SqlParser
+var parserPool = sync.Pool{}
 
-type SqlParser interface {
-	Parse(sql string) (ast.StmtNode, error)
+func ParseSQL(sql string) (ast.StmtNode, error) {
+	var parser *tidb.Parser
+	i := parserPool.Get()
+	if i != nil {
+		parser = i.(*tidb.Parser)
+	} else {
+		parser = tidb.New()
+	}
+
+	defer func() {
+		parserPool.Put(parser)
+	}()
+	return parser.ParseOneStmt(sql, "", "")
 }
