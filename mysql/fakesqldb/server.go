@@ -45,7 +45,7 @@ type DB struct {
 	// Fields set at construction time.
 
 	// t is our testing.T instance
-	t *testing.T
+	t testing.TB
 
 	// listener is our mysql.Listener.
 	listener *mysql.Listener
@@ -146,7 +146,7 @@ type ExpectedExecuteFetch struct {
 const FakeDbPort = 13309
 
 // New creates a server, and starts listening.
-func New(t *testing.T) *DB {
+func New(t testing.TB) *DB {
 
 	// Create our DB.
 	db := &DB{
