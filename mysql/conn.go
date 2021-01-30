@@ -203,6 +203,7 @@ func newConn(conn net.Conn) *Conn {
 		conn:           conn,
 		closed:         sync2.NewAtomicBool(false),
 		bufferedReader: bufio.NewReaderSize(conn, connBufferSize),
+		telemetry:      NoneConnTelemetry,
 	}
 }
 
@@ -212,11 +213,16 @@ func newConn(conn net.Conn) *Conn {
 // the server is shutting down, and has the ability to control buffer
 // size for reads.
 func newServerConn(conn net.Conn, listener *Listener) *Conn {
+	tele := listener.telemetry
+	if tele == nil {
+		tele = NoneConnTelemetry
+	}
 	c := &Conn{
 		conn:        conn,
 		listener:    listener,
 		closed:      sync2.NewAtomicBool(false),
 		PrepareData: make(map[uint32]*PrepareData),
+		telemetry:   tele,
 	}
 	if listener.connReadBufferSize > 0 {
 		c.bufferedReader = bufio.NewReaderSize(conn, listener.connReadBufferSize)

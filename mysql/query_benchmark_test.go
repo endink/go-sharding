@@ -19,7 +19,6 @@ package mysql
 import (
 	"flag"
 	"math/rand"
-	"net"
 	"strings"
 	"testing"
 
@@ -35,15 +34,7 @@ func init() {
 const benchmarkQueryPrefix = "benchmark "
 
 func benchmarkQuery(b *testing.B, threads int, query string) {
-	th := &testHandler{}
-
-	lCfg := ListenerConfig{
-		Protocol:           "tcp",
-		Address:            ":0",
-		Handler:            th,
-		ConnReadBufferSize: testReadConnBufferSize,
-	}
-	l, err := NewListenerWithConfig(lCfg, testUserProvider)
+	l, err := newTestListenerDefault()
 	if err != nil {
 		b.Fatalf("NewListener failed: %v", err)
 	}
@@ -58,14 +49,7 @@ func benchmarkQuery(b *testing.B, threads int, query string) {
 		b.SetBytes(int64(len(query)))
 	}
 
-	host := l.Addr().(*net.TCPAddr).IP.String()
-	port := l.Addr().(*net.TCPAddr).Port
-	params := &ConnParams{
-		Host:  host,
-		Port:  port,
-		Uname: "user1",
-		Pass:  "password1",
-	}
+	params := newDefaultConnParam(b, l)
 	ctx := context.Background()
 
 	b.ResetTimer()

@@ -141,14 +141,14 @@ func (i *AtomicBool) Get() bool {
 
 // CompareAndSwap automatically swaps the old with the new value.
 func (i *AtomicBool) CompareAndSwap(o, n bool) bool {
-	var old, new int32
+	var old, newI int32
 	if o {
 		old = 1
 	}
 	if n {
-		new = 1
+		newI = 1
 	}
-	return atomic.CompareAndSwapInt32(&i.int32, old, new)
+	return atomic.CompareAndSwapInt32(&i.int32, old, newI)
 }
 
 // AtomicString gives you atomic-style APIs for string, but

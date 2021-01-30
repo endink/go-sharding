@@ -262,7 +262,7 @@ func (l *Listener) handle(conn net.Conn, connectionID uint32, acceptTime time.Ti
 	// Catch panics, and close the connection in any case.
 	defer func() {
 		if x := recover(); x != nil {
-			log.Errorf("mysql_server caught panic:\n%v", x)
+			log.Errorf("mysql_server caught panic:\n%v\n%s", x, util.Stack(4))
 		}
 		// We call endWriterBuffering here in case there's a premature return after
 		// startWriterBuffering is called

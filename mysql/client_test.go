@@ -63,9 +63,9 @@ func TestConnectTimeout(t *testing.T) {
 	if err != nil {
 		t.Fatalf("cannot listen: %v", err)
 	}
-	host, port := getHostPort(t, listener.Addr())
+	_, port := getHostPort(t, listener.Addr())
 	params := &ConnParams{
-		Host: host,
+		Host: "127.0.0.1",
 		Port: port,
 	}
 	defer listener.Close()
@@ -116,6 +116,12 @@ func TestConnectTimeout(t *testing.T) {
 			conn.Close()
 		}
 	}()
+
+	errorKey := "connection refused"
+	if !isUnix() {
+		errorKey = "refused"
+	}
+
 	ctx = context.Background()
 	_, err = Connect(ctx, params)
 	assertSQLError(t, err, CRServerLost, SSUnknownSQLState, "initial packet read failed", "")
@@ -125,7 +131,7 @@ func TestConnectTimeout(t *testing.T) {
 	listener.Close()
 	wg.Wait()
 	_, err = Connect(ctx, params)
-	assertSQLError(t, err, CRConnHostError, SSUnknownSQLState, "connection refused", "")
+	assertSQLError(t, err, CRConnHostError, SSUnknownSQLState, errorKey, "")
 
 	// Tests a connection where Dial to a unix socket fails
 	// properly returns the right error. To simulate exactly the
@@ -140,5 +146,5 @@ func TestConnectTimeout(t *testing.T) {
 	ctx = context.Background()
 	_, err = Connect(ctx, params)
 	os.Remove(name)
-	assertSQLError(t, err, CRConnectionError, SSUnknownSQLState, "connection refused", "")
+	assertSQLError(t, err, CRConnectionError, SSUnknownSQLState, errorKey, "")
 }
