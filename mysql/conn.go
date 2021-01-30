@@ -287,7 +287,9 @@ func (c *Conn) startFlushTimer() {
 			return
 		}
 		c.stopFlushTimer()
-		c.bufferedWriter.Flush()
+		if err := c.bufferedWriter.Flush(); err != nil {
+			log.Errorf("buffer flush fault.\n %v", err)
+		}
 	})
 }
 
@@ -329,7 +331,7 @@ func (c *Conn) readHeaderFrom(r io.Reader) (int, error) {
 		return 0, util.Wrapf(err, "io.ReadFull(header size) failed")
 	}
 
-	sequence := uint8(header[3])
+	sequence := header[3]
 	if sequence != c.sequence {
 		return 0, fmt.Errorf("invalid sequence, expected %v got %v", c.sequence, sequence)
 	}
@@ -571,7 +573,7 @@ func (c *Conn) writePacket(data []byte) error {
 		if n, err := w.Write(data[index : index+toBeSent+packetHeaderSize]); err != nil {
 			return util.Wrapf(err, "write(packet) failed")
 		} else if n != (toBeSent + packetHeaderSize) {
-			return fmt.Errorf("write(packet) returned a short write: %v < %v", n, (toBeSent + packetHeaderSize))
+			return fmt.Errorf("write(packet) returned a short write: %v < %v", n, toBeSent+packetHeaderSize)
 		}
 
 		// restore the first 4 bytes once the network send is done
@@ -592,7 +594,7 @@ func (c *Conn) writePacket(data []byte) error {
 				if n, err := w.Write(header[:]); err != nil {
 					return util.Wrapf(err, "Write(empty header) failed")
 				} else if n != packetHeaderSize {
-					return fmt.Errorf("Write(empty header) returned a short write: %v < 4", n)
+					return fmt.Errorf("write(empty header) returned a short write: %v < 4", n)
 				}
 				c.sequence++
 			}
@@ -683,7 +685,9 @@ func (c *Conn) String() string {
 // routine to interrupt the current connection.
 func (c *Conn) Close() {
 	if c.closed.CompareAndSwap(false, true) {
-		c.conn.Close()
+		if err := c.conn.Close(); err != nil {
+			log.Errorf("close connection fault !\n%v", err)
+		}
 	}
 }
 
@@ -947,7 +951,7 @@ func (c *Conn) handleComResetConnection(handler Handler) {
 	c.PrepareData = make(map[uint32]*PrepareData)
 	err := c.writeOKPacket(&PacketOK{})
 	if err != nil {
-		c.writeErrorPacketFromError(err)
+		c.writeErrorPacketFromErrorAndLog(err)
 	}
 }
 
