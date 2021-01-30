@@ -641,7 +641,7 @@ func (c *Conn) handleServerAuthResponse(params *ConnParams, authPlugin string, s
 		c.User = params.Uname
 	case MoreDataPacket:
 		err = c.writeAuthResponse(authPlugin, response[1:], salt, params)
-		if err = c.readOk(CRServerHandshakeErr); err != nil {
+		if err = c.readOkFromServer(CRServerHandshakeErr); err != nil {
 			return err
 		}
 	case AuthSwitchRequestPacket:
@@ -669,7 +669,7 @@ func (c *Conn) handleServerAuthResponse(params *ConnParams, authPlugin string, s
 			return NewSQLError(CRServerHandshakeErr, SSUnknownSQLState, "server asked for unsupported auth method: %v", authPlugin)
 		}
 
-		if err = c.readOk(CRServerHandshakeErr); err == nil {
+		if err = c.readOkFromServer(CRServerHandshakeErr); err == nil {
 			c.User = params.Uname
 		}
 		return err

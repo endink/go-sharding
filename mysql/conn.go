@@ -520,7 +520,7 @@ func (c *Conn) ReadPacket() ([]byte, error) {
 	return result, err
 }
 
-func (c *Conn) readOk(clientErrorCode int) error {
+func (c *Conn) readOkFromServer(clientErrorCode int) error {
 	response, err := c.readPacket()
 	if err != nil {
 		return NewSQLError(CRServerLost, SSUnknownSQLState, "%v", err)
