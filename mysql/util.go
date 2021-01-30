@@ -48,14 +48,7 @@ func NewSalt() ([]byte, error) {
 	return salt, nil
 }
 
-func compareNativePasswordAuthData(clientAuthData []byte, salt []byte, password string) error {
-	if bytes.Equal(CalcMySqlNativePassword(salt, []byte(password)), clientAuthData) {
-		return nil
-	}
-	return ErrAccessDenied
-}
-
-func compareScrambleSha2(cached, nonce, scramble []byte) bool {
+func compareScramble(cached, nonce, scramble []byte) bool {
 	// SHA256(SHA256(SHA256(STORED_PASSWORD)), NONCE)
 	crypt := sha256.New()
 	crypt.Write(cached)
@@ -115,6 +108,18 @@ func EncryptPassword(password string, seed []byte, pub *rsa.PublicKey) ([]byte, 
 	return rsa.EncryptOAEP(sha1v, rand.Reader, pub, plain, nil)
 }
 
+func generateScramble(password string) []byte {
+	// SHA256(PASSWORD)
+	crypt := sha256.New()
+	crypt.Write([]byte(password))
+	m1 := crypt.Sum(nil)
+	// SHA256(SHA256(PASSWORD))
+	crypt.Reset()
+	crypt.Write(m1)
+	m2 := crypt.Sum(nil)
+	return m2
+}
+
 // CalcCachingSha2Password: Hash password using MySQL 8+ method (SHA256)
 func CalcCachingSha2Password(salt []byte, password string) []byte {
 	if len(password) == 0 {
@@ -143,26 +148,6 @@ func CalcCachingSha2Password(salt []byte, password string) []byte {
 	return message1
 }
 
-// AppendLenEncInt append LenEncInt []byte to data
-func AppendLenEncInt(data []byte, i uint64) []byte {
-	switch {
-	case i <= 250:
-		return append(data, byte(i))
-
-	case i <= 0xffff:
-		return append(data, 0xfc, byte(i), byte(i>>8))
-
-	case i <= 0xffffff:
-		return append(data, 0xfd, byte(i), byte(i>>8), byte(i>>16))
-
-	case i <= 0xffffffffffffffff:
-		return append(data, 0xfe, byte(i), byte(i>>8), byte(i>>16), byte(i>>24),
-			byte(i>>32), byte(i>>40), byte(i>>48), byte(i>>56))
-	}
-
-	return data
-}
-
 func genClientAuthData(authPluginName string, password string, salt []byte, isTLSConnection bool) ([]byte, error) {
 	// password hashing
 	switch authPluginName {
@@ -181,7 +166,7 @@ func genClientAuthData(authPluginName string, password string, salt []byte, isTL
 		} else {
 			// request public key from server
 			// see: https://dev.mysql.com/doc/internals/en/public-key-retrieval.html
-			return []byte{1}, nil
+			return []byte{Sha256RequestPublicKeyPacket}, nil
 		}
 	default:
 		// not reachable

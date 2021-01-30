@@ -248,8 +248,16 @@ const (
 
 	MoreDataPacket byte = 0x01
 
-	CacheSha2FastAuth byte = 0x03
-	CacheSha2FullAuth byte = 0x04
+	CacheSha2RequestPublicKeyPacket byte = 0x02
+
+	Sha256RequestPublicKeyPacket byte = 0x01
+
+	// magic numbers:
+	// 2 - request public key
+	// 3 - fast auth succeeded
+	// 4 - need full auth
+	CacheSha2FastAuthSucceed  byte = 0x03
+	CacheSha2FullAuthRequired byte = 0x04
 )
 
 // Error codes for client-side errors.

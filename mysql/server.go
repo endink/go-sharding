@@ -139,6 +139,8 @@ type Listener struct {
 	RequireSecureTransport bool
 
 	telemetry ConnTelemetry
+
+	serverConfig *TLSConfig
 }
 
 // NewFromListener creares a new mysql listener from an existing net.Listener
@@ -205,6 +207,7 @@ func NewListenerWithConfig(cfg ListenerConfig, userProvider UserProvider) (*List
 		connWriteTimeout:   cfg.ConnWriteTimeout,
 		connReadBufferSize: cfg.ConnReadBufferSize,
 		telemetry:          cfg.Telemetry,
+		serverConfig:       GenTLSConfig(),
 	}, nil
 }
 
@@ -280,13 +283,11 @@ func (l *Listener) handle(conn net.Conn, connectionID uint32, acceptTime time.Ti
 	// Adjust the count of open connections
 	defer l.telemetry.AddConnCount(-1)
 
-	handshakeResult, err := l.handshake(c, false)
+	err := l.handshake(c, false)
 	if err != nil {
-		c.writeErrorPacketFromError(util.Wrap(err, "server handshake fault"))
+		c.writeErrorPacketFromErrorAndLog(util.Wrap(err, "server handshake fault"))
+		return
 	}
-
-	c.User = handshakeResult.User
-	c.schemaName = handshakeResult.Database
 
 	if c.User != "" {
 		l.telemetry.AddConnCountPerUser(c.User, 1)
@@ -299,7 +300,7 @@ func (l *Listener) handle(conn net.Conn, connectionID uint32, acceptTime time.Ti
 			return nil
 		})
 		if err != nil {
-			c.writeErrorPacketFromError(err)
+			c.writeErrorPacketFromErrorAndLog(err)
 			return
 		}
 	}

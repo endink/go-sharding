@@ -98,6 +98,22 @@ func ClientTlsConfig(cert, key, ca, name string) (*tls.Config, error) {
 	return config, nil
 }
 
+type TLSConfig struct {
+	Config    *tls.Config
+	PublicKey []byte
+}
+
+func GenTLSConfig() *TLSConfig {
+	caPem, caKey := generateCA()
+	certPem, keyPem := generateAndSignRSACerts(caPem, caKey)
+	config := NewServerTLSConfigFromPem(caPem, certPem, keyPem)
+	pubKey := getPublicKeyFromCert(certPem)
+	return &TLSConfig{
+		Config:    config,
+		PublicKey: pubKey,
+	}
+}
+
 func NewServerTLSConfig() *tls.Config {
 	caPem, caKey := generateCA()
 	certPem, keyPem := generateAndSignRSACerts(caPem, caKey)
@@ -233,6 +249,12 @@ func doLoadTLSCertificate(cert, key string) error {
 	tlsCertificates.Store(tlsIdentifier, &certificate)
 
 	return nil
+}
+
+func genPublicKeyFromTlsConfig(config *tls.Config) ([]byte, error) {
+	cert := config.Certificates[0]
+	pubKey, err := x509.MarshalPKIXPublicKey(cert.Leaf.PublicKey)
+	return pubKey, err
 }
 
 // extract RSA public key from certificate

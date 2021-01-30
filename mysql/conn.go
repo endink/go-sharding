@@ -709,16 +709,22 @@ func (c *Conn) writeMoreDataFlag(value ...byte) error {
 	return c.writeEphemeralPacket()
 }
 
-func (c *Conn) writeAuthMoreDataPubKey(publicKey []byte) error {
+func (c *Conn) writeCachingSha2RequestPubKey() error {
+	data, pos := c.startEphemeralPacketWithHeader(1)
+	writeByte(data, pos, CacheSha2RequestPublicKeyPacket)
+	return c.writeEphemeralPacket()
+}
+
+func (c *Conn) writePublicKey(publicKey []byte) error {
 	return c.writeMoreDataFlag(publicKey...)
 }
 
-func (c *Conn) writeAuthMoreDataFastAuth() error {
-	return c.writeMoreDataFlag(CacheSha2FastAuth)
+func (c *Conn) writeCachingSha2FastAuthSucceed() error {
+	return c.writeMoreDataFlag(CacheSha2FastAuthSucceed)
 }
 
-func (c *Conn) writeAuthMoreDataFullAuth() error {
-	return c.writeMoreDataFlag(CacheSha2FullAuth)
+func (c *Conn) writeCachingSha2NeedFullAuth() error {
+	return c.writeMoreDataFlag(CacheSha2FullAuthRequired)
 }
 
 // writeOKPacket writes an OK packet.
@@ -1462,9 +1468,8 @@ func (c *Conn) parseOKPacket(in []byte) (*PacketOK, error) {
 	return packetOK, nil
 }
 
-func (c *Conn) readAuthSwitchResponsePacket() ([]byte, error) {
-	data, err := c.readEphemeralPacketDirect()
-	defer c.recycleReadPacket()
+func (c *Conn) readAuthSwitchPacket() ([]byte, error) {
+	data, err := c.readPacket()
 	if err != nil {
 		return nil, err
 	}

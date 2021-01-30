@@ -23,62 +23,60 @@ import (
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha1"
-	"crypto/sha256"
 	"crypto/tls"
-	"crypto/x509"
 	"errors"
 	"fmt"
-	"github.com/pingcap/parser/mysql"
+	"io"
+	"strings"
 	"sync"
 )
 
-var ErrAccessDenied = errors.New("access denied")
-var tlsConfig tls.Config
+var shaPasswordCache = &sync.Map{}
 
-var ShaPasswordCache = &sync.Map{}
-
-// HandshakeResult handshake response information
-type HandshakeResult struct {
+// handshakeInfo handshake response information
+type handshakeInfo struct {
 	CollationID      CollationID
-	User             string
 	AuthResponse     []byte
 	Salt             []byte
-	Database         string
 	AuthPlugin       string
 	ClientPluginAuth bool
 	UseTLS           bool
 	TLSVer           string
 }
 
-func (l Listener) handshake(cc *Conn, enableTLS bool) (*HandshakeResult, error) {
+func errorAccessDenied(username string) error {
+	return NewSQLError(ERAccessDeniedError, SSAccessDeniedError, "Access denied for user '%s'", username)
+}
+
+func (l Listener) handshake(cc *Conn, enableTLS bool) error {
 	// First build and send the server handshake packet.
 	slat, err := cc.writeInitialHandshake(enableTLS)
 	if err != nil {
 		log.Warnf("writeInitialHandshake error, connId: %d, ip: %s, msg: %s, error: %s",
 			cc.ConnectionID, cc.RemoteHost(), " send initial handshake error", err.Error())
-		return nil, err
+		return err
 	}
 
 	info, err := l.readClientHandshakePacket(cc, true, slat)
 	if err != nil {
 		log.Warnf("readClientHandshakePacket error, connId: %d, ip: %s, msg: %s, error: %s",
 			cc.ConnectionID, cc.RemoteHost(), " send initial handshake error", err.Error())
-		return nil, err
+		return err
 	}
 
-	password, ok := l.userProvider.GetPasswordByUser(info.User)
+	password, ok := l.userProvider.GetPasswordByUser(cc.User)
 	if !ok {
-		return nil, ErrAccessDenied
+		return errorAccessDenied(cc.User)
 	}
 
 	err = l.handleClientHandshake(cc, info, password)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return info, nil
+	return nil
 }
 
-func (l *Listener) readClientHandshakePacketTls(c *Conn, salt []byte) (*HandshakeResult, error) {
+func (l *Listener) readClientHandshakePacketTls(c *Conn, salt []byte) (*handshakeInfo, error) {
 	if l.RequireSecureTransport {
 		return nil, fmt.Errorf("server does not allow insecure connections, client must use SSL/TLS")
 	}
@@ -104,7 +102,7 @@ func (l *Listener) readClientHandshakePacketTls(c *Conn, salt []byte) (*Handshak
 // parseClientHandshakePacket parses the handshake sent by the client.
 // Returns the username, auth method, auth data, error.
 // The original data is not pointed at, and can be freed.
-func (l *Listener) readClientHandshakePacket(c *Conn, firstTime bool, salt []byte) (*HandshakeResult, error) {
+func (l *Listener) readClientHandshakePacket(c *Conn, firstTime bool, salt []byte) (*handshakeInfo, error) {
 	packetHasReleased := false
 	data, err := c.readEphemeralPacketDirect()
 
@@ -181,6 +179,7 @@ func (l *Listener) readClientHandshakePacket(c *Conn, firstTime bool, salt []byt
 	if !ok {
 		return nil, fmt.Errorf("parseClientHandshakePacket: can't read username")
 	}
+	c.User = username
 
 	// auth-response can have three forms.
 	var authResponse []byte
@@ -247,10 +246,8 @@ func (l *Listener) readClientHandshakePacket(c *Conn, firstTime bool, salt []byt
 	//	}
 	//}
 
-	info := &HandshakeResult{
+	info := &handshakeInfo{
 		Salt:             salt,
-		User:             username,
-		Database:         dbname,
 		AuthPlugin:       authMethod,
 		ClientPluginAuth: clientPluginAuth,
 		AuthResponse:     authResponse,
@@ -258,71 +255,7 @@ func (l *Listener) readClientHandshakePacket(c *Conn, firstTime bool, salt []byt
 	return info, nil
 }
 
-//func (cc *Conn) readHandshakeResponse(salt []byte) (*HandshakeResult, error) {
-//	info := &HandshakeResult{
-//		Salt: salt,
-//	}
-//
-//	data, err := cc.readEphemeralPacketDirect()
-//	defer cc.recycleReadPacket()
-//	if err != nil {
-//		return info, err
-//	}
-//
-//	pos := 0
-//
-//	// Client flags, 4 bytes.
-//	var ok bool
-//	var capability uint32
-//	capability, pos, ok = readUint32(data, pos)
-//	if !ok {
-//		return info, fmt.Errorf("readHandshakeResponse: can't read client flags")
-//	}
-//	if capability&mysql.ClientProtocol41 == 0 {
-//		return info, fmt.Errorf("readHandshakeResponse: only support protocol 4.1")
-//	}
-//
-//	// Max packet size. Don't do anything with this now.
-//	_, pos, ok = readUint32(data, pos)
-//	if !ok {
-//		return info, fmt.Errorf("readHandshakeResponse: can't read maxPacketSize")
-//	}
-//
-//	// Character set
-//	collationID, pos, ok := readByte(data, pos)
-//	if !ok {
-//		return info, fmt.Errorf("readHandshakeResponse: can't read characterSet")
-//	}
-//	info.CollationID = CollationID(collationID)
-//
-//	// reserved 23 zero bytes, skipped
-//	pos += 23
-//
-//	// username
-//	var user string
-//	user, pos, ok = readNullString(data, pos)
-//	if !ok {
-//		return info, fmt.Errorf("readHandshakeResponse: can't read username")
-//	}
-//	info.User = user
-//	info.ClientPluginAuth = capability&mysql.ClientPluginAuth > 0
-//	info.AuthResponse, pos, ok = readAuthData(data, pos, capability)
-//
-//	// check if with database
-//	if capability&mysql.ClientConnectWithDB > 0 {
-//		var db string
-//		db, pos, ok = readNullString(data, pos)
-//		if !ok {
-//			return info, fmt.Errorf("readHandshakeResponse: can't read db")
-//		}
-//		info.Database = db
-//	}
-//
-//	info.AuthPlugin, _ = readPluginName(data, pos, capability)
-//	return info, nil
-//}
-
-func (c *Conn) writeInitialHandshake(enableTLS bool) (salt []byte, err error) {
+func (c *Conn) writeInitialHandshake(enableTLS bool) ([]byte, error) {
 	capabilities := DefaultCapability
 	if enableTLS {
 		capabilities |= CapabilityClientSSL
@@ -333,57 +266,81 @@ func (c *Conn) writeInitialHandshake(enableTLS bool) (salt []byte, err error) {
 		return nil, e
 	}
 
-	data := make([]byte, 4)
+	length := 1 + //protocol version
+		lenNullString(DefaultServerVersion) + //version
+		4 + // connection id
+		8 + //auth-plugin-data-part-1
+		1 + //filter
+		2 + // capability flag lower 2 bytes
+		1 + //charset
+		2 + //status flag
+		2 + //capability flag upper 2 bytes
+		1 + //server supports CLIENT_PLUGIN_AUTH and CLIENT_SECURE_CONNECTION
+		10 + //reserved 10 [00]
+		12 + //auth-plugin-data-part-2
+		1 + //add \NUL to terminate the string
+		lenNullString(DefaultAuthPlugin) //auth plugin name
+
+	data, pos := c.startEphemeralPacketWithHeader(length)
 
 	//min version 10
-	data = append(data, protocolVersion)
+	pos = writeByte(data, pos, protocolVersion)
 
 	//server version[00]
-	data = append(data, mysql.ServerVersion...)
-	data = append(data, 0x00)
+	pos = writeNullString(data, pos, DefaultServerVersion)
 
 	//connection id
-	data = append(data, byte(c.ConnectionID), byte(c.ConnectionID>>8), byte(c.ConnectionID>>16), byte(c.ConnectionID>>24))
+	pos = writeUint32(data, pos, c.ConnectionID)
 
 	//auth-plugin-data-part-1
-	data = append(data, salt[0:8]...)
+	pos = writeBytes(data, pos, salt[:8])
 
 	//filter 0x00 byte, terminating the first part of a scramble
-	data = append(data, 0x00)
+	pos = writeZeroes(data, pos, 1)
 
 	//capability flag lower 2 bytes, using default capability here
-	data = append(data, byte(capabilities), byte(capabilities>>8))
+	pos = writeUint16(data, pos, uint16(capabilities))
+
 	//charset
-	data = append(data, uint8(DefaultCollationID))
+	pos = writeByte(data, pos, uint8(DefaultCollationID))
 
 	//status
-	data = append(data, byte(0), byte(0>>8))
+	pos = writeUint16(data, pos, c.StatusFlags)
 
-	//capability flag upper 2 bytes, using default capability here
-	data = append(data, byte(DefaultCapability>>16), byte(DefaultCapability>>24))
+	// capability flag upper 2 bytes, using default capability here
+	pos = writeUint16(data, pos, uint16(capabilities>>16))
 
 	// server supports CLIENT_PLUGIN_AUTH and CLIENT_SECURE_CONNECTION
-	data = append(data, byte(8+12+1))
+	pos = writeByte(data, pos, byte(8+12+1))
 
 	//reserved 10 [00]
-	data = append(data, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+	pos = writeZeroes(data, pos, 10)
 
 	//auth-plugin-data-part-2
-	data = append(data, salt[8:]...)
+	pos = writeBytes(data, pos, salt[8:])
+
 	// second part of the password cipher [mininum 13 bytes],
 	// where len=MAX(13, length of auth-plugin-data - 8)
 	// add \NUL to terminate the string
-	data = append(data, 0x00)
+	pos = writeZeroes(data, pos, 1)
 
-	// auth plugin name
-	data = append(data, DefaultAuthPlugin...)
+	pos = writeNullString(data, pos, DefaultAuthPlugin)
 
-	// EOF if MySQL version (>= 5.5.7 and < 5.5.10) or (>= 5.6.0 and < 5.6.2)
-	// \NUL otherwise, so we use \NUL
-	data = append(data, 0)
-	if e = c.writePacket(data); e != nil {
-		return nil, e
+	// Sanity check.
+	if pos != len(data) {
+		log.Errorf("error building Handshake packet: got %v bytes expected %v", pos, len(data))
 	}
+
+	if err := c.writeEphemeralPacket(); err != nil {
+		if strings.HasSuffix(err.Error(), "write: connection reset by peer") {
+			return nil, io.EOF
+		}
+		if strings.HasSuffix(err.Error(), "write: broken pipe") {
+			return nil, io.EOF
+		}
+		return nil, err
+	}
+
 	return salt, nil
 }
 
@@ -394,7 +351,7 @@ func (l *Listener) compareSha256PasswordAuthData(c *Conn, salt []byte, clientAut
 		if password == "" {
 			return nil
 		}
-		return ErrAccessDenied
+		return errorAccessDenied(c.User)
 	}
 
 	l.getTLSConfig()
@@ -411,7 +368,7 @@ func (l *Listener) compareSha256PasswordAuthData(c *Conn, salt []byte, clientAut
 		if bytes.Equal(clientAuthData, []byte(password)) {
 			return nil
 		}
-		return ErrAccessDenied
+		return errorAccessDenied(c.User)
 	} else {
 		// client should send encrypted password
 		// decrypt
@@ -428,50 +385,57 @@ func (l *Listener) compareSha256PasswordAuthData(c *Conn, salt []byte, clientAut
 		if bytes.Equal(plain, dbytes) {
 			return nil
 		}
-		return ErrAccessDenied
+		return errorAccessDenied(c.User)
 	}
 }
 
+//https://dev.mysql.com/doc/dev/mysql-server/latest/page_caching_sha2_authentication_exchanges.html
 func (l *Listener) compareCacheSha2PasswordAuthData(c *Conn, clientAuthData []byte, salt []byte, password string) error {
 	// Empty passwords are not hashed, but sent as empty string
 	if len(clientAuthData) == 0 {
 		if password == "" {
 			return nil
 		}
-		return ErrAccessDenied
+		return errorAccessDenied(c.User)
 	}
 	exceptedData := CalcCachingSha2Password(salt, password)
-	// the caching of 'caching_sha2_password' in MySQL, see: https://dev.mysql.com/worklog/task/?id=9591
+
+	//MYSQL 8 method : fast sha2 auth, if fault try full auth
 	if bytes.Equal(exceptedData, clientAuthData) {
 		// 'fast' auth: write "More data" packet (first byte == 0x01) with the second byte = 0x03
-		return c.writeAuthMoreDataFastAuth()
-	}
-	return ErrAccessDenied
-
-	//return c.fastShaCacheAuth(clientAuthData, handshakeInfo)
-}
-
-//https://dev.mysql.com/doc/dev/mysql-server/latest/page_caching_sha2_authentication_exchanges.html
-func (l *Listener) cachingSha2AuthenticationExchange(c *Conn, clientAuthData []byte, handshakeInfo HandshakeResult) error {
-	// other type of credential provider, we use the cache
-	cached, ok := ShaPasswordCache.Load(fmt.Sprintf("%s@%s", handshakeInfo.User, c.LocalAddr()))
-	if ok {
-		// Scramble validation
-		if compareScrambleSha2(cached.([]byte), handshakeInfo.Salt, clientAuthData) {
-			// 'fast' auth: write "More data" packet (first byte == 0x01) with the second byte = 0x03
-			return c.writeAuthMoreDataFastAuth()
+		return c.writeCachingSha2FastAuthSucceed()
+	} else { //fallback to sha2 exchange
+		var err error
+		// the caching of 'caching_sha2_password' in MySQL, see: https://dev.mysql.com/worklog/task/?id=9591
+		cached, ok := shaPasswordCache.Load(fmt.Sprintf("%s@%s", c.User, c.LocalAddr()))
+		if ok {
+			// Scramble validation
+			if compareScramble(cached.([]byte), salt, clientAuthData) {
+				// 'fast' auth: write "More data" packet (first byte == 0x01) with the second byte = 0x03
+				return c.writeCachingSha2FastAuthSucceed()
+			}
+			return errorAccessDenied(c.User)
 		}
-		return ErrAccessDenied
+		// cache miss, do full auth
+		if err = c.writeCachingSha2NeedFullAuth(); err != nil {
+			return err
+		}
+
+		// AuthMoreData packet already sent, do full auth
+		fullAuthData, err := c.readAuthSwitchPacket()
+		if err != nil {
+			return err
+		}
+
+		if err = l.handleCachingSha2PasswordFullAuth(c, fullAuthData, salt, password); err != nil {
+			return err
+		}
+		l.writeCachingSha2Cache(c, password)
+		return nil
 	}
-	// cache miss, do full auth
-	if err := c.writeAuthMoreDataFullAuth(); err != nil {
-		return err
-	}
-	c.cachingSha2FullAuth = true
-	return nil
 }
 
-func (l *Listener) handleClientHandshake(c *Conn, info *HandshakeResult, password string) error {
+func (l *Listener) handleClientHandshake(c *Conn, info *handshakeInfo, password string) error {
 
 	if len(info.AuthResponse) == 0 && password == "" {
 		return nil
@@ -482,7 +446,7 @@ func (l *Listener) handleClientHandshake(c *Conn, info *HandshakeResult, passwor
 			return err
 		}
 		info.AuthPlugin = DefaultAuthPlugin
-		err := l.readMoreAuthData(c, info)
+		err := l.readAuthSwitchPacketToFill(c, info)
 		if err != nil {
 			return err
 		}
@@ -492,35 +456,14 @@ func (l *Listener) handleClientHandshake(c *Conn, info *HandshakeResult, passwor
 	switch info.AuthPlugin {
 	case MysqlNativePassword:
 		if !bytes.Equal(CalcMySqlNativePassword(info.Salt, []byte(password)), info.AuthResponse) {
-			return ErrAccessDenied
+			return errorAccessDenied(c.User)
 		}
 		return nil
 
 	case MysqlCachingSha2Password:
-		if !c.cachingSha2FullAuth {
-			// Switched auth method but no MoreData packet send yet
-			if err := l.compareCacheSha2PasswordAuthData(c, info.AuthResponse, info.Salt, password); err != nil {
-				return err
-			} else {
-				if c.cachingSha2FullAuth {
-					err := l.readMoreAuthData(c, info)
-					if err != nil {
-						return err
-					}
-					return l.handleClientHandshake(c, info, password)
-				}
-				return nil
-			}
-		}
-		// AuthMoreData packet already sent, do full auth
-		if err := c.handleCachingSha2PasswordFullAuth(info.AuthResponse, info.Salt, password); err != nil {
-			return err
-		}
-		c.writeCachingSha2Cache(info.User, password)
-		return nil
-
+		return l.compareCacheSha2PasswordAuthData(c, info.AuthResponse, info.Salt, password)
 	case MysqlSha256Password:
-		err := l.handlePublicKeyRetrieval(c, info, info.AuthResponse, password)
+		err := l.handlePublicKeyRetrieval(c, info, info.AuthResponse)
 		if err != nil {
 			return err
 		}
@@ -531,8 +474,27 @@ func (l *Listener) handleClientHandshake(c *Conn, info *HandshakeResult, passwor
 	}
 }
 
-func (l *Listener) readMoreAuthData(c *Conn, info *HandshakeResult) error {
-	authData, err := c.readAuthSwitchResponsePacket()
+func (c *Conn) readAuthMoreData() ([]byte, error) {
+	data, err := c.readPacket()
+	if err != nil {
+		return nil, err
+	}
+	ln := len(data)
+	if ln > 0 && data[0] == MoreDataPacket {
+		if ln > 1 {
+			return data[1:], nil
+		}
+		return make([]byte, 0), nil
+	}
+	flag := "<null>"
+	if ln > 0 {
+		flag = fmt.Sprintf("%x", data[0])
+	}
+	return nil, fmt.Errorf("excepted is more data packet ( flag: %x ), but got %s", MoreDataPacket, flag)
+}
+
+func (l *Listener) readAuthSwitchPacketToFill(c *Conn, info *handshakeInfo) error {
+	authData, err := c.readAuthSwitchPacket()
 	info.AuthResponse = authData
 	if err != nil {
 		return err
@@ -542,10 +504,10 @@ func (l *Listener) readMoreAuthData(c *Conn, info *HandshakeResult) error {
 
 // Public Key Retrieval
 // See: https://dev.mysql.com/doc/internals/en/public-key-retrieval.html
-func (l *Listener) handlePublicKeyRetrieval(c *Conn, info *HandshakeResult, authData []byte, password string) error {
+func (l *Listener) handlePublicKeyRetrieval(c *Conn, info *handshakeInfo, authData []byte) error {
 	// if the client use 'sha256_password' auth method, and request for a public key
 	// we send back a keyfile with Protocol::AuthMoreData
-	if len(authData) == 1 && authData[0] == 0x01 {
+	if len(authData) == 1 && authData[0] == Sha256RequestPublicKeyPacket {
 		if c.Capabilities&CapabilityClientSSL == 0 {
 			return errors.New("server does not support SSL: CLIENT_SSL not enabled")
 		}
@@ -554,71 +516,79 @@ func (l *Listener) handlePublicKeyRetrieval(c *Conn, info *HandshakeResult, auth
 			return errors.New("server does not support SSL: CLIENT_SSL not enabled")
 		}
 
-		pubKey := cfg.Certificates[0].PrivateKey.(*rsa.PrivateKey).PublicKey
-		keyBytes, err := x509.MarshalPKIXPublicKey(pubKey)
+		keyBytes, err := genPublicKeyFromTlsConfig(cfg)
 		if err != nil {
-			return errors.New("marshal rsa public key fault.")
+			return errors.New("marshal rsa public key fault")
 		}
 
-		if err = c.writeAuthMoreDataPubKey(keyBytes); err != nil {
+		if err = c.writePublicKey(keyBytes); err != nil {
 			return err
 		}
 
-		return l.handleClientHandshake(c, info, password)
+		if err = l.readAuthSwitchPacketToFill(c, info); err != nil {
+			return err
+		}
 	}
 	return nil
 }
 
-func (c *Conn) handleCachingSha2PasswordFullAuth(authData []byte, salt []byte, password string) error {
+func (l *Listener) handleCachingSha2PasswordFullAuth(c *Conn, authData []byte, salt []byte, password string) error {
+	if len(authData) == 0 {
+		return errorAccessDenied(c.User)
+	}
 
-	if len(authData) == 1 && authData[0] == 0x02 {
-		// send the public key
-		if err := c.writeAuthMoreDataFullAuth(); err != nil {
+	if tlsConn, ok := c.conn.(*tls.Conn); ok {
+		if !tlsConn.ConnectionState().HandshakeComplete {
+			return errors.New("incomplete TSL handshake")
+		}
+		// connection is SSL/TLS, client should send plain password
+		// deal with the trailing \NUL added for plain text password received
+		if length := len(authData); length != 0 && authData[length-1] == 0x00 {
+			authData = authData[:length-1]
+		}
+		if bytes.Equal(authData, []byte(password)) {
+			return nil
+		}
+		return errorAccessDenied(c.User)
+	} else {
+		// client either request for the public key or send the encrypted password
+		if len(authData) == 1 && authData[0] == CacheSha2RequestPublicKeyPacket {
+			// send the public key
+			if err := c.writePublicKey(l.serverConfig.PublicKey); err != nil {
+				return err
+			}
+			// read the encrypted password
+			var err error
+			if authData, err = c.readAuthSwitchPacket(); err != nil {
+				return err
+			}
+		}
+		// the encrypted password
+		// decrypt
+		dbytes, err := rsa.DecryptOAEP(sha1.New(), rand.Reader, (l.serverConfig.Config.Certificates[0].PrivateKey).(*rsa.PrivateKey), authData, nil)
+		if err != nil {
 			return err
 		}
-		// read the encrypted password
-		var err error
-		if authData, err = c.readAuthSwitchResponsePacket(); err != nil {
-			return err
+		plain := make([]byte, len(password)+1)
+		copy(plain, password)
+		for i := range plain {
+			j := i % len(salt)
+			plain[i] ^= salt[j]
 		}
+		if bytes.Equal(plain, dbytes) {
+			return nil
+		}
+		return errorAccessDenied(c.User)
 	}
-	// the encrypted password
-	// decrypt
-	dbytes, err := rsa.DecryptOAEP(sha1.New(), rand.Reader, (tlsConfig.Certificates[0].PrivateKey).(*rsa.PrivateKey), authData, nil)
-	if err != nil {
-		return err
-	}
-	plain := make([]byte, len(password)+1)
-	copy(plain, password)
-	for i := range plain {
-		j := i % len(salt)
-		plain[i] ^= salt[j]
-	}
-	if bytes.Equal(plain, dbytes) {
-		return nil
-	}
-	return ErrAccessDenied
 }
 
-func (c *Conn) writeCachingSha2Cache(user string, password string) {
+func (l *Listener) writeCachingSha2Cache(c *Conn, password string) {
 	// write cache
 	if password == "" {
 		return
 	}
-	m2 := generateScrambleData(password)
+	m2 := generateScramble(password)
 	// caching_sha2_password will maintain an in-memory hash of `user`@`host` => SHA256(SHA256(PASSWORD))
 
-	ShaPasswordCache.Store(fmt.Sprintf("%s@%s", user, c.LocalAddr()), m2)
-}
-
-func generateScrambleData(password string) []byte {
-	// SHA256(PASSWORD)
-	crypt := sha256.New()
-	crypt.Write([]byte(password))
-	m1 := crypt.Sum(nil)
-	// SHA256(SHA256(PASSWORD))
-	crypt.Reset()
-	crypt.Write(m1)
-	m2 := crypt.Sum(nil)
-	return m2
+	shaPasswordCache.Store(fmt.Sprintf("%s@%s", c.User, c.conn.LocalAddr()), m2)
 }

@@ -640,8 +640,7 @@ func (c *Conn) handleServerAuthResponse(params *ConnParams, authPlugin string, s
 		// OK packet, we are authenticated. Save the user, keep going.
 		c.User = params.Uname
 	case MoreDataPacket:
-		data := response[1:]
-		err = c.writeClientMoreAuthDataResponse(authPlugin, data, salt, params)
+		err = c.writeAuthResponse(authPlugin, response[1:], salt, params)
 		if err = c.readOk(CRServerHandshakeErr); err != nil {
 			return err
 		}
@@ -657,8 +656,7 @@ func (c *Conn) handleServerAuthResponse(params *ConnParams, authPlugin string, s
 			if err = c.writeClearTextPassword(params); err != nil {
 				return err
 			}
-		case MysqlNativePassword, MysqlCachingSha2Password:
-
+		case MysqlNativePassword, MysqlCachingSha2Password, MysqlSha256Password:
 			enc, e := genClientAuthData(authPlugin, params.Pass, salt, c.IsTLS())
 			if e != nil {
 				return NewSQLError(CRServerHandshakeErr, SSUnknownSQLState, "auth data (salt) cant be used to calc password")
@@ -698,29 +696,30 @@ func parseServerAuthSwitchRequest(data []byte) (string, []byte, error) {
 	return pluginName, salt, nil
 }
 
-func (c *Conn) writeClientMoreAuthDataResponse(authPlugin string, data []byte, salt []byte, params *ConnParams) error {
+func (c *Conn) writeAuthResponse(authPlugin string, data []byte, salt []byte, params *ConnParams) error {
+	if len(data) == 0 || (len(data) == 1 && data[0] == CacheSha2FastAuthSucceed) {
+		return nil
+	}
+
 	switch authPlugin {
 	case MysqlCachingSha2Password:
-		if data == nil {
-			return nil // auth already succeeded
-		}
-		if data[0] == CacheSha2FastAuth {
-			return nil
-		} else if data[0] == CacheSha2FullAuth {
-			// need full authentication
-			// https://dev.mysql.com/doc/refman/8.0/en/sha256-pluggable-authentication.html
-			if c.clientTlsConfig != nil || c.netProto != "unix" {
-				return c.writeClearTextPassword(params)
-			} else {
-				return c.writePublicKeyAuthPacket(params.Pass, salt)
+		if len(data) == 1 {
+			switch data[0] {
+			case CacheSha2FastAuthSucceed:
+				return nil
+			case CacheSha2FullAuthRequired:
+				// need full authentication
+				// https://dev.mysql.com/doc/refman/8.0/en/sha256-pluggable-authentication.html
+				if c.IsTLS() {
+					return c.writeClearTextPassword(params)
+				} else {
+					return c.writePublicKeyAuthPacket(params.Pass, salt)
+				}
 			}
-		} else {
-			return NewSQLError(CRServerHandshakeErr, SSUnknownSQLState, "server asked for more auth data, but got known flat: %v, auth plugin: %s", data[0], MysqlCachingSha2Password)
 		}
+		return NewSQLError(CRServerHandshakeErr, SSUnknownSQLState, "server asked for more auth data, but got known flat: %v, auth plugin: %s", data[0], authPlugin)
 	case MysqlSha256Password:
-		if len(data) == 0 {
-			return nil // auth already succeeded
-		}
+		// for sha256 we will get the public key
 		block, _ := pem.Decode(data)
 		pub, err := x509.ParsePKIXPublicKey(block.Bytes)
 		if err != nil {
@@ -735,7 +734,8 @@ func (c *Conn) writeClientMoreAuthDataResponse(authPlugin string, data []byte, s
 		if err != nil {
 			return err
 		}
-
+	default:
+		return NewSQLError(CRServerHandshakeErr, SSUnknownSQLState, "server asked for more auth data, but got known flat: %v, auth plugin: %s", data[0], authPlugin)
 	}
 	return nil
 }
@@ -744,18 +744,20 @@ func (c *Conn) writeClientMoreAuthDataResponse(authPlugin string, data []byte, s
 // http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Protocol::AuthSwitchResponse
 func (c *Conn) writePublicKeyAuthPacket(password string, cipher []byte) error {
 	// request public key
-	data := make([]byte, 1)
-	data[0] = 2 // cachingSha2PasswordRequestPublicKey
-	if err := c.writePacket(data); err != nil {
+	if err := c.writeCachingSha2RequestPubKey(); err != nil {
 		return err
 	}
 
-	data, err := c.readPacket()
+	data, err := c.readAuthMoreData()
 	if err != nil {
 		return err
 	}
 
-	block, _ := pem.Decode(data[1:])
+	if len(data) == 0 {
+		return fmt.Errorf("excepted server public key for cachint sha2 authentication, but got 0 bytes")
+	}
+
+	block, _ := pem.Decode(data) // 1 byte: more data flag
 	pub, err := x509.ParsePKIXPublicKey(block.Bytes)
 	if err != nil {
 		return err

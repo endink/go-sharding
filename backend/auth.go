@@ -130,11 +130,11 @@ func (dc *DirectConnection) handleAuthResult() error {
 		if data == nil {
 			return nil // auth already succeeded
 		}
-		if data[0] == mysql.CacheSha2FastAuth {
+		if data[0] == mysql.CacheSha2FastAuthSucceed {
 			if err = dc.readOK(); err == nil {
 				return nil // auth successful
 			}
-		} else if data[0] == mysql.CacheSha2FullAuth {
+		} else if data[0] == mysql.CacheSha2FullAuthRequired {
 			// need full authentication
 			//if dc.tlsConfig != nil || dc.proto == "unix" {
 			//	if err = c.WriteClearAuthPacket(c.password); err != nil {

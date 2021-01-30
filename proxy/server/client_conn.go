@@ -299,11 +299,11 @@ func (cc *ClientConn) writeMoreDataFlag(value byte) error {
 }
 
 func (cc *ClientConn) WriteAuthMoreDataFastAuth() error {
-	return cc.writeMoreDataFlag(mysql.CacheSha2FastAuth)
+	return cc.writeMoreDataFlag(mysql.CacheSha2FastAuthSucceed)
 }
 
 func (cc *ClientConn) WriteAuthMoreDataFullAuth() error {
-	return cc.writeMoreDataFlag(mysql.CacheSha2FullAuth)
+	return cc.writeMoreDataFlag(mysql.CacheSha2FullAuthRequired)
 }
 
 func (cc *ClientConn) WriteAuthSwitchRequest(authMethod string) error {

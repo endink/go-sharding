@@ -30,4 +30,5 @@ const (
 	DefaultCollationID   = CollationID(255)
 	DefaultCollationName = "utf8mb4_0900_ai_ci"
 	DefaultAuthPlugin    = MysqlCachingSha2Password
+	DefaultServerVersion = "8.0.12"
 )
