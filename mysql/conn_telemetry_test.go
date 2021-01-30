@@ -20,12 +20,14 @@ package mysql
 
 import (
 	"github.com/XiaoMi/Gaea/util/sync2"
+	"sync"
 	"time"
 )
 
 var _ ConnTelemetry = &TestTelemetry{}
 
 type TestTelemetry struct {
+	mutex             sync.Mutex
 	ConnCountByTLSVer map[string]int64
 	ConnCountPerUser  map[string]int64
 	AcceptCount       sync2.AtomicInt64
@@ -36,8 +38,8 @@ type TestTelemetry struct {
 
 func NewTestTelemetry() *TestTelemetry {
 	return &TestTelemetry{
-		ConnCountByTLSVer: map[string]int64{},
-		ConnCountPerUser:  map[string]int64{},
+		ConnCountByTLSVer: make(map[string]int64),
+		ConnCountPerUser:  make(map[string]int64),
 	}
 }
 
@@ -46,7 +48,16 @@ func (t *TestTelemetry) AddRefuseCount(count int) {
 }
 
 func (t *TestTelemetry) AddConnCountByTLSVer(tlsVersion string, count int) {
-	t.ConnCountByTLSVer[tlsVersion] += int64(count)
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	c, _ := t.ConnCountByTLSVer[tlsVersion]
+	r := c + int64(count)
+	if r > 0 {
+		t.ConnCountByTLSVer[tlsVersion] = r
+	} else {
+		delete(t.ConnCountByTLSVer, tlsVersion)
+	}
+
 }
 
 func (t *TestTelemetry) AddAcceptCount(count int) {
@@ -58,7 +69,15 @@ func (t *TestTelemetry) AddConnCount(count int) {
 }
 
 func (t *TestTelemetry) AddConnCountPerUser(user string, count int) {
-	t.ConnCountPerUser[user] += int64(count)
+	t.mutex.Lock()
+	defer t.mutex.Unlock()
+	c, _ := t.ConnCountPerUser[user]
+	r := c + int64(count)
+	if r > 0 {
+		t.ConnCountPerUser[user] = r
+	} else {
+		delete(t.ConnCountPerUser, user)
+	}
 }
 
 func (t *TestTelemetry) AddConnSlow(count int) {

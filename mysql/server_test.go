@@ -19,13 +19,12 @@ package mysql
 import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/mysql/types"
-	"github.com/XiaoMi/Gaea/util"
 	"io/ioutil"
 	"net"
 	"os"
 	"os/exec"
+	"runtime"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -34,6 +33,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+func isUnix() bool {
+	sysType := runtime.GOOS
+
+	return strings.ToLower(sysType) != "windows"
+
+}
 
 var testUserProvider = NewStaticUserProvider("user1", "password1")
 var testCounter = NewTestTelemetry()
@@ -62,175 +68,87 @@ var selectRowsResult = &types.Result{
 	RowsAffected: 2,
 }
 
-type testHandler struct {
-	mu       sync.Mutex
-	lastConn *Conn
-	result   *types.Result
-	err      error
-	warnings uint16
-}
-
-func (th *testHandler) LastConn() *Conn {
-	th.mu.Lock()
-	defer th.mu.Unlock()
-	return th.lastConn
-}
-
-func (th *testHandler) Result() *types.Result {
-	th.mu.Lock()
-	defer th.mu.Unlock()
-	return th.result
-}
-
-func (th *testHandler) SetErr(err error) {
-	th.mu.Lock()
-	defer th.mu.Unlock()
-	th.err = err
-}
-
-func (th *testHandler) Err() error {
-	th.mu.Lock()
-	defer th.mu.Unlock()
-	return th.err
-}
-
-func (th *testHandler) SetWarnings(count uint16) {
-	th.mu.Lock()
-	defer th.mu.Unlock()
-	th.warnings = count
-}
-
-func (th *testHandler) NewConnection(c *Conn) {
-	th.mu.Lock()
-	defer th.mu.Unlock()
-	th.lastConn = c
-}
-
-func (th *testHandler) ConnectionClosed(c *Conn) {
-}
-
-func (th *testHandler) ComQuery(c *Conn, query string, callback func(*types.Result) error) error {
-	if result := th.Result(); result != nil {
-		callback(result)
-		return nil
+func newTestListenerWithCounter(telemetry ConnTelemetry) (*Listener, error) {
+	conf := ListenerConfig{
+		Protocol:         "tcp4",
+		Address:          ":0",
+		Handler:          &testHandler{},
+		ConnReadTimeout:  0,
+		ConnWriteTimeout: 0,
+		Telemetry:        telemetry,
 	}
 
-	switch query {
-	case "error":
-		return th.Err()
-	case "panic":
-		panic("test panic attack!")
-	case "select rows":
-		callback(selectRowsResult)
-	case "error after send":
-		callback(selectRowsResult)
-		return th.Err()
-	case "insert":
-		callback(&types.Result{
-			RowsAffected: 123,
-			InsertID:     123456789,
-		})
-	case "schema echo":
-		callback(&types.Result{
-			Fields: []*types.Field{
-				{
-					Name: "schema_name",
-					Type: types.VarChar,
-				},
-			},
-			Rows: [][]types.Value{
-				{
-					types.MakeTrusted(types.VarChar, []byte(c.schemaName)),
-				},
-			},
-		})
-	case "ssl echo":
-		value := "OFF"
-		if c.Capabilities&CapabilityClientSSL > 0 {
-			value = "ON"
-		}
-		callback(&types.Result{
-			Fields: []*types.Field{
-				{
-					Name: "ssl_flag",
-					Type: types.VarChar,
-				},
-			},
-			Rows: [][]types.Value{
-				{
-					types.MakeTrusted(types.VarChar, []byte(value)),
-				},
-			},
-		})
-	case "userData echo":
-		callback(&types.Result{
-			Fields: []*types.Field{
-				{
-					Name: "user",
-					Type: types.VarChar,
-				},
-				{
-					Name: "user_data",
-					Type: types.VarChar,
-				},
-			},
-			Rows: [][]types.Value{
-				{
-					types.MakeTrusted(types.VarChar, []byte(c.User)),
-				},
-			},
-		})
-	case "50ms delay":
-		callback(&types.Result{
-			Fields: []*types.Field{{
-				Name: "result",
-				Type: types.VarChar,
-			}},
-		})
-		time.Sleep(50 * time.Millisecond)
-		callback(&types.Result{
-			Rows: [][]types.Value{{
-				types.MakeTrusted(types.VarChar, []byte("delayed")),
-			}},
-		})
-	default:
-		if strings.HasPrefix(query, benchmarkQueryPrefix) {
-			callback(&types.Result{
-				Fields: []*types.Field{
-					{
-						Name: "result",
-						Type: types.VarChar,
-					},
-				},
-				Rows: [][]types.Value{
-					{
-						types.MakeTrusted(types.VarChar, []byte(query)),
-					},
-				},
-			})
-		}
+	l, err := NewListenerWithConfig(conf, NewStaticUserProvider("user1", "password1"))
+	return l, err
+}
 
-		callback(&types.Result{})
+func newTestListenerWithHandler(handler Handler) (*Listener, error) {
+	conf := ListenerConfig{
+		Protocol:         "tcp4",
+		Address:          ":0",
+		Handler:          handler,
+		ConnReadTimeout:  0,
+		ConnWriteTimeout: 0,
+		Telemetry:        testCounter,
 	}
-	return nil
+
+	l, err := NewListenerWithConfig(conf, NewStaticUserProvider("user1", "password1"))
+	return l, err
 }
 
-func (th *testHandler) ComPrepare(c *Conn, query string, bindVars map[string]*types.BindVariable) ([]*types.Field, error) {
-	return nil, nil
+func newTestListenerDefault() (*Listener, error) {
+	conf := ListenerConfig{
+		Protocol:         "tcp4",
+		Address:          ":0",
+		Handler:          &testHandler{},
+		ConnReadTimeout:  0,
+		ConnWriteTimeout: 0,
+		Telemetry:        testCounter,
+	}
+
+	l, err := NewListenerWithConfig(conf, NewStaticUserProvider("user1", "password1"))
+	return l, err
 }
 
-func (th *testHandler) ComStmtExecute(c *Conn, prepare *PrepareData, callback func(*types.Result) error) error {
-	return nil
+func newDefaultConnParam(t *testing.T, l *Listener) *ConnParams {
+	_, port := getHostPort(t, l.Addr())
+
+	// Setup the right parameters.
+	params := &ConnParams{
+		Host:  "127.0.0.1",
+		Port:  port,
+		Uname: "user1",
+		Pass:  "password1",
+	}
+	return params
 }
 
-func (th *testHandler) ComResetConnection(c *Conn) {
+func newDefaultConnParamWithDb(t *testing.T, l *Listener, db string) *ConnParams {
+	_, port := getHostPort(t, l.Addr())
 
+	// Setup the right parameters.
+	params := &ConnParams{
+		Host:   "127.0.0.1",
+		Port:   port,
+		Uname:  "user1",
+		Pass:   "password1",
+		DbName: db,
+	}
+	return params
 }
 
-func (th *testHandler) WarningCount(c *Conn) uint16 {
-	th.mu.Lock()
-	defer th.mu.Unlock()
-	return th.warnings
+func newTestListener(user string, passwd string) (*Listener, error) {
+	conf := ListenerConfig{
+		Protocol:         "tcp4",
+		Address:          ":0",
+		Handler:          &testHandler{},
+		ConnReadTimeout:  0,
+		ConnWriteTimeout: 0,
+		Telemetry:        testCounter,
+	}
+
+	l, err := NewListenerWithConfig(conf, NewStaticUserProvider(user, passwd))
+	return l, err
 }
 
 func getHostPort(t *testing.T, a net.Addr) (string, int) {
@@ -247,31 +165,15 @@ func getHostPort(t *testing.T, a net.Addr) (string, int) {
 }
 
 func TestConnectionFromListener(t *testing.T) {
-	th := &testHandler{}
 
-	// Make sure we can create our own net.Listener for use with the mysql
-	// listener
-	listener, err := net.Listen("tcp4", ":0")
-	if err != nil {
-		t.Fatalf("net.Listener failed: %v", err)
-	}
-
-	l, err := NewFromListener(listener, th, 0, 0, testUserProvider)
+	l, err := newTestListenerDefault()
 	if err != nil {
 		t.Fatalf("NewListener failed: %v", err)
 	}
 	defer l.Close()
 	go l.Accept()
 
-	_, port := getHostPort(t, l.Addr())
-
-	// Setup the right parameters.
-	params := &ConnParams{
-		Host:  "127.0.0.1",
-		Port:  port,
-		Uname: "user1",
-		Pass:  "password1",
-	}
+	params := newDefaultConnParamWithDb(t, l, "sharding-db")
 
 	c, err := Connect(context.Background(), params)
 	if err != nil {
@@ -281,9 +183,8 @@ func TestConnectionFromListener(t *testing.T) {
 }
 
 func TestConnectionWithoutSourceHost(t *testing.T) {
-	th := &testHandler{}
 
-	l, err := NewListener("tcp", "0.0.0.0:0", th, 0, 0, testUserProvider)
+	l, err := newTestListenerDefault()
 	if err != nil {
 		t.Fatalf("NewListener failed: %v", err)
 	}
@@ -291,98 +192,8 @@ func TestConnectionWithoutSourceHost(t *testing.T) {
 	go l.Accept()
 
 	getHostPort(t, l.Addr())
-	select {}
-	// Setup the right parameters.
-	//params := &ConnParams{
-	//	Host:  "127.0.0.1",
-	//	Port:  port,
-	//	Uname: "user1",
-	//	Pass:  "password1",
-	//}
-	//
-	//c, err := Connect(context.Background(), params)
-	//if err != nil {
-	//	t.Errorf("Should be able to connect to server but found error: %v", err)
-	//}
-	//c.Close()
-}
-
-func TestConnectionWithSourceHost(t *testing.T) {
-	th := &testHandler{}
-
-	l, err := NewListener("tcp", ":0", th, 0, 0, testUserProvider)
-	if err != nil {
-		t.Fatalf("NewListener failed: %v", err)
-	}
-	defer l.Close()
-	go l.Accept()
-
-	host, port := getHostPort(t, l.Addr())
-
-	// Setup the right parameters.
-	params := &ConnParams{
-		Host:  host,
-		Port:  port,
-		Uname: "user1",
-		Pass:  "password1",
-	}
-
-	_, err = Connect(context.Background(), params)
-	// target is localhost, should not work from tcp connection
-	if err == nil {
-		t.Errorf("Should be able to connect to server but found error: %v", err)
-	}
-}
-
-func TestConnectionUseMysqlNativePasswordWithSourceHost(t *testing.T) {
-	th := &testHandler{}
-
-	l, err := NewListener("tcp", ":0", th, 0, 0, testUserProvider)
-	if err != nil {
-		t.Fatalf("NewListener failed: %v", err)
-	}
-	defer l.Close()
-	go l.Accept()
-
-	host, port := getHostPort(t, l.Addr())
-
-	// Setup the right parameters.
-	params := &ConnParams{
-		Host:  host,
-		Port:  port,
-		Uname: "user1",
-		Pass:  "mysql_password",
-	}
-
-	_, err = Connect(context.Background(), params)
-	// target is localhost, should not work from tcp connection
-	if err == nil {
-		t.Errorf("Should be able to connect to server but found error: %v", err)
-	}
-}
-
-func TestConnectionUnixSocket(t *testing.T) {
-	th := &testHandler{}
-
-	unixSocket, err := ioutil.TempFile("", "mysql_vitess_test.sock")
-	if err != nil {
-		t.Fatalf("Failed to create temp file")
-	}
-	os.Remove(unixSocket.Name())
-
-	l, err := NewListener("unix", unixSocket.Name(), th, 0, 0, testUserProvider)
-	if err != nil {
-		t.Fatalf("NewListener failed: %v", err)
-	}
-	defer l.Close()
-	go l.Accept()
-
-	// Setup the right parameters.
-	params := &ConnParams{
-		UnixSocket: unixSocket.Name(),
-		Uname:      "user1",
-		Pass:       "password1",
-	}
+	//Setup the right parameters.
+	params := newDefaultConnParam(t, l)
 
 	c, err := Connect(context.Background(), params)
 	if err != nil {
@@ -391,25 +202,50 @@ func TestConnectionUnixSocket(t *testing.T) {
 	c.Close()
 }
 
+func TestConnectionUnixSocket(t *testing.T) {
+	if isUnix() {
+		th := &testHandler{}
+
+		unixSocket, err := ioutil.TempFile("", "mysql_vitess_test.sock")
+		if err != nil {
+			t.Fatalf("Failed to create temp file")
+		}
+		os.Remove(unixSocket.Name())
+
+		l, err := NewListener("unix", unixSocket.Name(), th, 0, 0, testUserProvider)
+		if err != nil {
+			t.Fatalf("NewListener failed: %v", err)
+		}
+		defer l.Close()
+		go l.Accept()
+
+		// Setup the right parameters.
+		params := &ConnParams{
+			UnixSocket: unixSocket.Name(),
+			Uname:      "user1",
+			Pass:       "password1",
+		}
+
+		c, err := Connect(context.Background(), params)
+		if err != nil {
+			t.Errorf("Should be able to connect to server but found error: %v", err)
+		}
+		c.Close()
+	}
+}
+
 func TestClientFoundRows(t *testing.T) {
 	th := &testHandler{}
 
-	l, err := NewListener("tcp", ":0", th, 0, 0, testUserProvider)
+	l, err := newTestListenerWithHandler(th)
 	if err != nil {
 		t.Fatalf("NewListener failed: %v", err)
 	}
 	defer l.Close()
 	go l.Accept()
 
-	host, port := getHostPort(t, l.Addr())
-
 	// Setup the right parameters.
-	params := &ConnParams{
-		Host:  host,
-		Port:  port,
-		Uname: "user1",
-		Pass:  "password1",
-	}
+	params := newDefaultConnParam(t, l)
 
 	// Test without flag.
 	c, err := Connect(context.Background(), params)
@@ -439,40 +275,31 @@ func TestClientFoundRows(t *testing.T) {
 }
 
 func TestConnCounts(t *testing.T) {
-	th := &testHandler{}
 
 	initialNumUsers := len(testCounter.ConnCountPerUser)
 
-	user := "anotherNotYetConnectedUser1"
-	passwd := "password1"
-
-	l, err := createTestListener(th, user, passwd)
+	l, err := newTestListener("anotherNotYetConnectedUser1", "oh")
 	if err != nil {
 		t.Fatalf("NewListener failed: %v", err)
 	}
 	defer l.Close()
 	go l.Accept()
 
-	host, port := getHostPort(t, l.Addr())
-
 	// Test with one new connection.
-	params := &ConnParams{
-		Host:  host,
-		Port:  port,
-		Uname: user,
-		Pass:  passwd,
-	}
+	params := newDefaultConnParam(t, l)
+	params.Uname = "anotherNotYetConnectedUser1"
+	params.Pass = "oh"
 
 	c, err := Connect(context.Background(), params)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	connCounts := testCounter.ConnCountPerUser
-	if l := len(connCounts); l-initialNumUsers != 1 {
-		t.Errorf("Expected 1 new user, got %d", l)
+	connCounts := len(testCounter.ConnCountPerUser)
+	if count := connCounts; count-initialNumUsers != 1 {
+		t.Errorf("Expected 1 new user, got %d (init: %d)", count, initialNumUsers)
 	}
-	checkCountsForUser(t, user, 1)
+	checkCountsForUser(t, params.Uname, 1)
 
 	// Test with a second new connection.
 	c2, err := Connect(context.Background(), params)
@@ -480,12 +307,12 @@ func TestConnCounts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	connCounts = testCounter.ConnCountPerUser
+	connCounts = len(testCounter.ConnCountPerUser)
 	// There is still only one new user.
-	if l2 := len(connCounts); l2-initialNumUsers != 1 {
+	if l2 := connCounts; l2-initialNumUsers != 1 {
 		t.Errorf("Expected 1 new user, got %d", l2)
 	}
-	checkCountsForUser(t, user, 2)
+	checkCountsForUser(t, params.Uname, 2)
 
 	// Test after closing connections. time.Sleep lets it work, but seems flakey.
 	c.Close()
@@ -495,20 +322,6 @@ func TestConnCounts(t *testing.T) {
 	c2.Close()
 	//time.Sleep(10 * time.Millisecond)
 	//checkCountsForUser(t, user, 0)
-}
-
-func createTestListener(th *testHandler, user string, passwd string) (*Listener, error) {
-	conf := ListenerConfig{
-		Protocol:         "tcp",
-		Address:          ":0",
-		Handler:          th,
-		ConnReadTimeout:  0,
-		ConnWriteTimeout: 0,
-		Telemetry:        testCounter,
-	}
-
-	l, err := NewListenerWithConfig(conf, NewStaticUserProvider(user, passwd))
-	return l, err
 }
 
 func checkCountsForUser(t *testing.T, user string, expected int64) {
@@ -525,23 +338,19 @@ func checkCountsForUser(t *testing.T, user string, expected int64) {
 }
 
 func TestServer(t *testing.T) {
+	if !isUnix() {
+		return
+	}
 	th := &testHandler{}
 
-	l, err := NewListener("tcp", ":0", th, 0, 0, testUserProvider)
+	l, err := newTestListenerDefault()
 	require.NoError(t, err)
 	l.SlowConnectWarnThreshold.Set(time.Duration(time.Nanosecond * 1))
 	defer l.Close()
 	go l.Accept()
 
-	host, port := getHostPort(t, l.Addr())
-
 	// Setup the right parameters.
-	params := &ConnParams{
-		Host:  host,
-		Port:  port,
-		Uname: "user1",
-		Pass:  "password1",
-	}
+	params := newDefaultConnParam(t, l)
 
 	// Run a 'select rows' command with results.
 	output, err := runMysqlWithErr(t, params, "select rows")
@@ -638,6 +447,9 @@ func TestServer(t *testing.T) {
 // TestClearTextServer creates a Server that needs clear text
 // passwords from the client.
 func TestClearTextServer(t *testing.T) {
+	if !isUnix() {
+		return
+	}
 	th := &testHandler{}
 
 	l, err := NewListener("tcp", ":0", th, 0, 0, testUserProvider)
@@ -714,43 +526,6 @@ func TestClearTextServer(t *testing.T) {
 		t.Fatalf("mysql should have failed but returned: %v", output)
 	}
 	if !strings.Contains(output, "Access denied for user 'user1'") {
-		t.Errorf("Unexpected output for 'select rows': %v", output)
-	}
-}
-
-// TestDialogServer creates a Server that uses the dialog plugin on the client.
-func TestDialogServer(t *testing.T) {
-	th := &testHandler{}
-
-	l, err := NewListener("tcp", ":0", th, 0, 0, testUserProvider)
-	if err != nil {
-		t.Fatalf("NewListener failed: %v", err)
-	}
-	l.AllowClearTextWithoutTLS.Set(true)
-	defer l.Close()
-	go l.Accept()
-
-	host, port := getHostPort(t, l.Addr())
-
-	// Setup the right parameters.
-	params := &ConnParams{
-		Host:  host,
-		Port:  port,
-		Uname: "user1",
-		Pass:  "password1",
-	}
-	sql := "select rows"
-	output, ok := runMysql(t, params, sql)
-	if strings.Contains(output, "No such file or directory") {
-		t.Logf("skipping dialog plugin tests, as the dialog plugin cannot be loaded: %v", err)
-		return
-	}
-	if !ok {
-		t.Fatalf("mysql failed: %v", output)
-	}
-	if !strings.Contains(output, "nice name") ||
-		!strings.Contains(output, "nicer name") ||
-		!strings.Contains(output, "2 rows in set") {
 		t.Errorf("Unexpected output for 'select rows': %v", output)
 	}
 }
@@ -941,99 +716,93 @@ func checkCountForTLSVer(t *testing.T, version string, expected int64) {
 	}
 }
 
-func TestErrorCodes(t *testing.T) {
-	th := &testHandler{}
-
-	l, err := NewListener("tcp", ":0", th, 0, 0, testUserProvider)
-	if err != nil {
-		t.Fatalf("NewListener failed: %v", err)
-	}
-	defer l.Close()
-	go l.Accept()
-
-	host, port := getHostPort(t, l.Addr())
-
-	// Setup the right parameters.
-	params := &ConnParams{
-		Host:  host,
-		Port:  port,
-		Uname: "user1",
-		Pass:  "password1",
-	}
-
-	ctx := context.Background()
-	client, err := Connect(ctx, params)
-	if err != nil {
-		t.Fatalf("error in connect: %v", err)
-	}
-
-	// Test that the right mysql errno/sqlstate are returned for various
-	// internal vitess errors
-	tests := []struct {
-		err      error
-		code     int
-		sqlState string
-		text     string
-	}{
-		{
-			err:      fmt.Errorf("invalid argument"),
-			code:     ERUnknownError,
-			sqlState: SSUnknownSQLState,
-			text:     "invalid argument",
-		},
-		{
-			err: fmt.Errorf(
-				"(errno %v) (sqlstate %v) invalid argument with errno", ERDupEntry, SSDupKey),
-			code:     ERDupEntry,
-			sqlState: SSDupKey,
-			text:     "invalid argument with errno",
-		},
-		{
-			err: fmt.Errorf(
-				"connection deadline exceeded"),
-			code:     ERQueryInterrupted,
-			sqlState: SSUnknownSQLState,
-			text:     "deadline exceeded",
-		},
-		{
-			err: fmt.Errorf(
-				"query pool timeout"),
-			code:     ERTooManyUserConnections,
-			sqlState: SSUnknownSQLState,
-			text:     "resource exhausted",
-		},
-		{
-			err:      util.Wrap(NewSQLError(ERVitessMaxRowsExceeded, SSUnknownSQLState, "Row count exceeded 10000"), "wrapped"),
-			code:     ERVitessMaxRowsExceeded,
-			sqlState: SSUnknownSQLState,
-			text:     "resource exhausted",
-		},
-	}
-
-	for _, test := range tests {
-		th.SetErr(NewSQLErrorFromError(test.err))
-		result, err := client.ExecuteFetch("error", 100, false)
-		if err == nil {
-			t.Fatalf("mysql should have failed but returned: %v", result)
-		}
-		serr, ok := err.(*SQLError)
-		if !ok {
-			t.Fatalf("mysql should have returned a SQLError")
-		}
-
-		if serr.Number() != test.code {
-			t.Errorf("error in %s: want code %v got %v", test.text, test.code, serr.Number())
-		}
-
-		if serr.SQLState() != test.sqlState {
-			t.Errorf("error in %s: want sqlState %v got %v", test.text, test.sqlState, serr.SQLState())
-		}
-
-		if !strings.Contains(serr.Error(), test.err.Error()) {
-			t.Errorf("error in %s: want err %v got %v", test.text, test.err.Error(), serr.Error())
-		}
-	}
-}
+//func TestErrorCodes(t *testing.T) {
+//	th := &testHandler{}
+//
+//	l, err := newTestListenerDefault()
+//	if err != nil {
+//		t.Fatalf("NewListener failed: %v", err)
+//	}
+//	defer l.Close()
+//	go l.Accept()
+//
+//
+//	// Setup the right parameters.
+//	params := newDefaultConnParam(t, l)
+//
+//	ctx := context.Background()
+//	client, err := Connect(ctx, params)
+//	if err != nil {
+//		t.Fatalf("error in connect: %v", err)
+//	}
+//
+//	// Test that the right mysql errno/sqlstate are returned for various
+//	// internal vitess errors
+//	tests := []struct {
+//		err      error
+//		code     int
+//		sqlState string
+//		text     string
+//	}{
+//		{
+//			err:      fmt.Errorf("invalid argument"),
+//			code:     ERUnknownError,
+//			sqlState: SSUnknownSQLState,
+//			text:     "invalid argument",
+//		},
+//		{
+//			err: fmt.Errorf(
+//				"(errno %v) (sqlstate %v) invalid argument with errno", ERDupEntry, SSDupKey),
+//			code:     ERDupEntry,
+//			sqlState: SSDupKey,
+//			text:     "invalid argument with errno",
+//		},
+//		{
+//			err: fmt.Errorf(
+//				"connection deadline exceeded"),
+//			code:     ERQueryInterrupted,
+//			sqlState: SSUnknownSQLState,
+//			text:     "deadline exceeded",
+//		},
+//		{
+//			err: fmt.Errorf(
+//				"query pool timeout"),
+//			code:     ERTooManyUserConnections,
+//			sqlState: SSUnknownSQLState,
+//			text:     "resource exhausted",
+//		},
+//		{
+//			err:      util.Wrap(NewSQLError(ERVitessMaxRowsExceeded, SSUnknownSQLState, "Row count exceeded 10000"), "wrapped"),
+//			code:     ERVitessMaxRowsExceeded,
+//			sqlState: SSUnknownSQLState,
+//			text:     "resource exhausted",
+//		},
+//	}
+//
+//	for _, test := range tests {
+//		th.SetErr(NewSQLErrorFromError(test.err))
+//		result, err := client.ExecuteFetch("error", 100, false)
+//		if err == nil {
+//			t.Fatalf("mysql should have failed but returned: %v", result)
+//		}
+//		serr, ok := err.(*SQLError)
+//		if !ok {
+//			t.Fatalf("mysql should have returned a SQLError")
+//		}
+//
+//		if serr.Number() != test.code {
+//			t.Errorf("error in %s: want code %v got %v", test.text, test.code, serr.Number())
+//		}
+//
+//		if serr.SQLState() != test.sqlState {
+//			t.Errorf("error in %s: want sqlState %v got %v", test.text, test.sqlState, serr.SQLState())
+//		}
+//
+//		if !strings.Contains(serr.Error(), test.err.Error()) {
+//			t.Errorf("error in %s: want err %v got %v", test.text, test.err.Error(), serr.Error())
+//		}
+//	}
+//}
 
 const enableCleartextPluginPrefix = "enable-cleartext-plugin: "
 
@@ -1121,23 +890,15 @@ func runMysqlWithErr(t *testing.T, params *ConnParams, command string) (string, 
 //}
 
 func TestListenerShutdown(t *testing.T) {
-	th := &testHandler{}
-	l, err := NewListener("tcp", ":0", th, 0, 0, testUserProvider)
+	l, err := newTestListenerDefault()
 	if err != nil {
 		t.Fatalf("NewListener failed: %v", err)
 	}
 	defer l.Close()
 	go l.Accept()
 
-	host, port := getHostPort(t, l.Addr())
-
 	// Setup the right parameters.
-	params := &ConnParams{
-		Host:  host,
-		Port:  port,
-		Uname: "user1",
-		Pass:  "password1",
-	}
+	params := newDefaultConnParam(t, l)
 	initialconnRefuse := testCounter.RefuseCount.Get()
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1217,18 +978,12 @@ func TestServerFlush(t *testing.T) {
 	defer func(saved time.Duration) { *mysqlServerFlushDelay = saved }(*mysqlServerFlushDelay)
 	*mysqlServerFlushDelay = 10 * time.Millisecond
 
-	th := &testHandler{}
-
-	l, err := NewListener("tcp", ":0", th, 0, 0, testUserProvider)
+	l, err := newTestListenerDefault()
 	require.NoError(t, err)
 	defer l.Close()
 	go l.Accept()
 
-	host, port := getHostPort(t, l.Addr())
-	params := &ConnParams{
-		Host: host,
-		Port: port,
-	}
+	params := newDefaultConnParam(t, l)
 
 	c, err := Connect(context.Background(), params)
 	require.NoError(t, err)

@@ -1253,9 +1253,9 @@ func (c *Conn) execQuery(query string, handler Handler, more bool) execResult {
 	sendFinished := false
 
 	err := handler.ComQuery(c, query, func(qr *types.Result) error {
-		flag := c.StatusFlags
+		f := c.StatusFlags
 		if more {
-			flag |= ServerMoreResultsExists
+			f |= ServerMoreResultsExists
 		}
 		if sendFinished {
 			// Failsafe: Unreachable if server is well-behaved.
@@ -1277,7 +1277,7 @@ func (c *Conn) execQuery(query string, handler Handler, more bool) execResult {
 				ok := PacketOK{
 					affectedRows:     qr.RowsAffected,
 					lastInsertID:     qr.InsertID,
-					statusFlags:      flag,
+					statusFlags:      f,
 					warnings:         handler.WarningCount(c),
 					info:             "",
 					sessionStateData: qr.SessionStateChanges,
