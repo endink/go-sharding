@@ -254,6 +254,7 @@ func TestDBConnClose(t *testing.T) {
 		dbConn.Kill("test kill", 0)
 	}()
 	_, err = dbConn.Exec(context.Background(), query, 1, false)
+	assert.NotNil(t, err)
 	assert.Contains(t, err.Error(), "(errno 2013) due to")
 	assert.True(t, time.Since(start) < 100*time.Millisecond, "%v %v", time.Since(start), 100*time.Millisecond)
 }
@@ -352,7 +353,7 @@ func TestDBConnStream(t *testing.T) {
 			return nil
 		}, 10, types.IncludeFieldsAll)
 	db.DisableConnFail()
-	want := "no such file or directory (errno 2002)"
+	want := "refused"
 	if err == nil || !strings.Contains(err.Error(), want) {
 		t.Errorf("Error: '%v', must contain '%s'", err, want)
 	}

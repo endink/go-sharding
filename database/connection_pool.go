@@ -54,7 +54,7 @@ type ConnectionPool struct {
 	resolutionFrequency time.Duration
 
 	// info is set at Open() time
-	info      mysql.ConnParams
+	info      *mysql.ConnParams
 	addresses []net.IP
 
 	ticker      *time.Ticker
@@ -139,7 +139,7 @@ func (cp *ConnectionPool) validAddress(addr net.IP) bool {
 // ...
 // conn, err := pool.Get()
 // ...
-func (cp *ConnectionPool) Open(info mysql.ConnParams) {
+func (cp *ConnectionPool) Open(info *mysql.ConnParams) {
 	cp.mu.Lock()
 	defer cp.mu.Unlock()
 	cp.info = info
@@ -215,7 +215,7 @@ func (cp *ConnectionPool) Get(ctx context.Context) (*PooledDBConnection, error) 
 	if cp.resolutionFrequency > 0 &&
 		cp.hostIsNotIP &&
 		!cp.validAddress(net.ParseIP(r.(*PooledDBConnection).RemoteAddr().String())) {
-		err := r.(*PooledDBConnection).Reconnect(ctx)
+		err = r.(*PooledDBConnection).Reconnect(ctx)
 		if err != nil {
 			p.Put(r)
 			return nil, err

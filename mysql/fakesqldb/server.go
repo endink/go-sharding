@@ -23,6 +23,7 @@ import (
 	"github.com/XiaoMi/Gaea/logging"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/mysql/types"
+	"net"
 	"regexp"
 	"strings"
 	"sync"
@@ -143,15 +144,13 @@ type ExpectedExecuteFetch struct {
 	AfterFunc func()
 }
 
-const FakeDbPort = 13309
-
 // New creates a server, and starts listening.
 func New(t testing.TB) *DB {
 
 	// Create our DB.
 	db := &DB{
 		t:                        t,
-		hostAndPort:              fmt.Sprintf("0.0.0.0:%d", FakeDbPort),
+		hostAndPort:              fmt.Sprintf("0.0.0.0:0"),
 		name:                     "fakesqldb",
 		data:                     make(map[string]*ExpectedResult),
 		rejectedData:             make(map[string]error),
@@ -162,7 +161,7 @@ func New(t testing.TB) *DB {
 
 	db.Handler = db
 
-	userProvider := mysql.NewStaticUserProvider("root", "root")
+	userProvider := mysql.NewStaticUserProvider("user1", "password1")
 
 	var err error
 	// Start listening.
@@ -253,11 +252,19 @@ func (db *DB) WaitForClose(timeout time.Duration) error {
 	}
 }
 
+func (db *DB) getHostPort() int {
+	// For the host name, we resolve 'localhost' into an address.
+	// This works around a few travis issues where IPv6 is not 100% enabled.
+	a := db.listener.Addr()
+	port := a.(*net.TCPAddr).Port
+	return port
+}
+
 // ConnParams returns the ConnParams to connect to the DB.
-func (db *DB) ConnParams() mysql.ConnParams {
-	return mysql.ConnParams{
+func (db *DB) ConnParams() *mysql.ConnParams {
+	return &mysql.ConnParams{
 		Host:    "localhost",
-		Port:    FakeDbPort,
+		Port:    db.getHostPort(),
 		Uname:   "user1",
 		Pass:    "password1",
 		Charset: "utf8",
@@ -265,10 +272,10 @@ func (db *DB) ConnParams() mysql.ConnParams {
 }
 
 // ConnParamsWithUname returns  ConnParams to connect to the DB with the Uname set to the provided value.
-func (db *DB) ConnParamsWithUname(uname string) mysql.ConnParams {
-	return mysql.ConnParams{
+func (db *DB) ConnParamsWithUname(uname string) *mysql.ConnParams {
+	return &mysql.ConnParams{
 		Host:    "localhost",
-		Port:    FakeDbPort,
+		Port:    db.getHostPort(),
 		Uname:   uname,
 		Pass:    "password1",
 		Charset: "utf8",

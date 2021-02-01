@@ -40,7 +40,7 @@ func (tr *TestResource) Close() {
 	}
 }
 
-func logWait(start time.Time) {
+func logWait(ctx context.Context, start time.Time) {
 	waitStarts = append(waitStarts, start)
 }
 

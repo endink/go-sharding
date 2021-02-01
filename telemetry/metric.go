@@ -19,65 +19,83 @@
 package telemetry
 
 import (
-	"bytes"
 	"errors"
 	"go.opentelemetry.io/otel"
 	"strings"
 	"sync"
+	"unicode"
 )
 
 var meterMap = make(map[string]*NamedMeter)
 var meterMutex sync.Mutex
 
 func GetMeter(instrumentationName string) *NamedMeter {
-	if m, ok := meterMap[instrumentationName]; !ok {
+	nm, ok := meterMap[instrumentationName]
+	if !ok {
 		meterMutex.Lock()
-		meterMutex.Unlock()
-		if m, ok = meterMap[instrumentationName]; ok {
-			return m
-		} else {
-			meter := otel.Meter(instrumentationName)
-			nm := &NamedMeter{
-				meter:     meter,
+		defer meterMutex.Unlock()
+		if nm, ok = meterMap[instrumentationName]; !ok {
+			m := otel.Meter(instrumentationName)
+			nm = &NamedMeter{
+				meter:     m,
 				recorders: make(map[string]interface{}),
 			}
 			meterMap[instrumentationName] = nm
-			return nm
 		}
-	} else {
-		return m
 	}
+	return nm
 }
 
 func BuildMetricName(statement ...string) string {
 	if len(statement) == 0 {
 		panic(errors.New("name for 'BuildMetricName' can not be nil or empty"))
 	}
+	const spliter rune = '_'
+
+	nChar := func(c rune) rune {
+		switch c {
+		case '.', '-', ' ':
+			return spliter
+		default:
+			return c
+		}
+	}
 
 	sb := &strings.Builder{}
 	array := make([]string, 0, len(statement))
 	for _, s := range statement {
-		sb.Reset()
-		var letters = []byte(s)
-		var prev byte
+		var letters = []rune(s)
+		var prev rune
 		var prevUpper = true
+		var hasChar = false
 		for i, current := range letters {
-			if (prev == '.' && current == '.') || i == 0 || i == len(letters)-1 {
+			char := nChar(current)
+			if char == spliter {
+				prev = spliter
 				continue
 			}
-			content := []byte{current}
-			u := 'A' <= current && current <= 'Z'
+			if hasChar && current != spliter && i != len(letters)-1 && prev == spliter {
+				sb.WriteRune(spliter)
+			}
+
+			if current != spliter {
+				hasChar = true
+			}
+
+			u := 'A' <= char && char <= 'Z'
 			if u {
 				if !prevUpper {
-					sb.WriteByte('_')
+					sb.WriteRune(spliter)
 				}
-				sb.WriteByte(bytes.ToLower(content)[0])
-				prevUpper = true
+				sb.WriteRune(unicode.ToLower(char))
 			} else {
-				sb.WriteByte(current)
+				sb.WriteRune(char)
 			}
-			prev = current
+			prevUpper = u
+			prev = char
 		}
+		array = append(array, sb.String())
+		sb.Reset()
 	}
-	return strings.Join(array, ".")
+	return strings.Join(array, "_")
 }

@@ -22,6 +22,7 @@ import (
 	"github.com/XiaoMi/Gaea/telemetry"
 	"github.com/XiaoMi/Gaea/util"
 	"github.com/XiaoMi/Gaea/util/sync2"
+	"go.opentelemetry.io/otel/label"
 	"sync"
 	"time"
 
@@ -44,25 +45,28 @@ type Pool struct {
 	idleTimeout        time.Duration
 	waiterCap          int64
 	waiterCount        sync2.AtomicInt64
-	dbaPool            *ConnectionPool
 	isNoPool           bool
-	connParam          mysql.ConnParams
+	connParam          *mysql.ConnParams
+	dbaPool            *ConnectionPool
 }
 
 // NewPool creates a new Pool. The name is used
 // to publish stats only.
 func NewPool(name string, cfg ConnPoolConfig) *Pool {
+	idleTimeout := time.Duration(cfg.IdleTimeoutSeconds) * time.Second
 	cp := &Pool{
 		name:               name,
 		capacity:           cfg.Size,
 		prefillParallelism: cfg.PrefillParallelism,
-		timeout:            time.Duration(cfg.TimeoutSeconds * 1000),
-		idleTimeout:        time.Duration(cfg.IdleTimeoutSeconds * 1000),
+		timeout:            time.Duration(cfg.TimeoutSeconds) * time.Second,
+		idleTimeout:        idleTimeout,
 		waiterCap:          int64(cfg.MaxWaiters),
+		dbaPool:            NewConnectionPool("", 1, idleTimeout, 0),
+		isNoPool:           cfg.IsNoPool,
 	}
-	//if name == "" {
-	//	return cp
-	//}
+	if name == "" {
+		return cp
+	}
 	meter := telemetry.GetMeter("db.pool")
 
 	meter.NewInt64Observer(telemetry.BuildMetricName(name, "Capacity"), "Tablet server conn pool capacity", cp.Capacity)
@@ -86,7 +90,7 @@ func (cp *Pool) pool() (p *util.ResourcePool) {
 }
 
 // Open must be called before starting to use the pool.
-func (cp *Pool) Open(connParam mysql.ConnParams) {
+func (cp *Pool) Open(connParam *mysql.ConnParams) {
 	cp.mu.Lock()
 	defer cp.mu.Unlock()
 
@@ -99,18 +103,19 @@ func (cp *Pool) Open(connParam mysql.ConnParams) {
 		return NewDBConn(ctx, cp, connParam)
 	}
 	cp.connections = util.NewResourcePool(f, cp.capacity, cp.capacity, cp.idleTimeout, cp.prefillParallelism, cp.getLogWaitCallback())
-
+	if cp.isNoPool {
+		cp.connParam = connParam
+	}
 	cp.dbaPool.Open(connParam)
 }
 
-func (cp *Pool) getLogWaitCallback() func(time.Time) {
-	//if cp.name == "" {
-	//	return func(start time.Time) {} // no op
-	//}
-	//return func(start time.Time) {
-	//	cp.env.Stats().WaitTimings.Record(cp.name+"ResourceWaitTime", start)
-	//}
-	return func(start time.Time) {}
+func (cp *Pool) getLogWaitCallback() func(context.Context, time.Time) {
+	if cp.name == "" {
+		return func(ctx context.Context, start time.Time) {} // no op
+	}
+	return func(ctx context.Context, start time.Time) {
+		DbStats.ResourceWaitTime.RecordLatency(ctx, cp.name, start)
+	}
 }
 
 // Close will close the pool and wait for connections to be returned before
@@ -126,14 +131,15 @@ func (cp *Pool) Close() {
 	cp.mu.Lock()
 	cp.connections = nil
 	cp.mu.Unlock()
+
 	cp.dbaPool.Close()
 }
 
 // Get returns a connection.
 // You must call Recycle on DBConn once done.
 func (cp *Pool) Get(ctx context.Context) (*DBConn, error) {
-	//span, ctx := trace.NewSpan(ctx, "Pool.Get")
-	//defer span.Finish()
+	ctx, span := DbTracer.Start(ctx, "Pool.Get")
+	defer span.End()
 
 	if cp.waiterCap > 0 {
 		waiterCount := cp.waiterCount.Add(1)
@@ -150,10 +156,10 @@ func (cp *Pool) Get(ctx context.Context) (*DBConn, error) {
 	if p == nil {
 		return nil, ErrConnPoolClosed
 	}
-	//span.Annotate("capacity", p.Capacity())
-	//span.Annotate("in_use", p.InUse())
-	//span.Annotate("available", p.Available())
-	//span.Annotate("active", p.Active())
+	span.SetAttributes(label.Int64("capacity", p.Capacity()))
+	span.SetAttributes(label.Int64("in_use", p.InUse()))
+	span.SetAttributes(label.Int64("available", p.Available()))
+	span.SetAttributes(label.Int64("active", p.Active()))
 
 	if cp.timeout != 0 {
 		var cancel context.CancelFunc
@@ -201,8 +207,8 @@ func (cp *Pool) SetIdleTimeout(idleTimeout time.Duration) {
 	if cp.connections != nil {
 		cp.connections.SetIdleTimeout(idleTimeout)
 	}
-	cp.dbaPool.SetIdleTimeout(idleTimeout)
 	cp.idleTimeout = idleTimeout
+	cp.dbaPool.SetIdleTimeout(idleTimeout)
 }
 
 // StatsJSON returns the pool stats as a JSON object.

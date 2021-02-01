@@ -132,23 +132,15 @@ func TestConnPoolGetAppDebug(t *testing.T) {
 	ctx := context.Background()
 
 	defer db.Close()
-	connPool := newPool()
+	connPool := nonePool()
 	connPool.Open(db.ConnParams())
 	defer connPool.Close()
 	dbConn, err := connPool.Get(ctx)
-	if err != nil {
-		t.Fatalf("should not get an error, but got: %v", err)
-	}
-	if dbConn == nil {
-		t.Fatalf("db conn should not be nil")
-	}
-	if dbConn.pool != nil {
-		t.Fatalf("db conn pool should be nil for appDebug")
-	}
+	assert.Nil(t, err, "should not get an error, but got: %v", err)
+	assert.NotNil(t, dbConn, "db conn should not be nil")
+	assert.Nil(t, dbConn.pool, "db conn pool should be nil for appDebug")
 	dbConn.Recycle()
-	if !dbConn.IsClosed() {
-		t.Fatalf("db conn should be closed after recycle")
-	}
+	assert.True(t, dbConn.IsClosed(), "db conn should be closed after recycle")
 }
 
 func TestConnPoolPutWhilePoolIsClosed(t *testing.T) {
@@ -269,6 +261,14 @@ func TestConnPoolStateWhilePoolIsOpen(t *testing.T) {
 	if connPool.InUse() != 0 {
 		t.Fatalf("pool inUse connections should be 0")
 	}
+}
+
+func nonePool() *Pool {
+	return NewPool("TestPool", ConnPoolConfig{
+		Size:               100,
+		IdleTimeoutSeconds: 10,
+		IsNoPool:           true,
+	})
 }
 
 func newPool() *Pool {

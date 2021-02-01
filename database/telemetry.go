@@ -30,21 +30,23 @@ type Stats struct {
 	DbExecStreamLatency  telemetry.DurationValueRecorder
 	KillQueriesCounter   metric.Int64Counter
 	InternalErrorCounter metric.Int64Counter
+	ResourceWaitTime     *telemetry.MultiDurationValueRecorder
 }
 
-var DbStats = newStats("db.conn")
-var DbTracer = telemetry.GetTracer("db-conn")
+var DbTracer = telemetry.GetTracer("DbConn")
+var DbStats = newStats("DbConn")
 
 func newStats(instrumentationName string) *Stats {
 	meter := telemetry.GetMeter(instrumentationName)
 
 	s := &Stats{
 		DbConnectLatency:     meter.NewDurationValueRecorder("connect_latency", "Database connect succeed time"),
-		DbConnectErrLatency:  meter.NewDurationValueRecorder("connect_error__latency", "Database connect error time"),
+		DbConnectErrLatency:  meter.NewDurationValueRecorder("connect_error_latency", "Database connect error time"),
 		DbExecLatency:        meter.NewDurationValueRecorder("exec_latency", "Database execitopm time"),
 		DbExecStreamLatency:  meter.NewDurationValueRecorder("exec_stream_latency", "Database execitopm time"),
 		KillQueriesCounter:   meter.NewInt64Counter("kill_queries_count", "Database killed queries count"),
 		InternalErrorCounter: meter.NewInt64Counter("internal_error_count", "Database error count"),
+		ResourceWaitTime:     meter.NewMultiDurationValueRecorder("resource_wait_time", "Resource wait time"),
 	}
 
 	return s

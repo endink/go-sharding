@@ -37,7 +37,7 @@ import (
 // It will also trigger a CheckMySQL whenever applicable.
 type DBConn struct {
 	conn    *DBConnection
-	info    mysql.ConnParams
+	info    *mysql.ConnParams
 	pool    *Pool
 	dbaPool *ConnectionPool
 	current sync2.AtomicString
@@ -48,7 +48,7 @@ type DBConn struct {
 }
 
 // NewDBConn creates a new DBConn. It triggers a CheckMySQL if creation fails.
-func NewDBConn(ctx context.Context, cp *Pool, appParams mysql.ConnParams) (*DBConn, error) {
+func NewDBConn(ctx context.Context, cp *Pool, appParams *mysql.ConnParams) (*DBConn, error) {
 	start := time.Now()
 
 	c, err := NewDBConnection(ctx, appParams)
@@ -63,13 +63,13 @@ func NewDBConn(ctx context.Context, cp *Pool, appParams mysql.ConnParams) (*DBCo
 	return &DBConn{
 		conn:    c,
 		info:    appParams,
-		pool:    cp,
 		dbaPool: cp.dbaPool,
+		pool:    cp,
 	}, nil
 }
 
 // NewDBConnNoPool creates a new DBConn without a pool.
-func NewDBConnNoPool(ctx context.Context, params mysql.ConnParams, dbaPool *ConnectionPool) (*DBConn, error) {
+func NewDBConnNoPool(ctx context.Context, params *mysql.ConnParams, dbaPool *ConnectionPool) (*DBConn, error) {
 	c, err := NewDBConnection(ctx, params)
 	if err != nil {
 		return nil, err
@@ -325,7 +325,7 @@ func (dbc *DBConn) Taint() {
 // and on the connection side. If no query is executing, it's a no-op.
 // Kill will also not kill a query more than once.
 func (dbc *DBConn) Kill(reason string, elapsed time.Duration) error {
-	DbStats.KillQueriesCounter.Add(context.Background(), 1)
+	DbStats.KillQueriesCounter.Add(context.TODO(), 1)
 	log.Infof("Due to %s, elapsed time: %v, killing query ID %v %s", reason, elapsed, dbc.conn.ID(), dbc.Current())
 
 	// Client side action. Set error and close connection.
@@ -334,7 +334,7 @@ func (dbc *DBConn) Kill(reason string, elapsed time.Duration) error {
 	dbc.errmu.Unlock()
 	dbc.conn.Close()
 
-	// Server side action. Kill the session.
+	//Server side action. Kill the session.
 	killConn, err := dbc.dbaPool.Get(context.TODO())
 	if err != nil {
 		log.Warnf("Failed to get conn from dba pool: %v", err)

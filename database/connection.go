@@ -35,8 +35,8 @@ type DBConnection struct {
 
 // NewDBConnection returns a new DBConnection based on the ConnParams
 // and will use the provided stats to collect timing.
-func NewDBConnection(ctx context.Context, param mysql.ConnParams) (*DBConnection, error) {
-	c, err := mysql.Connect(ctx, &param)
+func NewDBConnection(ctx context.Context, param *mysql.ConnParams) (*DBConnection, error) {
+	c, err := mysql.Connect(ctx, param)
 	if err != nil {
 		return nil, err
 	}

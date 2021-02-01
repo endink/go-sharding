@@ -209,7 +209,7 @@ func parseCharacterSet(cs string) (CollationID, error) {
 	}
 
 	// Check if it's in our map.
-	characterSet, ok := CollationIds[strings.ToLower(cs)]
+	characterSet, ok := CharsetsToCollationId(strings.ToLower(cs))
 	if ok {
 		return characterSet, nil
 	}

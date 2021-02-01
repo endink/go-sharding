@@ -21,8 +21,10 @@ package util
 import (
 	"errors"
 	"fmt"
+	"github.com/XiaoMi/Gaea/telemetry"
 	"github.com/XiaoMi/Gaea/util/sync2"
 	"github.com/XiaoMi/Gaea/util/timer"
+	"go.opentelemetry.io/otel/label"
 	"sync"
 	"time"
 
@@ -69,7 +71,7 @@ type ResourcePool struct {
 	resources chan resourceWrapper
 	factory   Factory
 	idleTimer *timer.Timer
-	logWait   func(time.Time)
+	logWait   func(context.Context, time.Time)
 }
 
 type resourceWrapper struct {
@@ -88,7 +90,7 @@ type resourceWrapper struct {
 // An idleTimeout of 0 means that there is no timeout.
 // A non-zero value of prefillParallelism causes the pool to be pre-filled.
 // The value specifies how many resources can be opened in parallel.
-func NewResourcePool(factory Factory, capacity, maxCap int, idleTimeout time.Duration, prefillParallelism int, logWait func(time.Time)) *ResourcePool {
+func NewResourcePool(factory Factory, capacity, maxCap int, idleTimeout time.Duration, prefillParallelism int, logWait func(context.Context, time.Time)) *ResourcePool {
 	if capacity <= 0 || maxCap <= 0 || capacity > maxCap {
 		panic(errors.New("invalid/out of range capacity"))
 	}
@@ -188,12 +190,12 @@ func (rp *ResourcePool) closeIdleResources() {
 // it will wait till the next resource becomes available or a timeout.
 // A timeout of 0 is an indefinite wait.
 func (rp *ResourcePool) Get(ctx context.Context) (resource Resource, err error) {
-	//span, ctx := trace.NewSpan(ctx, "ResourcePool.Get")
-	//span.Annotate("capacity", rp.capacity.Get())
-	//span.Annotate("in_use", rp.inUse.Get())
-	//span.Annotate("available", rp.available.Get())
-	//span.Annotate("active", rp.active.Get())
-	//defer span.Finish()
+	ctx, span := telemetry.GlobalTracer.Start(ctx, "ResourcePool.Get")
+	span.SetAttributes(label.Int64("capacity", rp.capacity.Get()))
+	span.SetAttributes(label.Int64("in_use", rp.inUse.Get()))
+	span.SetAttributes(label.Int64("available", rp.available.Get()))
+	span.SetAttributes(label.Int64("active", rp.active.Get()))
+	defer span.End()
 	return rp.get(ctx)
 }
 
@@ -217,7 +219,7 @@ func (rp *ResourcePool) get(ctx context.Context) (resource Resource, err error) 
 		case <-ctx.Done():
 			return nil, ErrTimeout
 		}
-		rp.recordWait(startTime)
+		rp.recordWait(ctx, startTime)
 	}
 	if !ok {
 		return nil, ErrClosed
@@ -322,11 +324,11 @@ func (rp *ResourcePool) SetCapacity(capacity int) error {
 	return nil
 }
 
-func (rp *ResourcePool) recordWait(start time.Time) {
+func (rp *ResourcePool) recordWait(ctx context.Context, start time.Time) {
 	rp.waitCount.Add(1)
 	rp.waitTime.Add(time.Since(start))
 	if rp.logWait != nil {
-		rp.logWait(start)
+		rp.logWait(ctx, start)
 	}
 }
 

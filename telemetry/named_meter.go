@@ -47,7 +47,7 @@ func (m *NamedMeter) getOrPutRecorder(name string, factory func() interface{}) i
 	return r
 }
 
-func (m *NamedMeter) NewInt64Observer(name string, desc string, callback func() int64) {
+func (m *NamedMeter) NewInt64Observer(name, desc string, callback func() int64) {
 
 	observerCallback := func(_ context.Context, result metric.Int64ObserverResult) {
 		value := callback()
@@ -56,7 +56,7 @@ func (m *NamedMeter) NewInt64Observer(name string, desc string, callback func() 
 	_ = metric.Must(m.meter).NewInt64ValueObserver(name, observerCallback, metric.WithDescription(desc))
 }
 
-func (m *NamedMeter) NewInt64SumObserver(name string, desc string, callback func() int64) {
+func (m *NamedMeter) NewInt64SumObserver(name, desc string, callback func() int64) {
 	observerCallback := func(_ context.Context, result metric.Int64ObserverResult) {
 		value := callback()
 		result.Observe(value)
@@ -64,7 +64,7 @@ func (m *NamedMeter) NewInt64SumObserver(name string, desc string, callback func
 	_ = metric.Must(m.meter).NewInt64UpDownSumObserver(name, observerCallback, metric.WithDescription(desc))
 }
 
-func (m *NamedMeter) NewDurationSumObserver(name string, desc string, callback func() time.Duration) {
+func (m *NamedMeter) NewDurationSumObserver(name, desc string, callback func() time.Duration) {
 	observerCallback := func(_ context.Context, result metric.Int64ObserverResult) {
 		value := callback()
 		result.Observe(value.Milliseconds())
@@ -72,7 +72,7 @@ func (m *NamedMeter) NewDurationSumObserver(name string, desc string, callback f
 	_ = metric.Must(m.meter).NewInt64UpDownSumObserver(name, observerCallback, metric.WithDescription(desc), metric.WithUnit(unit.Milliseconds))
 }
 
-func (m *NamedMeter) NewDurationValueObserver(name string, desc string, callback func() time.Duration) {
+func (m *NamedMeter) NewDurationValueObserver(name, desc string, callback func() time.Duration) {
 	observerCallback := func(_ context.Context, result metric.Int64ObserverResult) {
 		value := callback()
 		result.Observe(value.Milliseconds())
@@ -81,7 +81,7 @@ func (m *NamedMeter) NewDurationValueObserver(name string, desc string, callback
 	_ = metric.Must(m.meter).NewInt64ValueObserver(name, observerCallback, metric.WithDescription(desc), metric.WithUnit(unit.Milliseconds))
 }
 
-func (m *NamedMeter) NewInt64Counter(name string, desc string) metric.Int64Counter {
+func (m *NamedMeter) NewInt64Counter(name, desc string) metric.Int64Counter {
 	fac := func() interface{} {
 		return metric.Must(m.meter).NewInt64Counter(name, metric.WithDescription(desc))
 	}
@@ -89,7 +89,7 @@ func (m *NamedMeter) NewInt64Counter(name string, desc string) metric.Int64Count
 	return r.(metric.Int64Counter)
 }
 
-func (m *NamedMeter) NewInt64ValueRecorder(name string, desc string) metric.Int64ValueRecorder {
+func (m *NamedMeter) NewInt64ValueRecorder(name, desc string) metric.Int64ValueRecorder {
 	fac := func() interface{} {
 		return metric.Must(m.meter).NewInt64ValueRecorder(name, metric.WithDescription(desc))
 	}
@@ -97,10 +97,19 @@ func (m *NamedMeter) NewInt64ValueRecorder(name string, desc string) metric.Int6
 	return r.(metric.Int64ValueRecorder)
 }
 
-func (m *NamedMeter) NewDurationValueRecorder(name string, desc string) DurationValueRecorder {
+func (m *NamedMeter) NewDurationValueRecorder(name, desc string) DurationValueRecorder {
 	fac := func() interface{} {
 		return NewDurationValueRecorder(metric.Must(m.meter), name, metric.WithDescription(desc))
 	}
 	r := m.getOrPutRecorder(name, fac)
 	return r.(DurationValueRecorder)
+}
+
+func (m *NamedMeter) NewMultiDurationValueRecorder(name, desc string) *MultiDurationValueRecorder {
+	fac := func() interface{} {
+		r := NewMultiDurationValueRecorder(metric.Must(m.meter), name, metric.WithDescription(desc))
+		return &r
+	}
+	r := m.getOrPutRecorder(name, fac)
+	return r.(*MultiDurationValueRecorder)
 }

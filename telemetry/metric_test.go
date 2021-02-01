@@ -16,14 +16,27 @@
  *  File author: Anders Xiao
  */
 
-package database
+package telemetry
 
-// ConnPoolConfig contains the config for a conn pool.
-type ConnPoolConfig struct {
-	Size               int    `json:"size,omitempty"`
-	TimeoutSeconds     uint64 `json:"timeoutSeconds,omitempty"`
-	IdleTimeoutSeconds uint64 `json:"idleTimeoutSeconds,omitempty"`
-	PrefillParallelism int    `json:"prefillParallelism,omitempty"`
-	MaxWaiters         int    `json:"maxWaiters,omitempty"`
-	IsNoPool           bool   `json:"isNoPool"`
+import (
+	"github.com/stretchr/testify/assert"
+	"testing"
+)
+
+func TestBuildMetricName(t *testing.T) {
+	var name string
+	name = BuildMetricName("a_")
+	assert.Equal(t, "a", name)
+
+	name = BuildMetricName("_-a._")
+	assert.Equal(t, "a", name)
+
+	name = BuildMetricName("db", "A")
+	assert.Equal(t, "db_a", name)
+
+	name = BuildMetricName("db", "AbcEdf")
+	assert.Equal(t, "db_abc_edf", name)
+
+	name = BuildMetricName("db", "...AbcEdf...")
+	assert.Equal(t, "db_abc_edf", name)
 }
