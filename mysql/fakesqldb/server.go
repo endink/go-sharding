@@ -254,8 +254,8 @@ func (db *DB) WaitForClose(timeout time.Duration) error {
 }
 
 // ConnParams returns the ConnParams to connect to the DB.
-func (db *DB) ConnParams() *mysql.ConnParams {
-	return &mysql.ConnParams{
+func (db *DB) ConnParams() mysql.ConnParams {
+	return mysql.ConnParams{
 		Host:    "localhost",
 		Port:    FakeDbPort,
 		Uname:   "user1",
@@ -265,8 +265,8 @@ func (db *DB) ConnParams() *mysql.ConnParams {
 }
 
 // ConnParamsWithUname returns  ConnParams to connect to the DB with the Uname set to the provided value.
-func (db *DB) ConnParamsWithUname(uname string) *mysql.ConnParams {
-	return &mysql.ConnParams{
+func (db *DB) ConnParamsWithUname(uname string) mysql.ConnParams {
+	return mysql.ConnParams{
 		Host:    "localhost",
 		Port:    FakeDbPort,
 		Uname:   uname,

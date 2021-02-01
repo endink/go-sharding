@@ -10,7 +10,7 @@ require (
 	github.com/gin-gonic/gin v1.5.0
 	github.com/go-ini/ini v1.42.0
 	github.com/golang/mock v1.3.1
-	github.com/google/go-cmp v0.4.0
+	github.com/google/go-cmp v0.5.4
 	github.com/pingcap/check v0.0.0-20200212061837-5e12011dc712
 	github.com/pingcap/errors v0.11.5-0.20190809092503-95897b64e011
 	github.com/pingcap/parser v0.0.0-20200623164729-3a18f1e5dceb
@@ -18,7 +18,10 @@ require (
 	github.com/prometheus/client_golang v1.5.1
 	github.com/scylladb/go-set v1.0.2
 	github.com/smartystreets/goconvey v0.0.0-20190222223459-a17d461953aa // indirect
-	github.com/stretchr/testify v1.5.1
+	github.com/stretchr/testify v1.6.1
+	go.opentelemetry.io/otel v0.16.0
+	go.opentelemetry.io/otel/exporters/stdout v0.16.0
+	go.opentelemetry.io/otel/sdk v0.16.0
 	go.uber.org/config v1.4.0
 	go.uber.org/multierr v1.5.0
 	go.uber.org/zap v1.16.0
