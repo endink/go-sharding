@@ -47,7 +47,7 @@ func (m *NamedMeter) getOrPutRecorder(name string, factory func() interface{}) i
 	return r
 }
 
-func (m *NamedMeter) NewInt64Observer(name, desc string, callback func() int64) {
+func (m *NamedMeter) NewInt64ValueObserver(name, desc string, callback func() int64) {
 
 	observerCallback := func(_ context.Context, result metric.Int64ObserverResult) {
 		value := callback()

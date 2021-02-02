@@ -67,18 +67,17 @@ func NewPool(name string, cfg ConnPoolConfig) *Pool {
 	if name == "" {
 		return cp
 	}
-	meter := telemetry.GetMeter("db.pool")
 
-	meter.NewInt64Observer(telemetry.BuildMetricName(name, "Capacity"), "Tablet server conn pool capacity", cp.Capacity)
-	meter.NewInt64Observer(telemetry.BuildMetricName(name, "Available"), "Tablet server conn pool available", cp.Available)
-	meter.NewInt64Observer(telemetry.BuildMetricName(name, "Active"), "Tablet server conn pool active", cp.Active)
-	meter.NewInt64Observer(telemetry.BuildMetricName(name, "InUse"), "Tablet server conn pool in use", cp.InUse)
-	meter.NewInt64Observer(telemetry.BuildMetricName(name, "MaxCap"), "Tablet server conn pool max cap", cp.MaxCap)
-	meter.NewInt64SumObserver(telemetry.BuildMetricName(name, "WaitCount"), "Tablet server conn pool wait count", cp.WaitCount)
-	meter.NewDurationSumObserver(telemetry.BuildMetricName(name, "WaitTime"), "Tablet server wait time", cp.WaitTime)
-	meter.NewDurationObserver(telemetry.BuildMetricName(name, "IdleTimeout"), "Tablet server idle timeout", cp.IdleTimeout)
-	meter.NewInt64SumObserver(telemetry.BuildMetricName(name, "IdleClosed"), "Tablet server conn pool idle closed", cp.IdleClosed)
-	meter.NewInt64SumObserver(telemetry.BuildMetricName(name, "Exhausted"), "Number of times pool had zero available slots", cp.Exhausted)
+	PoolMeter.NewInt64ValueObserver(telemetry.BuildMetricName(name, "Capacity"), "Tablet server conn pool capacity", cp.Capacity)
+	PoolMeter.NewInt64ValueObserver(telemetry.BuildMetricName(name, "Available"), "Tablet server conn pool available", cp.Available)
+	PoolMeter.NewInt64ValueObserver(telemetry.BuildMetricName(name, "Active"), "Tablet server conn pool active", cp.Active)
+	PoolMeter.NewInt64ValueObserver(telemetry.BuildMetricName(name, "InUse"), "Tablet server conn pool in use", cp.InUse)
+	PoolMeter.NewInt64ValueObserver(telemetry.BuildMetricName(name, "MaxCap"), "Tablet server conn pool max cap", cp.MaxCap)
+	PoolMeter.NewInt64SumObserver(telemetry.BuildMetricName(name, "WaitCount"), "Tablet server conn pool wait count", cp.WaitCount)
+	PoolMeter.NewDurationSumObserver(telemetry.BuildMetricName(name, "WaitTime"), "Tablet server wait time", cp.WaitTime)
+	PoolMeter.NewDurationObserver(telemetry.BuildMetricName(name, "IdleTimeout"), "Tablet server idle timeout", cp.IdleTimeout)
+	PoolMeter.NewInt64SumObserver(telemetry.BuildMetricName(name, "IdleClosed"), "Tablet server conn pool idle closed", cp.IdleClosed)
+	PoolMeter.NewInt64SumObserver(telemetry.BuildMetricName(name, "Exhausted"), "Number of times pool had zero available slots", cp.Exhausted)
 	return cp
 }
 
