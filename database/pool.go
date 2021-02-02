@@ -76,7 +76,7 @@ func NewPool(name string, cfg ConnPoolConfig) *Pool {
 	meter.NewInt64Observer(telemetry.BuildMetricName(name, "MaxCap"), "Tablet server conn pool max cap", cp.MaxCap)
 	meter.NewInt64SumObserver(telemetry.BuildMetricName(name, "WaitCount"), "Tablet server conn pool wait count", cp.WaitCount)
 	meter.NewDurationSumObserver(telemetry.BuildMetricName(name, "WaitTime"), "Tablet server wait time", cp.WaitTime)
-	meter.NewDurationValueObserver(telemetry.BuildMetricName(name, "IdleTimeout"), "Tablet server idle timeout", cp.IdleTimeout)
+	meter.NewDurationObserver(telemetry.BuildMetricName(name, "IdleTimeout"), "Tablet server idle timeout", cp.IdleTimeout)
 	meter.NewInt64SumObserver(telemetry.BuildMetricName(name, "IdleClosed"), "Tablet server conn pool idle closed", cp.IdleClosed)
 	meter.NewInt64SumObserver(telemetry.BuildMetricName(name, "Exhausted"), "Number of times pool had zero available slots", cp.Exhausted)
 	return cp
@@ -138,7 +138,7 @@ func (cp *Pool) Close() {
 // Get returns a connection.
 // You must call Recycle on DBConn once done.
 func (cp *Pool) Get(ctx context.Context) (*DBConn, error) {
-	ctx, span := DbTracer.Start(ctx, "Pool.Get")
+	ctx, span := telemetry.GlobalTracer.Start(ctx, "Pool.Get")
 	defer span.End()
 
 	if cp.waiterCap > 0 {

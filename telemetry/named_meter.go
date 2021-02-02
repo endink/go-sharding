@@ -72,7 +72,7 @@ func (m *NamedMeter) NewDurationSumObserver(name, desc string, callback func() t
 	_ = metric.Must(m.meter).NewInt64UpDownSumObserver(name, observerCallback, metric.WithDescription(desc), metric.WithUnit(unit.Milliseconds))
 }
 
-func (m *NamedMeter) NewDurationValueObserver(name, desc string, callback func() time.Duration) {
+func (m *NamedMeter) NewDurationObserver(name, desc string, callback func() time.Duration) {
 	observerCallback := func(_ context.Context, result metric.Int64ObserverResult) {
 		value := callback()
 		result.Observe(value.Milliseconds())

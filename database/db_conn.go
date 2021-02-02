@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/XiaoMi/Gaea/telemetry"
 	"github.com/XiaoMi/Gaea/util"
 	"github.com/XiaoMi/Gaea/util/sync2"
 	"go.opentelemetry.io/otel/label"
@@ -93,7 +94,7 @@ func (dbc *DBConn) Err() error {
 // Exec executes the specified query. If there is a connection error, it will reconnect
 // and retry. A failed reconnect will trigger a CheckMySQL.
 func (dbc *DBConn) Exec(ctx context.Context, query string, maxrows int, wantfields bool) (*types.Result, error) {
-	ctx, span := DbTracer.Start(ctx, "DBConn.Exec")
+	ctx, span := telemetry.GlobalTracer.Start(ctx, "DBConn.Exec")
 	defer span.End()
 
 	for attempt := 1; attempt <= 2; attempt++ {
@@ -178,7 +179,7 @@ func (dbc *DBConn) FetchNext(ctx context.Context, maxrows int, wantfields bool) 
 
 // Stream executes the query and streams the results.
 func (dbc *DBConn) Stream(ctx context.Context, query string, callback func(*types.Result) error, streamBufferSize int, includedFields types.IncludedFields) error {
-	ctx, span := DbTracer.Start(ctx, "DBConn.Stream")
+	ctx, span := telemetry.GlobalTracer.Start(ctx, "DBConn.Stream")
 	span.SetAttributes(label.String("query", query))
 	defer span.End()
 

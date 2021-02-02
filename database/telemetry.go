@@ -33,7 +33,6 @@ type Stats struct {
 	ResourceWaitTime     *telemetry.MultiDurationValueRecorder
 }
 
-var DbTracer = telemetry.GetTracer("DbConn")
 var DbStats = newStats("DbConn")
 
 func newStats(instrumentationName string) *Stats {

@@ -27,9 +27,9 @@ import (
 var tracerMap = make(map[string]trace.Tracer)
 var tracerMutex sync.Mutex
 
-var GlobalTracer = GetTracer("go-sharding")
+var GlobalTracer = getTracer("go-sharding")
 
-func GetTracer(traceName string) trace.Tracer {
+func getTracer(traceName string) trace.Tracer {
 	tc, ok := tracerMap[traceName]
 	if !ok {
 		tracerMutex.Lock()
