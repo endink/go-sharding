@@ -45,12 +45,14 @@ const (
 )
 
 func (r ReleaseReason) String() string {
-	return txResolutions[r]
+	s, _ := txResolutions[r]
+	return s
 }
 
 //Name return the name of enum.
 func (r ReleaseReason) Name() string {
-	return txNames[r]
+	n, _ := txNames[r]
+	return n
 }
 
 var txResolutions = map[ReleaseReason]string{
