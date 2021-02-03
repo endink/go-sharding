@@ -16,28 +16,14 @@
  *  File author: Anders Xiao
  */
 
-package server
+package util
 
-type ShardSession struct {
-	Target        *Target
-	TransactionId int64
-	ReservedId    int64
-}
+import "encoding/json"
 
-type Target struct {
-	Schema     string
-	DataSource string
-	TabletType TabletType
-}
-
-func (t *Target) Equals(other interface{}) bool {
-	if other == nil {
-		return false
+func JsonClone(dest interface{}, source interface{}) error {
+	data, err := json.Marshal(source)
+	if err != nil {
+		return err
 	}
-	otherT, _ := other.(*Target)
-	return t.IsSame(otherT)
-}
-
-func (t *Target) IsSame(other *Target) bool {
-	return other != nil && t.Schema == other.Schema && t.DataSource == other.DataSource && t.TabletType == other.TabletType
+	return json.Unmarshal(data, dest)
 }

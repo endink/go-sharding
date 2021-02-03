@@ -32,6 +32,15 @@ type Session struct {
 
 	Options *types.ExecuteOptions
 
+	// target_string is the target expressed as a string. Valid
+	// names are: keyspace:shard@target, keyspace@target or @target.
+	// This is used only for V3.
+	TargetString string
+
+	// system_variables keeps track of all session variables set for this connection
+	// TODO: systay should we keep this so we can apply it ordered?
+	SystemVariables map[string]string
+
 	// transaction_mode specifies the current transaction mode.
 	TransactionMode TransactionMode
 	// warnings contains non-fatal warnings from the previous query

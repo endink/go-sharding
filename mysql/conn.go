@@ -663,8 +663,8 @@ func (c *Conn) writeComQuit() error {
 }
 
 // RemoteAddr returns the underlying socket RemoteAddr().
-func (c *Conn) RemoteAddr() net.Addr {
-	return c.conn.RemoteAddr()
+func (c *Conn) RemoteAddr() *net.TCPAddr {
+	return c.conn.RemoteAddr().(*net.TCPAddr)
 }
 
 func (c *Conn) LocalAddr() net.Addr {

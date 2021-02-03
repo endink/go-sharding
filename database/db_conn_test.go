@@ -42,7 +42,7 @@ func compareTimingCounts(t *testing.T, op string, delta int64, before, after map
 }
 
 //func TestDBConnExec(t *testing.T) {
-//	db := fakesqldb.New(t)
+//	db := fakesqldb.NewTxLimiter(t)
 //	defer db.Close()
 //
 //	sql := "select * from test_table limit 1000"
@@ -115,7 +115,7 @@ func compareTimingCounts(t *testing.T, op string, delta int64, before, after map
 //}
 
 //func TestDBConnDeadline(t *testing.T) {
-//	db := fakesqldb.New(t)
+//	db := fakesqldb.NewTxLimiter(t)
 //	defer db.Close()
 //	sql := "select * from test_table limit 1000"
 //	expectedResult := &types.Result{

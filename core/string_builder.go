@@ -64,12 +64,12 @@ func (w *StringBuilder) Write(value ...interface{}) {
 	for _, v := range value {
 		if a, isString := v.(string); isString {
 			_, _ = w.buffer.WriteString(a)
-			return
+			continue
 		}
 
 		if b, isBuilder := v.(fmt.Stringer); isBuilder {
 			_, _ = w.buffer.WriteString(b.String())
-			return
+			continue
 		}
 		_, _ = w.buffer.WriteString(fmt.Sprint(v))
 	}

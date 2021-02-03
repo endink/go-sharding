@@ -24,30 +24,39 @@ import (
 )
 
 type Stats struct {
-	DbConnectLatency     telemetry.DurationValueRecorder
-	DbConnectErrLatency  telemetry.DurationValueRecorder
-	DbExecLatency        telemetry.DurationValueRecorder
-	DbExecStreamLatency  telemetry.DurationValueRecorder
-	KillQueriesCounter   metric.Int64Counter
-	InternalErrorCounter metric.Int64Counter
-	ResourceWaitTime     *telemetry.MultiDurationValueRecorder
+	DbConnectLatency      telemetry.DurationValueRecorder
+	DbConnectErrLatency   telemetry.DurationValueRecorder
+	DbExecLatency         telemetry.DurationValueRecorder
+	DbExecStreamLatency   telemetry.DurationValueRecorder
+	KillQueriesCounter    metric.Int64Counter
+	KillCounter           metric.Int64Counter
+	InternalErrorCounter  metric.Int64Counter
+	ResourceWaitTime      *telemetry.MultiDurationValueRecorder
+	InternalErrors        metric.Int64Counter
+	ActiveReservedCounter metric.Int64Counter
+	ReservedCounter       metric.Int64Counter
+	ReservedTimes         telemetry.DurationCounter
+
+	TransactionCounter metric.Int64Counter
+	TransactionTimes   telemetry.DurationCounter
 }
 
-var PoolMeter = telemetry.GetMeter("DbPool")
-var DbStats = newStats("DbConn")
+var DbMeter = telemetry.GetMeter("database")
+var DbStats = &Stats{
+	DbConnectLatency:     DbMeter.NewDurationValueRecorder("connect_latency", "Database connect succeed time"),
+	DbConnectErrLatency:  DbMeter.NewDurationValueRecorder("connect_error_latency", "Database connect error time"),
+	DbExecLatency:        DbMeter.NewDurationValueRecorder("exec_latency", "Database execitopm time"),
+	DbExecStreamLatency:  DbMeter.NewDurationValueRecorder("exec_stream_latency", "Database execitopm time"),
+	KillQueriesCounter:   DbMeter.NewInt64Counter("kill_queries_count", "Database killed queries count"),
+	KillCounter:          DbMeter.NewInt64Counter("kill", "Number of connections being killed"),
+	InternalErrorCounter: DbMeter.NewInt64Counter("internal_error_count", "Database error count"),
+	ResourceWaitTime:     DbMeter.NewMultiDurationValueRecorder("resource_wait_time", "Resource wait time"),
+	InternalErrors:       DbMeter.NewInt64Counter("internal_errors", "Internal component errors"),
 
-func newStats(instrumentationName string) *Stats {
-	meter := telemetry.GetMeter(instrumentationName)
+	ActiveReservedCounter: DbMeter.NewInt64Counter("active_reserved_count", "active reserved connection for each host"),
+	ReservedCounter:       DbMeter.NewInt64Counter("reserved_count", "reserved connection received for each host"),
+	ReservedTimes:         DbMeter.NewDurationCounter("reserved_times_ms", "Total reserved connection latency for each host"),
 
-	s := &Stats{
-		DbConnectLatency:     meter.NewDurationValueRecorder("connect_latency", "Database connect succeed time"),
-		DbConnectErrLatency:  meter.NewDurationValueRecorder("connect_error_latency", "Database connect error time"),
-		DbExecLatency:        meter.NewDurationValueRecorder("exec_latency", "Database execitopm time"),
-		DbExecStreamLatency:  meter.NewDurationValueRecorder("exec_stream_latency", "Database execitopm time"),
-		KillQueriesCounter:   meter.NewInt64Counter("kill_queries_count", "Database killed queries count"),
-		InternalErrorCounter: meter.NewInt64Counter("internal_error_count", "Database error count"),
-		ResourceWaitTime:     meter.NewMultiDurationValueRecorder("resource_wait_time", "Resource wait time"),
-	}
-
-	return s
+	TransactionCounter: DbMeter.NewInt64Counter("UserTransactionCount", "transactions received for each CallerID"),
+	TransactionTimes:   DbMeter.NewDurationCounter("user_transaction_times_ms", "Total transaction latency for each host"),
 }

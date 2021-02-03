@@ -43,7 +43,36 @@ const (
 	IsolationReadCommitted
 	IsolationReadUncommitted
 	IsolationSerializable
+	IsolationConsistentSnapshotReadOnly
+	IsolationAutoCommit
 )
+
+var TransactionIsolationNames = map[TransactionIsolation]string{
+	IsolationDefault:                    "DEFAULT",
+	IsolationRepeatableRead:             "REPEATABLE_READ",
+	IsolationReadCommitted:              "READ_COMMITTED",
+	IsolationReadUncommitted:            "READ_UNCOMMITTED",
+	IsolationSerializable:               "SERIALIZABLE",
+	IsolationConsistentSnapshotReadOnly: "CONSISTENT_SNAPSHOT_READ_ONLY",
+	IsolationAutoCommit:                 "AUTOCOMMIT",
+}
+
+var TransactionIsolationValues = map[string]TransactionIsolation{
+	"DEFAULT":                       IsolationDefault,
+	"REPEATABLE_READ":               IsolationRepeatableRead,
+	"READ_COMMITTED":                IsolationReadCommitted,
+	"READ_UNCOMMITTED":              IsolationReadUncommitted,
+	"SERIALIZABLE":                  IsolationSerializable,
+	"CONSISTENT_SNAPSHOT_READ_ONLY": IsolationConsistentSnapshotReadOnly,
+	"AUTOCOMMIT":                    IsolationAutoCommit,
+}
+
+func (i TransactionIsolation) String() string {
+	if n, ok := TransactionIsolationNames[i]; ok {
+		return n
+	}
+	return "UNKNOWN_ISOLATION"
+}
 
 // ExecuteOptions is passed around for all Execute calls.
 type ExecuteOptions struct {

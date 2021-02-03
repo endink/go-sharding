@@ -19,10 +19,10 @@
 package server
 
 import (
-	"context"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/XiaoMi/Gaea/util/sync2"
 	"github.com/google/uuid"
 	"sync"
 	"time"
@@ -30,11 +30,19 @@ import (
 
 const maxDuration time.Duration = 1<<63 - 1
 
+var busyConnections = sync2.NewAtomicInt32(0)
+var lockHeartbeatTime = time.Second * 5
+
 type mysqlHandler struct {
 	mutex        sync.Mutex
 	connections  map[*mysql.Conn]struct{}
 	queryTimeout time.Duration
-	telemetry    Telemetry
+}
+
+func (m *mysqlHandler) ConnectionCount() int {
+	m.mutex.Lock()
+	defer m.mutex.Unlock()
+	return len(m.connections)
 }
 
 func (m *mysqlHandler) newSession(c *mysql.Conn) *Session {
@@ -66,19 +74,19 @@ func (m *mysqlHandler) ConnectionClosed(c *mysql.Conn) {
 		delete(m.connections, c)
 	}()
 
-	var ctx context.Context
-	var cancel context.CancelFunc
-	if m.queryTimeout != maxDuration {
-		ctx, cancel = context.WithTimeout(context.Background(), m.queryTimeout)
-		defer cancel()
-	} else {
-		ctx = context.Background()
-	}
+	//var ctx context.Context
+	//var cancel context.CancelFunc
+	//if m.queryTimeout != maxDuration {
+	//	ctx, cancel = context.WithTimeout(context.Background(), m.queryTimeout)
+	//	defer cancel()
+	//} else {
+	//	ctx = context.Background()
+	//}
 	session := m.newSession(c)
 	if session.InTransaction {
-		defer m.telemetry.AddBuyConnection(-1)
+		defer busyConnections.Add(-1)
 	}
-	_ = vh.vtg.CloseSession(ctx, session)
+	//_ = vh.vtg.CloseSession(ctx, session)
 }
 
 func (m *mysqlHandler) ComQuery(c *mysql.Conn, query string, callback func(*types.Result) error) error {

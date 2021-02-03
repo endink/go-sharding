@@ -18,26 +18,15 @@
 
 package server
 
-type ShardSession struct {
-	Target        *Target
-	TransactionId int64
-	ReservedId    int64
-}
+// TabletType represents the type of a given tablet.
+type TabletType int32
 
-type Target struct {
-	Schema     string
-	DataSource string
-	TabletType TabletType
-}
-
-func (t *Target) Equals(other interface{}) bool {
-	if other == nil {
-		return false
-	}
-	otherT, _ := other.(*Target)
-	return t.IsSame(otherT)
-}
-
-func (t *Target) IsSame(other *Target) bool {
-	return other != nil && t.Schema == other.Schema && t.DataSource == other.DataSource && t.TabletType == other.TabletType
-}
+const (
+	// UNKNOWN is not a valid value.
+	TabletTypeUnknown TabletType = iota
+	// MASTER is the master server for the shard. Only MASTER allows DMLs.
+	TabletTypeMaster
+	// REPLICA replicates from master. It is used to serve live traffic.
+	// A REPLICA can be promoted to MASTER. A demoted MASTER will go to REPLICA.
+	TabletTypeReplica
+)

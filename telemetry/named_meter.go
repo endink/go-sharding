@@ -105,6 +105,14 @@ func (m *NamedMeter) NewDurationValueRecorder(name, desc string) DurationValueRe
 	return r.(DurationValueRecorder)
 }
 
+func (m *NamedMeter) NewDurationCounter(name, desc string) DurationCounter {
+	fac := func() interface{} {
+		return NewDurationCounter(metric.Must(m.meter), name, metric.WithDescription(desc))
+	}
+	r := m.getOrPutRecorder(name, fac)
+	return r.(DurationCounter)
+}
+
 func (m *NamedMeter) NewMultiDurationValueRecorder(name, desc string) *MultiDurationValueRecorder {
 	fac := func() interface{} {
 		r := NewMultiDurationValueRecorder(metric.Must(m.meter), name, metric.WithDescription(desc))

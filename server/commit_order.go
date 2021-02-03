@@ -16,14 +16,19 @@
  *  File author: Anders Xiao
  */
 
-package database
+package server
 
-// ConnPoolConfig contains the config for a conn pool.
-type ConnPoolConfig struct {
-	Size               int    `json:"size,omitempty"`
-	TimeoutSeconds     uint64 `json:"timeoutSeconds,omitempty"`
-	IdleTimeoutSeconds uint64 `json:"idleTimeoutSeconds,omitempty"`
-	PrefillParallelism int    `json:"prefillParallelism,omitempty"`
-	MaxWaiters         int    `json:"maxWaiters,omitempty"`
-	IsNoPool           bool   `json:"isNoPool"`
-}
+// CommitOrder is used to designate which of the ShardSessions
+// get used for transactions.
+type CommitOrder int32
+
+const (
+	// NORMAL is the default commit order.
+	CommitOrderNormal CommitOrder = iota
+	// PRE is used to designate pre_sessions.
+	CommitOrderPre
+	// POST is used to designate post_sessions.
+	CommitOrderPost
+	// AUTOCOMMIT is used to run the statement as autocommitted transaction.
+	CommitOrderAutocommit
+)

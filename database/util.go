@@ -16,8 +16,22 @@
  *  File author: Anders Xiao
  */
 
-package server
+package database
 
-type Telemetry interface {
-	AddBuyConnection(count int)
+import (
+	"context"
+	"github.com/XiaoMi/Gaea/logging"
+	"github.com/XiaoMi/Gaea/util"
+	"go.opentelemetry.io/otel/label"
+)
+
+func RecoverError(logger logging.StandardLogger, ctx context.Context) {
+	c := ctx
+	if c == nil {
+		c = context.TODO()
+	}
+	if x := recover(); x != nil {
+		logger.Errorf("Uncaught panic:\n%v\n%s", x, util.Stack(4))
+		DbStats.InternalErrors.Add(c, 1, label.String("type", "Panic"))
+	}
 }

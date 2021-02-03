@@ -16,28 +16,27 @@
  *  File author: Anders Xiao
  */
 
-package server
+package telemetry
 
-type ShardSession struct {
-	Target        *Target
-	TransactionId int64
-	ReservedId    int64
+import (
+	"context"
+	"go.opentelemetry.io/otel/label"
+	"go.opentelemetry.io/otel/metric"
+	"go.opentelemetry.io/otel/unit"
+	"time"
+)
+
+type DurationCounter struct {
+	counter metric.Int64Counter
 }
 
-type Target struct {
-	Schema     string
-	DataSource string
-	TabletType TabletType
-}
-
-func (t *Target) Equals(other interface{}) bool {
-	if other == nil {
-		return false
+func NewDurationCounter(meter metric.MeterMust, name string, mos ...metric.InstrumentOption) DurationCounter {
+	options := append(mos, metric.WithUnit(unit.Milliseconds))
+	return DurationCounter{
+		counter: meter.NewInt64Counter(name, options...),
 	}
-	otherT, _ := other.(*Target)
-	return t.IsSame(otherT)
 }
 
-func (t *Target) IsSame(other *Target) bool {
-	return other != nil && t.Schema == other.Schema && t.DataSource == other.DataSource && t.TabletType == other.TabletType
+func (d DurationCounter) Add(ctx context.Context, duration time.Duration, labels ...label.KeyValue) {
+	d.counter.Add(ctx, duration.Milliseconds(), labels...)
 }

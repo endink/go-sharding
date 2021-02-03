@@ -16,28 +16,19 @@
  *  File author: Anders Xiao
  */
 
-package server
+package logging
 
-type ShardSession struct {
-	Target        *Target
-	TransactionId int64
-	ReservedId    int64
-}
-
-type Target struct {
-	Schema     string
-	DataSource string
-	TabletType TabletType
-}
-
-func (t *Target) Equals(other interface{}) bool {
-	if other == nil {
-		return false
-	}
-	otherT, _ := other.(*Target)
-	return t.IsSame(otherT)
-}
-
-func (t *Target) IsSame(other *Target) bool {
-	return other != nil && t.Schema == other.Schema && t.DataSource == other.DataSource && t.TabletType == other.TabletType
+type StandardLogger interface {
+	Debug(args ...interface{})
+	Info(args ...interface{})
+	Warn(args ...interface{})
+	Error(args ...interface{})
+	Panic(args ...interface{})
+	Fatal(args ...interface{})
+	Debugf(template string, args ...interface{})
+	Infof(template string, args ...interface{})
+	Warnf(template string, args ...interface{})
+	Errorf(template string, args ...interface{})
+	Panicf(template string, args ...interface{})
+	Fatalf(template string, args ...interface{})
 }

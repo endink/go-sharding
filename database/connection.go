@@ -24,7 +24,7 @@ import (
 	"github.com/XiaoMi/Gaea/mysql/types"
 )
 
-var log = logging.GetLogger("db-conn")
+var log = logging.GetLogger("database")
 
 // DBConnection re-exposes mysql.Conn with some wrapping to implement
 // most of PoolConnection interface, except Recycle. That way it can be used
