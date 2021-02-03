@@ -19,7 +19,9 @@
 package database
 
 import (
+	"fmt"
 	"github.com/XiaoMi/Gaea/core"
+	"strings"
 	"time"
 )
 
@@ -81,28 +83,30 @@ func (p *TxProperties) String() string {
 	}
 
 	sb := core.NewStringBuilder()
+
+	stats := make([]string, 0, 6)
+
 	if p.remoteHost != "" {
-		sb.Write("host:", p.remoteHost, ", ")
+		stats = append(stats, fmt.Sprint("host:", p.remoteHost))
 	}
 
 	if p.userName != "" {
-		sb.Write("user:", p.userName, ", ")
+		stats = append(stats, fmt.Sprint("user:", p.userName))
 	}
 
-	s := p.StartTime.Format("2006-01-02 15:04:05")
-	sb.Write("start:", s, ", ")
+	stats = append(stats, fmt.Sprint("start:", p.StartTime.Format("2006-01-02 15:04:05")))
 
 	if !p.EndTime.IsZero() {
-		sb.Write("end:", p.EndTime.Format("2006-01-02 15:04:05"), ", ")
-		sb.Write("live:", p.EndTime.Sub(p.StartTime).Seconds(), "s, ")
+		stats = append(stats, fmt.Sprint("end:", p.EndTime.Format("2006-01-02 15:04:05")))
+		stats = append(stats, fmt.Sprint("live:", p.EndTime.Sub(p.StartTime).Seconds()))
 	}
 
 	if p.Conclusion != "" {
-		sb.Write(p.Conclusion, ", ")
+		stats = append(stats, p.Conclusion)
 	}
 
+	sb.WriteLine(strings.Join(stats, ", "))
 	if len(p.Queries) > 0 {
-		sb.WriteLine()
 		sb.WriteLineForEach(p.Queries)
 	}
 
