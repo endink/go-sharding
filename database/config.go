@@ -21,6 +21,8 @@ package database
 import "time"
 
 type TxConfig struct {
+	TwoPCAbandonAge   time.Duration
+	EnableTwoPC       bool
 	EnableLimit       bool
 	EnableLimitDryRun bool
 	LimitPerCaller    float64
@@ -28,10 +30,18 @@ type TxConfig struct {
 	LimitByAddr       bool
 	Timout            time.Duration
 	Pool              ConnPoolConfig
+	GracePeriods      time.Duration
+}
+
+type GracePeriodsConfig struct {
+	ShutdownSeconds   time.Duration `json:"shutdownSeconds,omitempty"`
+	TransitionSeconds time.Duration `json:"transitionSeconds,omitempty"`
 }
 
 func defaultTxConfig() TxConfig {
 	return TxConfig{
+		TwoPCAbandonAge:   time.Second * 2,
+		EnableTwoPC:       true,
 		EnableLimit:       false,
 		EnableLimitDryRun: false,
 
@@ -61,8 +71,9 @@ type ConnPoolConfig struct {
 }
 
 type DbConfig struct {
-	Tx   TxConfig
-	Pool ConnPoolConfig
+	Tx           TxConfig
+	Pool         ConnPoolConfig
+	GracePeriods GracePeriodsConfig
 }
 
 var defaultDbConfig = &DbConfig{
@@ -73,6 +84,8 @@ var defaultDbConfig = &DbConfig{
 	},
 
 	Tx: TxConfig{
+		EnableTwoPC:       true,
+		TwoPCAbandonAge:   time.Second * 2,
 		EnableLimit:       false,
 		EnableLimitDryRun: false,
 		LimitPerCaller:    0,
@@ -85,6 +98,11 @@ var defaultDbConfig = &DbConfig{
 			IdleTimeoutSeconds: 30 * 60,
 			MaxWaiters:         5000,
 		},
+	},
+
+	GracePeriods: GracePeriodsConfig{
+		ShutdownSeconds:   time.Second * 2,
+		TransitionSeconds: time.Second * 2,
 	},
 }
 

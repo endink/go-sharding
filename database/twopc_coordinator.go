@@ -16,12 +16,25 @@
  *  File author: Anders Xiao
  */
 
-package server
+package database
 
-import "github.com/XiaoMi/Gaea/database"
+import (
+	"context"
+	"github.com/XiaoMi/Gaea/util"
+)
 
-type ShardSession struct {
-	Target        *database.Target
-	TransactionId int64
-	ReservedId    int64
+type Coordinator interface {
+	Connect(ctx context.Context) (CoordConn, error)
+}
+
+type CoordConn interface {
+	util.Resource
+	ResolveTransaction(ctx context.Context, dtid string) error
+}
+
+type noCoordinator struct {
+}
+
+func (n *noCoordinator) Connect() (CoordConn, error) {
+	return nil, nil
 }

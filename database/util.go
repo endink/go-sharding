@@ -20,9 +20,11 @@ package database
 
 import (
 	"context"
+	"fmt"
 	"github.com/XiaoMi/Gaea/logging"
 	"github.com/XiaoMi/Gaea/util"
-	"go.opentelemetry.io/otel/label"
+	"strconv"
+	"strings"
 )
 
 func RecoverError(logger logging.StandardLogger, ctx context.Context) {
@@ -32,6 +34,27 @@ func RecoverError(logger logging.StandardLogger, ctx context.Context) {
 	}
 	if x := recover(); x != nil {
 		logger.Errorf("Uncaught panic:\n%v\n%s", x, util.Stack(4))
-		DbStats.InternalErrors.Add(c, 1, label.String("type", "Panic"))
+		DbStats.AddInternalErrors(c, "Panic", 1)
 	}
+}
+
+func ensureContext(ctx context.Context) context.Context {
+	c := ctx
+	if c == nil {
+		c = context.TODO()
+	}
+	return c
+}
+
+// TransactionID extracts the original transaction ID from the dtid.
+func TransactionID(dtid string) (int64, error) {
+	splits := strings.Split(dtid, ":")
+	if len(splits) != 3 {
+		return 0, fmt.Errorf("invalid parts in dtid: %s", dtid)
+	}
+	txid, err := strconv.ParseInt(splits[2], 10, 0)
+	if err != nil {
+		return 0, fmt.Errorf("invalid transaction id in dtid: %s", dtid)
+	}
+	return txid, nil
 }

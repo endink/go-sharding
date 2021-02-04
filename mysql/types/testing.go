@@ -16,12 +16,24 @@
  *  File author: Anders Xiao
  */
 
-package server
+package types
 
-import "github.com/XiaoMi/Gaea/database"
+// TestBindVariable makes a *types.BindVariable from
+// an interface{}.It panics on invalid input.
+// This function should only be used for testing.
+func TestBindVariable(v interface{}) *BindVariable {
+	if v == nil {
+		return NullBindVariable
+	}
+	bv, err := BuildBindVariable(v)
+	if err != nil {
+		panic(err)
+	}
+	return bv
+}
 
-type ShardSession struct {
-	Target        *database.Target
-	TransactionId int64
-	ReservedId    int64
+// TestValue builds a Value from typ and val.
+// This function should only be used for testing.
+func TestValue(typ MySqlType, val string) Value {
+	return MakeTrusted(typ, []byte(val))
 }

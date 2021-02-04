@@ -16,12 +16,24 @@
  *  File author: Anders Xiao
  */
 
-package server
+package database
 
-import "github.com/XiaoMi/Gaea/database"
+import (
+	"time"
+)
 
-type ShardSession struct {
-	Target        *database.Target
-	TransactionId int64
-	ReservedId    int64
+// DistributedTx is similar to querypb.TransactionMetadata, but
+// is display friendly.
+type DistributedTx struct {
+	Dtid         string
+	State        string
+	Created      time.Time
+	Participants []Target
+}
+
+// PreparedTx represents a displayable version of a prepared transaction.
+type PreparedTx struct {
+	Dtid    string
+	Queries []string
+	Time    time.Time
 }

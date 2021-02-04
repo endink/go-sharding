@@ -16,12 +16,22 @@
  *  File author: Anders Xiao
  */
 
-package server
+package database
 
-import "github.com/XiaoMi/Gaea/database"
+type Target struct {
+	Schema     string
+	DataSource string
+	TabletType TabletType
+}
 
-type ShardSession struct {
-	Target        *database.Target
-	TransactionId int64
-	ReservedId    int64
+func (t *Target) Equals(other interface{}) bool {
+	if other == nil {
+		return false
+	}
+	otherT, _ := other.(*Target)
+	return t.IsSame(otherT)
+}
+
+func (t *Target) IsSame(other *Target) bool {
+	return other != nil && t.Schema == other.Schema && t.DataSource == other.DataSource && t.TabletType == other.TabletType
 }

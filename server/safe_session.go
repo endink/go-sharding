@@ -21,6 +21,7 @@ package server
 import (
 	"errors"
 	"fmt"
+	"github.com/XiaoMi/Gaea/database"
 	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/XiaoMi/Gaea/util"
 	"sync"
@@ -173,7 +174,7 @@ func (session *SafeSession) InTransaction() bool {
 }
 
 // Find returns the transactionId and tabletAlias, if any, for a session
-func (session *SafeSession) Find(schema, shard string, tabletType TabletType) (transactionID int64, reservedID int64, target *Target) {
+func (session *SafeSession) Find(schema, shard string, tabletType database.TabletType) (transactionID int64, reservedID int64, target *database.Target) {
 	session.mu.Lock()
 	defer session.mu.Unlock()
 	sessions := session.ShardSessions
@@ -410,7 +411,7 @@ func (session *SafeSession) ResetAll() {
 }
 
 // ResetShard reset the shard session for the provided tablet alias.
-func (session *SafeSession) ResetShard(target *Target) error {
+func (session *SafeSession) ResetShard(target *database.Target) error {
 	session.mu.Lock()
 	defer session.mu.Unlock()
 
@@ -476,7 +477,7 @@ func (session *SafeSession) GetSessionEnableSystemSettings() bool {
 	return session.EnableSystemSettings
 }
 
-func removeShard(tabletAlias *Target, sessions []*ShardSession) ([]*ShardSession, error) {
+func removeShard(tabletAlias *database.Target, sessions []*ShardSession) ([]*ShardSession, error) {
 	idx := -1
 	for i, session := range sessions {
 		if session.Target.IsSame(tabletAlias) {

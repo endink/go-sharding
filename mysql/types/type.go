@@ -125,6 +125,13 @@ const (
 	Expression MySqlType = 31
 )
 
+func (t MySqlType) String() string {
+	if n, ok := TypeNames[t]; ok {
+		return n
+	}
+	return fmt.Sprintf("KnowType(%d)", int32(t))
+}
+
 var TypeNames = map[MySqlType]string{
 	0:     "Null_type",
 	257:   "INT8",

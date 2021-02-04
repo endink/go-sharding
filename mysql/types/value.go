@@ -255,16 +255,18 @@ func (v Value) String() string {
 }
 
 // EncodeSQL encodes the value into an SQL statement. Can be binary.
-func (v Value) EncodeSQL(b BinWriter) {
+func (v Value) EncodeSQL(b BinWriter) error {
 	switch {
 	case v.ValueType == Null:
-		b.Write(nullstr)
+		_, err := b.Write(nullstr)
+		return err
 	case v.IsQuoted():
-		encodeBytesSQL(v.Value, b)
+		return encodeBytesSQL(v.Value, b)
 	case v.ValueType == Bit:
-		encodeBytesSQLBits(v.Value, b)
+		return encodeBytesSQLBits(v.Value, b)
 	default:
-		b.Write(v.Value)
+		_, err := b.Write(v.Value)
+		return err
 	}
 }
 
@@ -369,7 +371,7 @@ func (v *Value) UnmarshalJSON(b []byte) error {
 	return err
 }
 
-func encodeBytesSQL(val []byte, b BinWriter) {
+func encodeBytesSQL(val []byte, b BinWriter) error {
 	buf := &bytes.Buffer{}
 	buf.WriteByte('\'')
 	for _, ch := range val {
@@ -381,15 +383,24 @@ func encodeBytesSQL(val []byte, b BinWriter) {
 		}
 	}
 	buf.WriteByte('\'')
-	b.Write(buf.Bytes())
+	_, err := b.Write(buf.Bytes())
+	return err
 }
 
-func encodeBytesSQLBits(val []byte, b BinWriter) {
-	fmt.Fprint(b, "b'")
-	for _, ch := range val {
-		fmt.Fprintf(b, "%08b", ch)
+func encodeBytesSQLBits(val []byte, b BinWriter) error {
+	var err error
+	_, err = fmt.Fprint(b, "b'")
+	if err != nil {
+		return err
 	}
-	fmt.Fprint(b, "'")
+	for _, ch := range val {
+		_, err = fmt.Fprintf(b, "%08b", ch)
+		if err != nil {
+			return err
+		}
+	}
+	_, err = fmt.Fprint(b, "'")
+	return err
 }
 
 func encodeBytesASCII(val []byte, b BinWriter) {

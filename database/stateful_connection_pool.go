@@ -22,7 +22,6 @@ import (
 	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/XiaoMi/Gaea/util"
 	"github.com/XiaoMi/Gaea/util/sync2"
-	"go.opentelemetry.io/otel/label"
 	"time"
 )
 
@@ -80,7 +79,7 @@ func (sf *StatefulConnectionPool) Close() {
 			thing = "transaction"
 		}
 		log.Warnf("killing %s for shutdown: %s", thing, conn.String())
-		DbStats.InternalErrors.Add(context.TODO(), 1, label.String("type", "StrayTransactions"))
+		DbStats.AddInternalErrors(context.TODO(), "StrayTransactions", 1)
 		conn.Close()
 		conn.Releasef("pool closed")
 	}
