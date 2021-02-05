@@ -18,7 +18,10 @@
 
 package server
 
-import "github.com/XiaoMi/Gaea/mysql/types"
+import (
+	"github.com/XiaoMi/Gaea/database"
+	"github.com/XiaoMi/Gaea/mysql/types"
+)
 
 type Session struct {
 	// in_transaction is set to true if the session is in a transaction.
@@ -28,7 +31,7 @@ type Session struct {
 	Autocommit bool
 
 	// shard_sessions keep track of per-shard transaction info.
-	ShardSessions []*ShardSession
+	ShardSessions []*database.DbSession
 
 	Options *types.ExecuteOptions
 
@@ -46,9 +49,9 @@ type Session struct {
 	// warnings contains non-fatal warnings from the previous query
 	Warnings []string
 	// pre_sessions contains sessions that have to be committed first.
-	PreSessions []*ShardSession
+	PreSessions []*database.DbSession
 	// post_sessions contains sessions that have to be committed last.
-	PostSessions []*ShardSession
+	PostSessions []*database.DbSession
 	// last_insert_id keeps track of the last seen insert_id for this session
 	LastInsertId uint64
 	// found_rows keeps track of how many rows the last query returned
@@ -63,7 +66,7 @@ type Session struct {
 	// in_reserved_conn is set to true if the session should be using reserved connections.
 	InReservedConn bool
 	// lock_session keep tracks of shard on which the lock query is sent.
-	LockSession *ShardSession
+	LockSession *database.DbSession
 	// last_lock_heartbeat keep tracks of when last lock heartbeat was sent.
 	LastLockHeartbeat int64
 	// DDL strategy

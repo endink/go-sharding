@@ -18,7 +18,10 @@
 
 package util
 
-import "encoding/json"
+import (
+	"bytes"
+	"encoding/json"
+)
 
 func JsonClone(dest interface{}, source interface{}) error {
 	data, err := json.Marshal(source)
@@ -26,4 +29,33 @@ func JsonClone(dest interface{}, source interface{}) error {
 		return err
 	}
 	return json.Unmarshal(data, dest)
+}
+
+func JsonEqual(a interface{}, b interface{}) (bool, error) {
+	ja, err := json.Marshal(a)
+	if err != nil {
+		return false, err
+	}
+	jb, err := json.Marshal(b)
+	if err != nil {
+		return false, err
+	}
+
+	return bytes.Equal(ja, jb), nil
+
+}
+
+func JsonEqualIgnoreError(a interface{}, b interface{}) bool {
+	ja, err := json.Marshal(a)
+	if err != nil {
+		println(err.Error())
+		return false
+	}
+	jb, err := json.Marshal(b)
+	if err != nil {
+		println(err.Error())
+		return false
+	}
+	return bytes.Equal(ja, jb)
+
 }

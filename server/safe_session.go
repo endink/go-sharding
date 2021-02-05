@@ -212,7 +212,7 @@ func addOrUpdate(shardSession *ShardSession, sessions []*ShardSession) []*ShardS
 	return sessions
 }
 
-// AppendOrUpdate adds a new ShardSession, or updates an existing one if one already exists for the given shard session
+// AppendOrUpdate adds a new DbSession, or updates an existing one if one already exists for the given shard session
 func (session *SafeSession) AppendOrUpdate(shardSession *ShardSession, txMode TransactionMode) error {
 	session.mu.Lock()
 	defer session.mu.Unlock()

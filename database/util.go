@@ -19,13 +19,24 @@
 package database
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/XiaoMi/Gaea/logging"
+	"github.com/XiaoMi/Gaea/mysql"
+	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/XiaoMi/Gaea/util"
-	"strconv"
-	"strings"
+	"sort"
 )
+
+// HandlePanic is part of the UpdateStream interface
+func HandlePanic(err *error) {
+	if x := recover(); x != nil {
+		log.Errorf("Uncaught panic:\n%v\n%s", x, util.Stack(4))
+		*err = fmt.Errorf("uncaught panic: %v", x)
+	}
+}
 
 func RecoverError(logger logging.StandardLogger, ctx context.Context) {
 	c := ctx
@@ -46,15 +57,53 @@ func ensureContext(ctx context.Context) context.Context {
 	return c
 }
 
-// TransactionID extracts the original transaction ID from the dtid.
-func TransactionID(dtid string) (int64, error) {
-	splits := strings.Split(dtid, ":")
-	if len(splits) != 3 {
-		return 0, fmt.Errorf("invalid parts in dtid: %s", dtid)
+func queryAsString(sql string, bindVariables map[string]*types.BindVariable) string {
+	buf := &bytes.Buffer{}
+	_, _ = fmt.Fprintf(buf, "Sql: %q", sql)
+	_, _ = fmt.Fprintf(buf, ", BindVars: {")
+	var keys []string
+	for key := range bindVariables {
+		keys = append(keys, key)
 	}
-	txid, err := strconv.ParseInt(splits[2], 10, 0)
-	if err != nil {
-		return 0, fmt.Errorf("invalid transaction id in dtid: %s", dtid)
+	sort.Strings(keys)
+	var valString string
+	for _, key := range keys {
+		valString = fmt.Sprintf("%v", bindVariables[key])
+		_, _ = fmt.Fprintf(buf, "%s: %q", key, valString)
 	}
-	return txid, nil
+	_, _ = fmt.Fprintf(buf, "}")
+	return buf.String()
+}
+
+func sqlError(ctx context.Context, sql string, bindVariables map[string]*types.BindVariable, err error) error {
+	if err == nil {
+		return nil
+	}
+
+	callerID := CallerFromContext(ctx).From()
+
+	// If TerseErrors is on, strip the error message returned by MySQL and only
+	// keep the error number and sql state.
+	// We assume that bind variable have PII, which are included in the MySQL
+	// query and come back as part of the error message. Removing the MySQL
+	// error helps us avoid leaking PII.
+	// There are two exceptions:
+	// 1. If no bind vars were specified, it's likely that the query was issued
+	// by someone manually. So, we don't suppress the error.
+	// 2. FAILED_PRECONDITION errors. These are caused when a failover is in progress.
+	// If so, we don't want to suppress the error. This will allow VTGate to
+	// detect and perform buffering during failovers.
+	var message string
+	sqlErr, ok := err.(*mysql.SQLError)
+	if ok {
+		sqlState := sqlErr.SQLState()
+		errnum := sqlErr.Number()
+		message = fmt.Sprintf("(errno %d) (sqlstate %s)%s: %s", errnum, sqlState, callerID, queryAsString(sql, bindVariables))
+		err = errors.New(message)
+	} else {
+		message = fmt.Sprintf("%s:%v", callerID, err.Error())
+		err = errors.New(message)
+	}
+
+	return err
 }

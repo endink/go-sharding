@@ -77,11 +77,11 @@ type TxEngine struct {
 }
 
 // NewTxEngine creates a new TxEngine.
-func NewTxEngine(coordinator Coordinator, conn *mysql.ConnParams, config DbConfig) *TxEngine {
+func NewTxEngine(conn *mysql.ConnParams, config DbConfig) *TxEngine {
 	te := &TxEngine{
 		connParam:           conn,
-		coord:               coordinator,
 		shutdownGracePeriod: config.GracePeriods.ShutdownSeconds,
+		coord:               new(coordinatorImpl),
 	}
 	limiter := NewTxLimiter(config.Tx)
 	te.txPool = NewTxPool(config, limiter)
@@ -111,6 +111,7 @@ func NewTxEngine(coordinator Coordinator, conn *mysql.ConnParams, config DbConfi
 		IdleTimeoutSeconds: config.Tx.Pool.IdleTimeoutSeconds,
 	})
 	te.twoPC = NewTwoPC(readPool)
+
 	te.state = NotServing
 	return te
 }
@@ -225,11 +226,11 @@ func (te *TxEngine) Commit(ctx context.Context, transactionID int64) (int64, str
 
 // Rollback rolls back the specified transaction.
 func (te *TxEngine) Rollback(ctx context.Context, transactionID int64) (int64, error) {
-	ctx, span := telemetry.GlobalTracer.Start(ctx, "TxEngine.Rollback")
+	ctx, span := telemetry.GlobalTracer.Start(ctx, "TxEngine.Complete")
 	defer span.End()
 
 	return te.txFinish(transactionID, TxRollback, func(conn *StatefulConnection) error {
-		return te.txPool.Rollback(ctx, conn)
+		return te.txPool.Complete(ctx, conn)
 	})
 }
 
@@ -358,7 +359,7 @@ outer:
 			_, err := conn.Exec(ctx, stmt, 1, false)
 			if err != nil {
 				allErr.RecordError(err)
-				te.txPool.RollbackAndRelease(ctx, conn)
+				te.txPool.CompleteAndRelease(ctx, conn)
 				continue outer
 			}
 		}
@@ -402,7 +403,7 @@ func (te *TxEngine) shutdownTransactions() {
 func (te *TxEngine) rollbackPrepared() {
 	ctx := core.LocalContext()
 	for _, conn := range te.preparedPool.FetchAll() {
-		if err := te.txPool.Rollback(ctx, conn); err != nil {
+		if err := te.txPool.Complete(ctx, conn); err != nil {
 			_ = fmt.Errorf("rollback transaction fault: %v", err)
 		}
 		conn.Release(TxRollback)
@@ -436,7 +437,7 @@ func (te *TxEngine) startWatchdog() {
 			return
 		}
 
-		coordConn, err := te.coord.Connect(ctx)
+		coordConn, err := te.coord.Connect(ctx, te)
 		if err != nil {
 			DbStats.AddInternalErrors(context.TODO(), "WatchdogFail", 1)
 			log.Errorf("Error connecting to coordinator: %v", err)
@@ -449,7 +450,7 @@ func (te *TxEngine) startWatchdog() {
 			wg.Add(1)
 			go func(dtid string) {
 				defer wg.Done()
-				if err := coordConn.ResolveTransaction(ctx, dtid); err != nil {
+				if err = coordConn.ResolveTransaction(ctx, dtid); err != nil {
 					DbStats.AddInternalErrors(context.TODO(), "WatchdogFail", 1)
 					log.Errorf("Error notifying for dtid %s: %v", dtid, err)
 				}

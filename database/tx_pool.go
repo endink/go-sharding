@@ -51,7 +51,7 @@ var txIsolations = map[types.TransactionIsolation]queries{
 type (
 	// TxPool does a lot of the transactional operations on StatefulConnections. It does not, with two exceptions,
 	// concern itself with a connections life cycle. The two exceptions are Begin, which creates a new StatefulConnection,
-	// and RollbackAndRelease, which does a Release after doing the rollback.
+	// and CompleteAndRelease, which does a Release after doing the rollback.
 	TxPool struct {
 		scp                *StatefulConnectionPool
 		transactionTimeout sync2.AtomicDuration
@@ -107,12 +107,12 @@ func (tp *TxPool) AdjustLastID(id int64) {
 // In-use connections will be closed when they are unlocked (not in use).
 func (tp *TxPool) Shutdown(ctx context.Context) {
 	for _, v := range tp.scp.ShutdownAll() {
-		tp.RollbackAndRelease(ctx, v)
+		tp.CompleteAndRelease(ctx, v)
 	}
 }
 
 func (tp *TxPool) transactionKiller() {
-	RecoverError(log, context.TODO())
+	defer RecoverError(log, context.TODO())
 	for _, conn := range tp.scp.GetOutdated(tp.Timeout(), "for tx killer rollback") {
 		log.Warnf("killing transaction (exceeded timeout: %v): %s", tp.Timeout(), conn.String())
 		switch {
@@ -171,18 +171,18 @@ func (tp *TxPool) Commit(ctx context.Context, txConn *StatefulConnection) (strin
 	return "commit", nil
 }
 
-// RollbackAndRelease rolls back the transaction on the specified connection, and releases the connection when done
-func (tp *TxPool) RollbackAndRelease(ctx context.Context, txConn *StatefulConnection) {
+// CompleteAndRelease auto commit or rolls back the transaction on the specified connection, and releases the connection when done
+func (tp *TxPool) CompleteAndRelease(ctx context.Context, txConn *StatefulConnection) {
 	defer txConn.Release(TxRollback)
-	rollbackError := tp.Rollback(ctx, txConn)
+	rollbackError := tp.Complete(ctx, txConn)
 	if rollbackError != nil {
 		log.Errorf("tried to rollback, but failed with: %v", rollbackError.Error())
 	}
 }
 
-// Rollback rolls back the transaction on the specified connection.
-func (tp *TxPool) Rollback(ctx context.Context, txConn *StatefulConnection) error {
-	ctx, span := telemetry.GlobalTracer.Start(ctx, "TxPool.Rollback")
+// Complete auto commit or rolls back the transaction on the specified connection.
+func (tp *TxPool) Complete(ctx context.Context, txConn *StatefulConnection) error {
+	ctx, span := telemetry.GlobalTracer.Start(ctx, "TxPool.Complete")
 	defer span.End()
 	if txConn.IsClosed() || !txConn.IsInTransaction() {
 		return nil

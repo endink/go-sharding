@@ -76,11 +76,11 @@ func TestTxPoolExecuteRollback(t *testing.T) {
 	require.NoError(t, err)
 	defer conn.Release(TxRollback)
 
-	err = txPool.Rollback(ctx, conn)
+	err = txPool.Complete(ctx, conn)
 	require.NoError(t, err)
 
 	// try rolling back again, this should be no-op.
-	err = txPool.Rollback(ctx, conn)
+	err = txPool.Complete(ctx, conn)
 	require.NoError(t, err, "not in a transaction")
 
 	assert.Equal(t, "begin;rollback", db.QueryLog())
@@ -97,7 +97,7 @@ func TestTxPoolExecuteRollbackOnClosedConn(t *testing.T) {
 	conn.Close()
 
 	// rollback should not be logged.
-	err = txPool.Rollback(ctx, conn)
+	err = txPool.Complete(ctx, conn)
 	require.NoError(t, err)
 
 	assert.Equal(t, "begin", db.QueryLog())
@@ -294,7 +294,7 @@ func TestTxPoolRollbackFailIsPassedThrough(t *testing.T) {
 	require.NoError(t, err)
 
 	// rollback is refused by the underlying db and the error is passed on
-	err = txPool.Rollback(ctx, conn1)
+	err = txPool.Complete(ctx, conn1)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "error: rejected")
 

@@ -102,6 +102,9 @@ type AllErrorAggregator func(errors []error) error
 // AggrError runs the provided aggregator over all errors
 // and returns the error from aggregator.
 func (aer *AllErrorRecorder) AggrError(aggr AllErrorAggregator) error {
+	if aggr == nil {
+		return aer.Error()
+	}
 	aer.mu.Lock()
 	defer aer.mu.Unlock()
 	if len(aer.Errors) == 0 {
@@ -117,7 +120,7 @@ func (aer *AllErrorRecorder) Error() error {
 		for _, e := range errors {
 			errs = append(errs, e.Error())
 		}
-		return fmt.Errorf("%v", strings.Join(errs, ";"))
+		return fmt.Errorf("%v", strings.Join(errs, "\n"))
 	})
 }
 

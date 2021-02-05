@@ -24,7 +24,7 @@ import (
 )
 
 type Coordinator interface {
-	Connect(ctx context.Context) (CoordConn, error)
+	Connect(ctx context.Context, te *TxEngine) (CoordConn, error)
 }
 
 type CoordConn interface {
@@ -32,9 +32,11 @@ type CoordConn interface {
 	ResolveTransaction(ctx context.Context, dtid string) error
 }
 
-type noCoordinator struct {
+type coordinatorImpl struct {
 }
 
-func (n *noCoordinator) Connect() (CoordConn, error) {
-	return nil, nil
+func (n *coordinatorImpl) Connect(_ context.Context, te *TxEngine) (CoordConn, error) {
+	return &coordConnImpl{
+		engine: te,
+	}, nil
 }

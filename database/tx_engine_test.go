@@ -98,7 +98,7 @@ func TestTxEngineClose(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 		_, err := te.txPool.GetAndLock(c.ReservedID(), "return")
 		assert.NoError(t, err)
-		te.txPool.RollbackAndRelease(ctx, c)
+		te.txPool.CompleteAndRelease(ctx, c)
 	}()
 	start = time.Now()
 	te.Close()
@@ -111,7 +111,7 @@ func TestTxEngineClose(t *testing.T) {
 	require.NoError(t, err)
 	go func() {
 		time.Sleep(100 * time.Millisecond)
-		te.txPool.RollbackAndRelease(ctx, c)
+		te.txPool.CompleteAndRelease(ctx, c)
 	}()
 	start = time.Now()
 	te.Close()

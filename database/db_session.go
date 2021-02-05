@@ -16,12 +16,10 @@
  *  File author: Anders Xiao
  */
 
-package server
+package database
 
-import "github.com/XiaoMi/Gaea/database"
-
-type ShardSession struct {
-	Target        *database.Target
+type DbSession struct {
+	Target        *Target
 	TransactionId int64
 	ReservedId    int64
 }

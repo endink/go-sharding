@@ -28,15 +28,14 @@ import (
 // TODO: merge this with tx_engine
 type TxExecutor struct {
 	// TODO(sougou): Parameterize this.
-	ctx context.Context
-	te  *TxEngine
+	te *TxEngine
 }
 
 // Prepare performs a prepare on a connection including the redo log work.
 // If there is any failure, an error is returned. No cleanup is performed.
 // A subsequent call to RollbackPrepared, which is required by the 2PC
 // protocol, will perform all the cleanup.
-func (txe *TxExecutor) Prepare(transactionID int64, dtid string) error {
+func (txe *TxExecutor) Prepare(ctx context.Context, transactionID int64, dtid string) error {
 	if !txe.te.twopcEnabled {
 		return fmt.Errorf("2pc is not enabled")
 	}
@@ -56,12 +55,12 @@ func (txe *TxExecutor) Prepare(transactionID int64, dtid string) error {
 
 	err = txe.te.preparedPool.Put(conn, dtid)
 	if err != nil {
-		txe.te.txPool.RollbackAndRelease(txe.ctx, conn)
+		txe.te.txPool.CompleteAndRelease(ctx, conn)
 		return fmt.Errorf("prepare failed for transaction %d: %v", transactionID, err)
 	}
 
-	return txe.inTransaction(func(localConn *StatefulConnection) error {
-		return txe.te.twoPC.SaveRedo(txe.ctx, localConn, dtid, conn.TxProperties().Queries)
+	return txe.inTransaction(ctx, func(localConn *StatefulConnection) error {
+		return txe.te.twoPC.SaveRedo(ctx, localConn, dtid, conn.TxProperties().Queries)
 	})
 
 }
@@ -69,7 +68,7 @@ func (txe *TxExecutor) Prepare(transactionID int64, dtid string) error {
 // CommitPrepared commits a prepared transaction. If the operation
 // fails, an error counter is incremented and the transaction is
 // marked as failed in the redo log.
-func (txe *TxExecutor) CommitPrepared(dtid string) error {
+func (txe *TxExecutor) CommitPrepared(ctx context.Context, dtid string) error {
 	if !txe.te.twopcEnabled {
 		return fmt.Errorf("2pc is not enabled")
 	}
@@ -84,8 +83,7 @@ func (txe *TxExecutor) CommitPrepared(dtid string) error {
 	// We have to use a context that will never give up,
 	// even if the original context expires.
 	//ctx := trace.CopySpan(context.Background(), txe.ctx)
-	ctx := txe.ctx
-	defer txe.te.txPool.RollbackAndRelease(ctx, conn)
+	defer txe.te.txPool.CompleteAndRelease(ctx, conn)
 	err = txe.te.twoPC.DeleteRedo(ctx, conn, dtid)
 	if err != nil {
 		txe.markFailed(ctx, dtid)
@@ -115,7 +113,7 @@ func (txe *TxExecutor) markFailed(ctx context.Context, dtid string) {
 		log.Errorf("markFailed: Begin failed for dtid %s: %v", dtid, err)
 		return
 	}
-	defer txe.te.txPool.RollbackAndRelease(ctx, conn)
+	defer txe.te.txPool.CompleteAndRelease(ctx, conn)
 
 	if err = txe.te.twoPC.UpdateRedo(ctx, conn, dtid, RedoStateFailed); err != nil {
 		log.Errorf("markFailed: UpdateRedo failed for dtid %s: %v", dtid, err)
@@ -145,61 +143,63 @@ func (txe *TxExecutor) markFailed(ctx context.Context, dtid string) {
 // If so, it must be set to 0, and the function will not attempt that
 // step. If the original transaction is still alive, the transaction
 // killer will be the one to eventually roll it back.
-func (txe *TxExecutor) RollbackPrepared(dtid string, originalID int64) error {
+func (txe *TxExecutor) RollbackPrepared(ctx context.Context, dtid string, originalID int64) error {
 	if !txe.te.twopcEnabled {
 		return fmt.Errorf("2pc is not enabled")
 	}
 	defer DbStats.QueryTime.RecordLatency(context.TODO(), "ROLLBACK_PREPARED", time.Now())
 	defer func() {
 		if preparedConn := txe.te.preparedPool.FetchForRollback(dtid); preparedConn != nil {
-			txe.te.txPool.RollbackAndRelease(txe.ctx, preparedConn)
+			txe.te.txPool.CompleteAndRelease(ctx, preparedConn)
 		}
 		if originalID != 0 {
-			txe.te.Rollback(txe.ctx, originalID)
+			if _, err := txe.te.Rollback(ctx, originalID); err != nil {
+				log.Error("TxEngine rollback fault:", err.Error())
+			}
 		}
 	}()
-	return txe.inTransaction(func(conn *StatefulConnection) error {
-		return txe.te.twoPC.DeleteRedo(txe.ctx, conn, dtid)
+	return txe.inTransaction(ctx, func(conn *StatefulConnection) error {
+		return txe.te.twoPC.DeleteRedo(ctx, conn, dtid)
 	})
 }
 
 // CreateTransaction creates the metadata for a 2PC transaction.
-func (txe *TxExecutor) CreateTransaction(dtid string, participants []*Target) error {
+func (txe *TxExecutor) CreateTransaction(ctx context.Context, dtid string, participants []*Target) error {
 	if !txe.te.twopcEnabled {
 		return fmt.Errorf("2pc is not enabled")
 	}
 	defer DbStats.QueryTime.RecordLatency(context.TODO(), "CREATE_TRANSACTION", time.Now())
-	return txe.inTransaction(func(conn *StatefulConnection) error {
-		return txe.te.twoPC.CreateTransaction(txe.ctx, conn, dtid, participants)
+	return txe.inTransaction(ctx, func(conn *StatefulConnection) error {
+		return txe.te.twoPC.CreateTransaction(ctx, conn, dtid, participants)
 	})
 }
 
 // StartCommit atomically commits the transaction along with the
 // decision to commit the associated 2pc transaction.
-func (txe *TxExecutor) StartCommit(transactionID int64, dtid string) error {
+func (txe *TxExecutor) StartCommit(ctx context.Context, transactionID int64, dtid string) error {
 	if !txe.te.twopcEnabled {
 		return fmt.Errorf("2pc is not enabled")
 	}
-	defer DbStats.QueryTime.RecordLatency(context.TODO(), "START_COMMIT", time.Now())
+	defer DbStats.QueryTime.RecordLatency(ctx, "START_COMMIT", time.Now())
 	//txe.logStats.TransactionID = transactionID
 
 	conn, err := txe.te.txPool.GetAndLock(transactionID, "for 2pc commit")
 	if err != nil {
 		return err
 	}
-	defer txe.te.txPool.RollbackAndRelease(txe.ctx, conn)
+	defer txe.te.txPool.CompleteAndRelease(ctx, conn)
 
-	err = txe.te.twoPC.Transition(txe.ctx, conn, dtid, TransactionStateCommit)
+	err = txe.te.twoPC.Transition(ctx, conn, dtid, TransactionStateCommit)
 	if err != nil {
 		return err
 	}
-	_, err = txe.te.txPool.Commit(txe.ctx, conn)
+	_, err = txe.te.txPool.Commit(ctx, conn)
 	return err
 }
 
-// SetRollback transitions the 2pc transaction to the Rollback state.
+// SetRollback transitions the 2pc transaction to the Complete state.
 // If a transaction id is provided, that transaction is also rolled back.
-func (txe *TxExecutor) SetRollback(dtid string, transactionID int64) error {
+func (txe *TxExecutor) SetRollback(ctx context.Context, dtid string, transactionID int64) error {
 	if !txe.te.twopcEnabled {
 		return fmt.Errorf("2pc is not enabled")
 	}
@@ -207,64 +207,66 @@ func (txe *TxExecutor) SetRollback(dtid string, transactionID int64) error {
 	//txe.logStats.TransactionID = transactionID
 
 	if transactionID != 0 {
-		txe.te.Rollback(txe.ctx, transactionID)
+		if _, err := txe.te.Rollback(ctx, transactionID); err != nil {
+			log.Error("TxEngine rollback fault:", err.Error())
+		}
 	}
 
-	return txe.inTransaction(func(conn *StatefulConnection) error {
-		return txe.te.twoPC.Transition(txe.ctx, conn, dtid, TransactionStateRollback)
+	return txe.inTransaction(ctx, func(conn *StatefulConnection) error {
+		return txe.te.twoPC.Transition(ctx, conn, dtid, TransactionStateRollback)
 	})
 }
 
 // ConcludeTransaction deletes the 2pc transaction metadata
 // essentially resolving it.
-func (txe *TxExecutor) ConcludeTransaction(dtid string) error {
+func (txe *TxExecutor) ConcludeTransaction(ctx context.Context, dtid string) error {
 	if !txe.te.twopcEnabled {
 		return fmt.Errorf("2pc is not enabled")
 	}
-	defer DbStats.QueryTime.RecordLatency(context.TODO(), "RESOLVE", time.Now())
+	defer DbStats.QueryTime.RecordLatency(ctx, "RESOLVE", time.Now())
 
-	return txe.inTransaction(func(conn *StatefulConnection) error {
-		return txe.te.twoPC.DeleteTransaction(txe.ctx, conn, dtid)
+	return txe.inTransaction(ctx, func(conn *StatefulConnection) error {
+		return txe.te.twoPC.DeleteTransaction(ctx, conn, dtid)
 	})
 }
 
 // ReadTransaction returns the metadata for the sepcified dtid.
-func (txe *TxExecutor) ReadTransaction(dtid string) (*TransactionMetadata, error) {
+func (txe *TxExecutor) ReadTransaction(ctx context.Context, dtid string) (*TransactionMetadata, error) {
 	if !txe.te.twopcEnabled {
 		return nil, fmt.Errorf("2pc is not enabled")
 	}
-	return txe.te.twoPC.ReadTransaction(txe.ctx, dtid)
+	return txe.te.twoPC.ReadTransaction(ctx, dtid)
 }
 
 // ReadTwopcInflight returns info about all in-flight 2pc transactions.
-func (txe *TxExecutor) ReadTwopcInflight() (distributed []*DistributedTx, prepared, failed []*PreparedTx, err error) {
+func (txe *TxExecutor) ReadTwopcInflight(ctx context.Context) (distributed []*DistributedTx, prepared, failed []*PreparedTx, err error) {
 	if !txe.te.twopcEnabled {
 		return nil, nil, nil, fmt.Errorf("2pc is not enabled")
 	}
-	prepared, failed, err = txe.te.twoPC.ReadAllRedo(txe.ctx)
+	prepared, failed, err = txe.te.twoPC.ReadAllRedo(ctx)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("could not read redo: %v", err)
 	}
-	distributed, err = txe.te.twoPC.ReadAllTransactions(txe.ctx)
+	distributed, err = txe.te.twoPC.ReadAllTransactions(ctx)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("could not read redo: %v", err)
 	}
 	return distributed, prepared, failed, nil
 }
 
-func (txe *TxExecutor) inTransaction(f func(*StatefulConnection) error) error {
-	conn, _, err := txe.te.txPool.Begin(txe.ctx, &types.ExecuteOptions{}, false, 0, nil)
+func (txe *TxExecutor) inTransaction(ctx context.Context, f func(*StatefulConnection) error) error {
+	conn, _, err := txe.te.txPool.Begin(ctx, &types.ExecuteOptions{}, false, 0, nil)
 	if err != nil {
 		return err
 	}
-	defer txe.te.txPool.RollbackAndRelease(txe.ctx, conn)
+	defer txe.te.txPool.CompleteAndRelease(ctx, conn)
 
 	err = f(conn)
 	if err != nil {
 		return err
 	}
 
-	_, err = txe.te.txPool.Commit(txe.ctx, conn)
+	_, err = txe.te.txPool.Commit(ctx, conn)
 	if err != nil {
 		return err
 	}
