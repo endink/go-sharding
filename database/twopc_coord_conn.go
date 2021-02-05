@@ -61,11 +61,11 @@ func (cd *coordConnImpl) ResolveTransaction(ctx context.Context, dtid string) er
 		}
 		fallthrough
 	case TransactionStateRollback:
-		if err = cd.rollbackPrepared(ctx, mmShard.Target, transaction.Dtid, 0); err != nil {
+		if err = cd.resumeRollback(ctx, mmShard.Target, transaction); err != nil {
 			return err
 		}
 	case TransactionStateCommit:
-		if err = cd.resumeCommit(ctx, mmShard.Target, transaction.Dtid); err != nil {
+		if err = cd.resumeCommit(ctx, mmShard.Target, transaction); err != nil {
 			return err
 		}
 	default:
@@ -75,8 +75,28 @@ func (cd *coordConnImpl) ResolveTransaction(ctx context.Context, dtid string) er
 	return nil
 }
 
+func (cd *coordConnImpl) resumeRollback(ctx context.Context, target *Target, transaction *TransactionMetadata) error {
+	err := cd.runTargets(ctx, transaction.Participants, func(c context.Context, t *Target) error {
+		return cd.rollbackPrepared(c, t, transaction.Dtid, 0)
+	})
+	if err != nil {
+		return err
+	}
+	return cd.concludeTransaction(ctx, target, transaction.Dtid)
+}
+
+func (cd *coordConnImpl) resumeCommit(ctx context.Context, target *Target, transaction *TransactionMetadata) error {
+	err := cd.runTargets(ctx, transaction.Participants, func(c context.Context, t *Target) error {
+		return cd.commitPrepared(ctx, t, transaction.Dtid)
+	})
+	if err != nil {
+		return err
+	}
+	return cd.concludeTransaction(ctx, target, transaction.Dtid)
+}
+
 // CommitPrepared is part of the queryservice.QueryServer interface
-func (cd *coordConnImpl) resumeCommit(ctx context.Context, target *Target, dtid string) error {
+func (cd *coordConnImpl) commitPrepared(ctx context.Context, target *Target, dtid string) error {
 	return cd.exec(
 		ctx,
 		"CommitPrepared", "commit_prepared", nil,
@@ -88,7 +108,7 @@ func (cd *coordConnImpl) resumeCommit(ctx context.Context, target *Target, dtid 
 }
 
 // RollbackPrepared commits the prepared transaction.
-func (cd *coordConnImpl) rollbackPrepared(ctx context.Context, target *Target, dtid string, originalID int64) (err error) {
+func (cd *coordConnImpl) rollbackPrepared(ctx context.Context, target *Target, dtid string, originalID int64) error {
 	return cd.exec(
 		ctx,
 		"RollbackPrepared", "rollback_prepared", nil,
@@ -108,6 +128,17 @@ func (cd *coordConnImpl) setRollback(ctx context.Context, target *Target, dtid s
 		target, nil, /* allowOnShutdown */
 		func(c context.Context) error {
 			return cd.executor.SetRollback(c, dtid, transactionID)
+		},
+	)
+}
+
+func (cd *coordConnImpl) concludeTransaction(ctx context.Context, target *Target, dtid string) (err error) {
+	return cd.exec(
+		ctx,
+		"ConcludeTransaction", "conclude_transaction", nil,
+		target, nil,
+		func(ctx context.Context) error {
+			return cd.executor.ConcludeTransaction(ctx, dtid)
 		},
 	)
 }
@@ -142,9 +173,9 @@ func (cd *coordConnImpl) exec(
 
 // runTargets executes the action for all targets in parallel and returns a consolildated error.
 // Flow is identical to runSessions.
-func (cd *coordConnImpl) runTargets(targets []*Target, action func(*Target) error) error {
+func (cd *coordConnImpl) runTargets(ctx context.Context, targets []*Target, action func(context.Context, *Target) error) error {
 	if len(targets) == 1 {
-		return action(targets[0])
+		return action(ctx, targets[0])
 	}
 	allErrors := new(core.AllErrorRecorder)
 	var wg sync.WaitGroup
@@ -152,7 +183,7 @@ func (cd *coordConnImpl) runTargets(targets []*Target, action func(*Target) erro
 		wg.Add(1)
 		go func(t *Target) {
 			defer wg.Done()
-			if err := action(t); err != nil {
+			if err := action(ctx, t); err != nil {
 				allErrors.RecordError(err)
 			}
 		}(t)

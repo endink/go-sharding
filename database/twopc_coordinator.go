@@ -37,6 +37,6 @@ type coordinatorImpl struct {
 
 func (n *coordinatorImpl) Connect(_ context.Context, te *TxEngine) (CoordConn, error) {
 	return &coordConnImpl{
-		engine: te,
+		executor: &TxExecutor{te: te},
 	}, nil
 }
