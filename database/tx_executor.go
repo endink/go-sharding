@@ -45,7 +45,7 @@ func (txe *TxExecutor) Prepare(ctx context.Context, transactionID int64, dtid st
 	if !txe.te.twopcEnabled {
 		return fmt.Errorf("2pc is not enabled")
 	}
-	defer DbStats.QueryTime.RecordLatency(context.TODO(), "PREPARE", time.Now())
+	defer DbStats.QueryTime.RecordLatency(ctx, "PREPARE", time.Now())
 	//txe.logStats.TransactionID = transactionID
 
 	conn, err := txe.te.txPool.GetAndLock(transactionID, "for prepare")
@@ -78,7 +78,7 @@ func (txe *TxExecutor) CommitPrepared(ctx context.Context, dtid string) error {
 	if !txe.te.twopcEnabled {
 		return fmt.Errorf("2pc is not enabled")
 	}
-	defer DbStats.QueryTime.RecordLatency(context.TODO(), "COMMIT_PREPARED", time.Now())
+	defer DbStats.QueryTime.RecordLatency(ctx, "COMMIT_PREPARED", time.Now())
 	conn, err := txe.te.preparedPool.FetchForCommit(dtid)
 	if err != nil {
 		return fmt.Errorf("cannot commit dtid %s, state: %v", dtid, err)
@@ -153,7 +153,7 @@ func (txe *TxExecutor) RollbackPrepared(ctx context.Context, dtid string, origin
 	if !txe.te.twopcEnabled {
 		return fmt.Errorf("2pc is not enabled")
 	}
-	defer DbStats.QueryTime.RecordLatency(context.TODO(), "ROLLBACK_PREPARED", time.Now())
+	defer DbStats.QueryTime.RecordLatency(ctx, "ROLLBACK_PREPARED", time.Now())
 	defer func() {
 		if preparedConn := txe.te.preparedPool.FetchForRollback(dtid); preparedConn != nil {
 			txe.te.txPool.CompleteAndRelease(ctx, preparedConn)
@@ -174,7 +174,7 @@ func (txe *TxExecutor) CreateTransaction(ctx context.Context, dtid string, parti
 	if !txe.te.twopcEnabled {
 		return fmt.Errorf("2pc is not enabled")
 	}
-	defer DbStats.QueryTime.RecordLatency(context.TODO(), "CREATE_TRANSACTION", time.Now())
+	defer DbStats.QueryTime.RecordLatency(ctx, "CREATE_TRANSACTION", time.Now())
 	return txe.inTransaction(ctx, func(conn *StatefulConnection) error {
 		return txe.te.twoPC.CreateTransaction(ctx, conn, dtid, participants)
 	})
@@ -209,7 +209,7 @@ func (txe *TxExecutor) SetRollback(ctx context.Context, dtid string, transaction
 	if !txe.te.twopcEnabled {
 		return fmt.Errorf("2pc is not enabled")
 	}
-	defer DbStats.QueryTime.RecordLatency(context.TODO(), "SET_ROLLBACK", time.Now())
+	defer DbStats.QueryTime.RecordLatency(ctx, "SET_ROLLBACK", time.Now())
 	//txe.logStats.TransactionID = transactionID
 
 	if transactionID != 0 {
