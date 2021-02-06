@@ -61,7 +61,7 @@ func NewPool(name string, cfg ConnPoolConfig) *Pool {
 		timeout:            time.Duration(cfg.TimeoutSeconds) * time.Second,
 		idleTimeout:        idleTimeout,
 		waiterCap:          int64(cfg.MaxWaiters),
-		dbaPool:            NewConnectionPool("", 1, idleTimeout, 0),
+		dbaPool:            NewConnectionPool("", 1, idleTimeout, 0), //for kill
 		isNoPool:           cfg.IsNoPool,
 	}
 	if name == "" {
