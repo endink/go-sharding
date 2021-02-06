@@ -36,21 +36,21 @@ func TestDTID(t *testing.T) {
 	if dtid != want {
 		t.Errorf("generateDTID: %s, want %s", dtid, want)
 	}
-	out, err := dbSession(dtid)
+	out, err := NewDbSession(dtid)
 	require.NoError(t, err)
-	eq, err := util.JsonEqual(in, out)
+	eq, err := util.CheckJsonEqual(in, out)
 
 	require.NoError(t, err)
 
 	if !eq {
 		t.Errorf("DbSession: %+v, want %+v", out, in)
 	}
-	_, err = dbSession("badParts")
+	_, err = NewDbSession("badParts")
 	want = "invalid parts in dtid: badParts"
 	if err == nil || err.Error() != want {
 		t.Errorf("DbSession(\"badParts\"): %v, want %s", err, want)
 	}
-	_, err = dbSession("a:b:badid")
+	_, err = NewDbSession("a:b:badid")
 	want = "invalid transaction id in dtid: a:b:badid"
 	if err == nil || err.Error() != want {
 		t.Errorf("DbSession(\"a:b:badid\"): %v, want %s", err, want)

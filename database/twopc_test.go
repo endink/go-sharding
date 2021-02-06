@@ -18,6 +18,7 @@ package database
 
 import (
 	"encoding/json"
+	"github.com/XiaoMi/Gaea/mysql/fakesqldb"
 	"github.com/XiaoMi/Gaea/mysql/types"
 	"reflect"
 	"testing"
@@ -26,15 +27,24 @@ import (
 	"context"
 )
 
+func openTestConnPool(db *fakesqldb.DB) *Pool {
+	connPool := newPool()
+	connPool.Open(db.ConnParams())
+
+	return connPool
+}
+
 func TestReadAllRedo(t *testing.T) {
 	// Reuse code from tx_executor_test.
-	_, tsv, db := newTestTxExecutor(t)
+	txe, db := newTestTxExecutor(t)
 	defer db.Close()
-	defer tsv.StopService()
-	tpc := tsv.te.twoPC
+	tpc := txe.te.twoPC
 	ctx := context.Background()
 
-	conn, err := tsv.qe.conns.Get(ctx)
+	pool := openTestConnPool(db)
+	defer pool.Close()
+
+	conn, err := pool.Get(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +55,7 @@ func TestReadAllRedo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	var want []*tx.PreparedTx
+	var want []*PreparedTx
 	if !reflect.DeepEqual(prepared, want) {
 		t.Errorf("ReadAllRedo: %s, want %s", jsonStr(prepared), jsonStr(want))
 	}
@@ -71,7 +81,7 @@ func TestReadAllRedo(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	want = []*tx.PreparedTx{{
+	want = []*PreparedTx{{
 		Dtid:    "dtid0",
 		Queries: []string{"stmt01"},
 		Time:    time.Unix(0, 1),
@@ -232,13 +242,15 @@ func TestReadAllRedo(t *testing.T) {
 }
 
 func TestReadAllTransactions(t *testing.T) {
-	_, tsv, db := newTestTxExecutor(t)
+	txe, db := newTestTxExecutor(t)
 	defer db.Close()
-	defer tsv.StopService()
-	tpc := tsv.te.twoPC
+	tpc := txe.te.twoPC
 	ctx := context.Background()
 
-	conn, err := tsv.qe.conns.Get(ctx)
+	pool := openTestConnPool(db)
+	defer pool.Close()
+
+	conn, err := pool.Get(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}

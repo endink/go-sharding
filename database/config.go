@@ -28,7 +28,7 @@ type TxConfig struct {
 	LimitPerCaller    float64
 	LimitByUsername   bool
 	LimitByAddr       bool
-	Timout            time.Duration
+	Timeout           time.Duration
 	Pool              ConnPoolConfig
 	GracePeriods      time.Duration
 }
@@ -91,7 +91,7 @@ var defaultDbConfig = &DbConfig{
 		LimitPerCaller:    0,
 		LimitByUsername:   false,
 		LimitByAddr:       false,
-		Timout:            0,
+		Timeout:           0,
 		Pool: ConnPoolConfig{
 			Size:               20,
 			TimeoutSeconds:     1,

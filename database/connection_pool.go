@@ -81,7 +81,7 @@ func NewConnectionPool(name string, capacity int, idleTimeout time.Duration, dns
 	stats.NewGaugeFunc(name+"MaxCap", "Connection pool max cap", cp.MaxCap)
 	stats.NewCounterFunc(name+"WaitCount", "Connection pool wait count", cp.WaitCount)
 	stats.NewCounterDurationFunc(name+"WaitTime", "Connection pool wait time", cp.WaitTime)
-	stats.NewGaugeDurationFunc(name+"IdleTimeout", "Connection pool idle timeout", cp.IdleTimeout)
+	stats.NewGaugeDurationFunc(name+"IdleTimeoutSeconds", "Connection pool idle timeout", cp.IdleTimeout)
 	stats.NewGaugeFunc(name+"IdleClosed", "Connection pool idle closed", cp.IdleClosed)
 	stats.NewCounterFunc(name+"Exhausted", "Number of times pool had zero available slots", cp.Exhausted)
 	return cp

@@ -5,4 +5,5 @@ type Type int
 const (
 	ConfigSource Type = iota
 	StrategyFactory
+	TxCoordinator
 )

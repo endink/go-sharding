@@ -75,7 +75,7 @@ func NewPool(name string, cfg ConnPoolConfig) *Pool {
 	DbMeter.NewInt64ValueObserver(telemetry.BuildMetricName(name, "MaxCap"), "Tablet server conn pool max cap", cp.MaxCap)
 	DbMeter.NewInt64SumObserver(telemetry.BuildMetricName(name, "WaitCount"), "Tablet server conn pool wait count", cp.WaitCount)
 	DbMeter.NewDurationSumObserver(telemetry.BuildMetricName(name, "WaitTime"), "Tablet server wait time", cp.WaitTime)
-	DbMeter.NewDurationObserver(telemetry.BuildMetricName(name, "IdleTimeout"), "Tablet server idle timeout", cp.IdleTimeout)
+	DbMeter.NewDurationObserver(telemetry.BuildMetricName(name, "IdleTimeoutSeconds"), "Tablet server idle timeout", cp.IdleTimeout)
 	DbMeter.NewInt64SumObserver(telemetry.BuildMetricName(name, "IdleClosed"), "Tablet server conn pool idle closed", cp.IdleClosed)
 	DbMeter.NewInt64SumObserver(telemetry.BuildMetricName(name, "Exhausted"), "Number of times pool had zero available slots", cp.Exhausted)
 	return cp

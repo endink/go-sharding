@@ -19,6 +19,7 @@
 package server
 
 import (
+	"context"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/mysql/types"
@@ -74,19 +75,19 @@ func (m *mysqlHandler) ConnectionClosed(c *mysql.Conn) {
 		delete(m.connections, c)
 	}()
 
-	//var ctx context.Context
-	//var cancel context.CancelFunc
-	//if m.queryTimeout != maxDuration {
-	//	ctx, cancel = context.WithTimeout(context.Background(), m.queryTimeout)
-	//	defer cancel()
-	//} else {
-	//	ctx = context.Background()
-	//}
+	var ctx context.Context
+	var cancel context.CancelFunc
+	if m.queryTimeout != maxDuration {
+		ctx, cancel = context.WithTimeout(context.Background(), m.queryTimeout)
+		defer cancel()
+	} else {
+		ctx = context.Background()
+	}
 	session := m.newSession(c)
 	if session.InTransaction {
 		defer busyConnections.Add(-1)
 	}
-	//_ = vh.vtg.CloseSession(ctx, session)
+	_ = vh.vtg.CloseSession(ctx, session)
 }
 
 func (m *mysqlHandler) ComQuery(c *mysql.Conn, query string, callback func(*types.Result) error) error {

@@ -18,25 +18,28 @@
 
 package database
 
-import (
-	"context"
-	"github.com/XiaoMi/Gaea/util"
-)
+import "context"
 
-type Coordinator interface {
-	Connect(ctx context.Context, te *TxEngine) (CoordConn, error)
+var FakeCoordConn = &fakeCoordConn{}
+
+// These vars and types are used only for TestExecutorResolveTransaction
+var dtidCh = make(chan string)
+
+type FakeCoordinator struct {
 }
 
-type CoordConn interface {
-	util.Resource
-	ResolveTransaction(ctx context.Context, dtid string) error
+func (f FakeCoordinator) Connect(ctx context.Context, te *TxEngine) (CoordConn, error) {
+	return FakeCoordConn, nil
 }
 
-type coordinatorImpl struct {
+type fakeCoordConn struct {
 }
 
-func (n *coordinatorImpl) Connect(_ context.Context, te *TxEngine) (CoordConn, error) {
-	return &coordConnImpl{
-		executor: &TxExecutor{te: te},
-	}, nil
+func (f fakeCoordConn) Close() {
+
+}
+
+func (f fakeCoordConn) ResolveTransaction(ctx context.Context, dtid string) error {
+	dtidCh <- dtid
+	return nil
 }

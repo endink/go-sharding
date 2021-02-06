@@ -24,6 +24,7 @@ import (
 	"github.com/XiaoMi/Gaea/mysql/fakesqldb"
 	"github.com/XiaoMi/Gaea/mysql/types"
 	"testing"
+	"time"
 )
 
 //func newTestQueryExecutor(ctx context.Context, tsv *TabletServer, sql string, txID int64) *QueryExecutor {
@@ -43,14 +44,48 @@ import (
 //	}
 //}
 
+type executorFlags int64
+
+const (
+	noFlags              executorFlags = 0
+	enableStrictTableACL               = 1 << iota
+	smallTxPool
+	noTwopc
+	shortTwopcAge
+	smallResultSize
+)
+
 func setUpQueryExecutorTest(t *testing.T) *fakesqldb.DB {
 	db := fakesqldb.New(t)
 	initQueryExecutorTestDB(db, true)
 	return db
 }
 
-func newTestTxEngine(db *fakesqldb.DB) *TxEngine {
-	return NewTxEngine(nil, db.ConnParams(), *newTestDbConfig())
+func newTestTxEngine(db *fakesqldb.DB, flags executorFlags) *TxEngine {
+	dbCfg := newTestDbConfig()
+
+	if flags&smallTxPool > 0 {
+		dbCfg.Tx.Pool.Size = 3
+	} else {
+		dbCfg.Tx.Pool.Size = 100
+	}
+
+	if flags&shortTwopcAge > 0 {
+		dbCfg.Tx.TwoPCAbandonAge = time.Second * 1
+	} else {
+		dbCfg.Tx.TwoPCAbandonAge = time.Second * 10
+	}
+
+	if flags&noTwopc > 0 {
+		dbCfg.Tx.EnableTwoPC = false
+	} else {
+		dbCfg.Tx.EnableTwoPC = true
+	}
+
+	dbCfg.Tx.Pool.Size = 3
+	te := NewTxEngineWithCoord(db.ConnParams(), *dbCfg, FakeCoordinator{})
+	te.AcceptReadWrite()
+	return te
 }
 
 func initQueryExecutorTestDB(db *fakesqldb.DB, testTableHasMultipleUniqueKeys bool) {
@@ -70,15 +105,15 @@ func getTestTableFields() []*types.Field {
 func getQueryExecutorSupportedQueries(testTableHasMultipleUniqueKeys bool) map[string]*types.Result {
 	return map[string]*types.Result{
 		// queries for twopc
-		fmt.Sprintf(sqlCreateSidecarDB, "_vt"):          {},
-		fmt.Sprintf(sqlDropLegacy1, "_vt"):              {},
-		fmt.Sprintf(sqlDropLegacy2, "_vt"):              {},
-		fmt.Sprintf(sqlDropLegacy3, "_vt"):              {},
-		fmt.Sprintf(sqlDropLegacy4, "_vt"):              {},
-		fmt.Sprintf(sqlCreateTableRedoState, "_vt"):     {},
-		fmt.Sprintf(sqlCreateTableRedoStatement, "_vt"): {},
-		fmt.Sprintf(sqlCreateTableDTState, "_vt"):       {},
-		fmt.Sprintf(sqlCreateTableDTParticipant, "_vt"): {},
+		fmt.Sprintf(sqlCreateSidecarDB, TwopcDbName):          {},
+		fmt.Sprintf(sqlDropLegacy1, TwopcDbName):              {},
+		fmt.Sprintf(sqlDropLegacy2, TwopcDbName):              {},
+		fmt.Sprintf(sqlDropLegacy3, TwopcDbName):              {},
+		fmt.Sprintf(sqlDropLegacy4, TwopcDbName):              {},
+		fmt.Sprintf(sqlCreateTableRedoState, TwopcDbName):     {},
+		fmt.Sprintf(sqlCreateTableRedoStatement, TwopcDbName): {},
+		fmt.Sprintf(sqlCreateTableDTState, TwopcDbName):       {},
+		fmt.Sprintf(sqlCreateTableDTParticipant, TwopcDbName): {},
 		// queries for schema info
 		"select unix_timestamp()": {
 			Fields: []*types.Field{{
@@ -213,6 +248,6 @@ func getQueryExecutorSupportedQueries(testTableHasMultipleUniqueKeys bool) map[s
 		"begin":    {},
 		"commit":   {},
 		"rollback": {},
-		fmt.Sprintf(sqlReadAllRedo, "_vt", "_vt"): {},
+		fmt.Sprintf(sqlReadAllRedo, TwopcDbName, TwopcDbName): {},
 	}
 }

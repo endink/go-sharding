@@ -366,7 +366,7 @@ func TestTxTimeoutKillsTransactions(t *testing.T) {
 	env := newTestDbConfig()
 	env.Tx.Pool.Size = 1
 	env.Tx.Pool.MaxWaiters = 0
-	env.Tx.Timout = time.Second * 1
+	env.Tx.Timeout = time.Second * 1
 	_, txPool, limiter, closer := setupWithEnv(t, *env)
 	defer closer()
 
@@ -413,7 +413,7 @@ func newTestDbConfig() *DbConfig {
 	config.Tx.Pool.MaxWaiters = 500000
 	config.Tx.Pool.IdleTimeoutSeconds = 30
 
-	config.Tx.Timout = time.Second * 30
+	config.Tx.Timeout = time.Second * 30
 	config.Pool.IdleTimeoutSeconds = 30
 	config.Pool.IdleTimeoutSeconds = 30
 	return config

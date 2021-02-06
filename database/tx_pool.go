@@ -69,7 +69,7 @@ type (
 
 // NewTxPool creates a new TxPool. It's not operational until it's Open'd.
 func NewTxPool(config DbConfig, limiter TxLimiter) *TxPool {
-	transactionTimeout := config.Tx.Timout
+	transactionTimeout := config.Tx.Timeout
 	axp := &TxPool{
 		scp:                NewStatefulConnPool(config.Tx.Pool),
 		transactionTimeout: sync2.NewAtomicDuration(transactionTimeout),
@@ -78,7 +78,7 @@ func NewTxPool(config DbConfig, limiter TxLimiter) *TxPool {
 		//txStats:            DbMeter.NewMultiDurationValueRecorder("transactions", "Tx stats"),
 	}
 	// Careful: conns also exports name+"xxx" vars,
-	// but we know it doesn't export Timeout.
+	// but we know it doesn't export TimeoutSeconds.
 	DbMeter.NewDurationObserver("transaction_timeout", "Tx timeout", axp.transactionTimeout.Get)
 	return axp
 }

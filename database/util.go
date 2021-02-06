@@ -75,7 +75,7 @@ func queryAsString(sql string, bindVariables map[string]*types.BindVariable) str
 	return buf.String()
 }
 
-func sqlError(ctx context.Context, sql string, bindVariables map[string]*types.BindVariable, err error) error {
+func NewSqlError(ctx context.Context, sql string, bindVariables map[string]*types.BindVariable, err error) error {
 	if err == nil {
 		return nil
 	}

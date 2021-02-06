@@ -345,7 +345,7 @@ func (rp *ResourcePool) SetIdleTimeout(idleTimeout time.Duration) {
 
 // StatsJSON returns the stats in JSON format.
 func (rp *ResourcePool) StatsJSON() string {
-	return fmt.Sprintf(`{"Capacity": %v, "Available": %v, "Active": %v, "InUse": %v, "MaxCapacity": %v, "WaitCount": %v, "WaitTime": %v, "IdleTimeout": %v, "IdleClosed": %v, "Exhausted": %v}`,
+	return fmt.Sprintf(`{"Capacity": %v, "Available": %v, "Active": %v, "InUse": %v, "MaxCapacity": %v, "WaitCount": %v, "WaitTime": %v, "IdleTimeoutSeconds": %v, "IdleClosed": %v, "Exhausted": %v}`,
 		rp.Capacity(),
 		rp.Available(),
 		rp.Active(),

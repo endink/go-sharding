@@ -85,7 +85,7 @@ func TestReadTimeout(t *testing.T) {
 			t.Errorf("Expected error timeout, got %s", err)
 		}
 	case <-time.After(10 * time.Second):
-		t.Errorf("Timeout did not happen")
+		t.Errorf("TimeoutSeconds did not happen")
 	}
 }
 
@@ -121,7 +121,7 @@ func TestWriteTimeout(t *testing.T) {
 			t.Errorf("Expected error timeout, got %s", err)
 		}
 	case <-time.After(10 * time.Second):
-		t.Errorf("Timeout did not happen")
+		t.Errorf("TimeoutSeconds did not happen")
 	}
 }
 

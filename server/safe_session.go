@@ -63,7 +63,7 @@ type SafeSession struct {
 type autocommitState int
 
 const (
-	notAutocommittable = autocommitState(iota)
+	notAutocommittable autocommitState = iota
 	autocommittable
 	autocommitted
 )
@@ -192,7 +192,7 @@ func (session *SafeSession) Find(schema, shard string, tabletType database.Table
 	return 0, 0, nil
 }
 
-func addOrUpdate(shardSession *ShardSession, sessions []*ShardSession) []*ShardSession {
+func addOrUpdate(shardSession *database.DbSession, sessions []*database.DbSession) []*database.DbSession {
 	appendSession := true
 	for i, sess := range sessions {
 		targetedAtSameTablet := sess.Target.Schema == shardSession.Target.Schema &&
@@ -213,7 +213,7 @@ func addOrUpdate(shardSession *ShardSession, sessions []*ShardSession) []*ShardS
 }
 
 // AppendOrUpdate adds a new DbSession, or updates an existing one if one already exists for the given shard session
-func (session *SafeSession) AppendOrUpdate(shardSession *ShardSession, txMode TransactionMode) error {
+func (session *SafeSession) AppendOrUpdate(shardSession *database.DbSession, txMode TransactionMode) error {
 	session.mu.Lock()
 	defer session.mu.Unlock()
 
@@ -359,7 +359,7 @@ func (session *SafeSession) SetPreQueries() []string {
 }
 
 // SetLockSession sets the lock session.
-func (session *SafeSession) SetLockSession(lockSession *ShardSession) {
+func (session *SafeSession) SetLockSession(lockSession *database.DbSession) {
 	session.mu.Lock()
 	defer session.mu.Unlock()
 	session.LockSession = lockSession
@@ -477,7 +477,7 @@ func (session *SafeSession) GetSessionEnableSystemSettings() bool {
 	return session.EnableSystemSettings
 }
 
-func removeShard(tabletAlias *database.Target, sessions []*ShardSession) ([]*ShardSession, error) {
+func removeShard(tabletAlias *database.Target, sessions []*database.DbSession) ([]*database.DbSession, error) {
 	idx := -1
 	for i, session := range sessions {
 		if session.Target.IsSame(tabletAlias) {

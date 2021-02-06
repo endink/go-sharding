@@ -27,6 +27,8 @@ import (
 	"context"
 )
 
+const TwopcDbName = "_go_sharding_tx"
+
 const (
 	sqlCreateSidecarDB = "create database if not exists %s"
 
@@ -111,73 +113,71 @@ type TwoPC struct {
 // NewTwoPC creates a TwoPC variable.
 func NewTwoPC(readPool *Pool) *TwoPC {
 	tpc := &TwoPC{readPool: readPool}
-	dbname := "_vt"
 	tpc.insertRedoTx = parser.BuildParsedQuery(
 		"insert into %s.redo_state(dtid, state, time_created) values (%a, %a, %a)",
-		dbname, ":dtid", ":state", ":time_created")
+		TwopcDbName, ":dtid", ":state", ":time_created")
 	tpc.insertRedoStmt = parser.BuildParsedQuery(
 		"insert into %s.redo_statement(dtid, id, statement) values %a",
-		dbname, ":vals")
+		TwopcDbName, ":vals")
 	tpc.updateRedoTx = parser.BuildParsedQuery(
 		"update %s.redo_state set state = %a where dtid = %a",
-		dbname, ":state", ":dtid")
+		TwopcDbName, ":state", ":dtid")
 	tpc.deleteRedoTx = parser.BuildParsedQuery(
 		"delete from %s.redo_state where dtid = %a",
-		dbname, ":dtid")
+		TwopcDbName, ":dtid")
 	tpc.deleteRedoStmt = parser.BuildParsedQuery(
 		"delete from %s.redo_statement where dtid = %a",
-		dbname, ":dtid")
-	tpc.readAllRedo = fmt.Sprintf(sqlReadAllRedo, dbname, dbname)
+		TwopcDbName, ":dtid")
+	tpc.readAllRedo = fmt.Sprintf(sqlReadAllRedo, TwopcDbName, TwopcDbName)
 	tpc.countUnresolvedRedo = parser.BuildParsedQuery(
 		"select count(*) from %s.redo_state where time_created < %a",
-		dbname, ":time_created")
+		TwopcDbName, ":time_created")
 
 	tpc.insertTransaction = parser.BuildParsedQuery(
 		"insert into %s.dt_state(dtid, state, time_created) values (%a, %a, %a)",
-		dbname, ":dtid", ":state", ":cur_time")
+		TwopcDbName, ":dtid", ":state", ":cur_time")
 	tpc.insertParticipants = parser.BuildParsedQuery(
 		"insert into %s.dt_participant(dtid, id, keyspace, shard) values %a",
-		dbname, ":vals")
+		TwopcDbName, ":vals")
 	tpc.transition = parser.BuildParsedQuery(
 		"update %s.dt_state set state = %a where dtid = %a and state = %a",
-		dbname, ":state", ":dtid", ":prepare")
+		TwopcDbName, ":state", ":dtid", ":prepare")
 	tpc.deleteTransaction = parser.BuildParsedQuery(
 		"delete from %s.dt_state where dtid = %a",
-		dbname, ":dtid")
+		TwopcDbName, ":dtid")
 	tpc.deleteParticipants = parser.BuildParsedQuery(
 		"delete from %s.dt_participant where dtid = %a",
-		dbname, ":dtid")
+		TwopcDbName, ":dtid")
 	tpc.readTransaction = parser.BuildParsedQuery(
 		"select dtid, state, time_created from %s.dt_state where dtid = %a",
-		dbname, ":dtid")
+		TwopcDbName, ":dtid")
 	tpc.readParticipants = parser.BuildParsedQuery(
 		"select keyspace, shard from %s.dt_participant where dtid = %a",
-		dbname, ":dtid")
+		TwopcDbName, ":dtid")
 	tpc.readAbandoned = parser.BuildParsedQuery(
 		"select dtid, time_created from %s.dt_state where time_created < %a",
-		dbname, ":time_created")
-	tpc.readAllTransactions = fmt.Sprintf(sqlReadAllTransactions, dbname, dbname)
+		TwopcDbName, ":time_created")
+	tpc.readAllTransactions = fmt.Sprintf(sqlReadAllTransactions, TwopcDbName, TwopcDbName)
 	return tpc
 }
 
 // Open starts the TwoPC service.
 func (tpc *TwoPC) Open(connParam *mysql.ConnParams) error {
-	dbname := "_go_sharding_tx"
 	conn, err := NewDBConnection(context.TODO(), connParam)
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
 	statements := []string{
-		fmt.Sprintf(sqlCreateSidecarDB, dbname),
-		fmt.Sprintf(sqlDropLegacy1, dbname),
-		fmt.Sprintf(sqlDropLegacy2, dbname),
-		fmt.Sprintf(sqlDropLegacy3, dbname),
-		fmt.Sprintf(sqlDropLegacy4, dbname),
-		fmt.Sprintf(sqlCreateTableRedoState, dbname),
-		fmt.Sprintf(sqlCreateTableRedoStatement, dbname),
-		fmt.Sprintf(sqlCreateTableDTState, dbname),
-		fmt.Sprintf(sqlCreateTableDTParticipant, dbname),
+		fmt.Sprintf(sqlCreateSidecarDB, TwopcDbName),
+		fmt.Sprintf(sqlDropLegacy1, TwopcDbName),
+		fmt.Sprintf(sqlDropLegacy2, TwopcDbName),
+		fmt.Sprintf(sqlDropLegacy3, TwopcDbName),
+		fmt.Sprintf(sqlDropLegacy4, TwopcDbName),
+		fmt.Sprintf(sqlCreateTableRedoState, TwopcDbName),
+		fmt.Sprintf(sqlCreateTableRedoStatement, TwopcDbName),
+		fmt.Sprintf(sqlCreateTableDTState, TwopcDbName),
+		fmt.Sprintf(sqlCreateTableDTParticipant, TwopcDbName),
 	}
 	for _, s := range statements {
 		if _, err := conn.ExecuteFetch(s, 0, false); err != nil {

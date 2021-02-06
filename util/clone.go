@@ -31,7 +31,7 @@ func JsonClone(dest interface{}, source interface{}) error {
 	return json.Unmarshal(data, dest)
 }
 
-func JsonEqual(a interface{}, b interface{}) (bool, error) {
+func CheckJsonEqual(a interface{}, b interface{}) (bool, error) {
 	ja, err := json.Marshal(a)
 	if err != nil {
 		return false, err
@@ -45,7 +45,7 @@ func JsonEqual(a interface{}, b interface{}) (bool, error) {
 
 }
 
-func JsonEqualIgnoreError(a interface{}, b interface{}) bool {
+func JsonEqual(a interface{}, b interface{}) bool {
 	ja, err := json.Marshal(a)
 	if err != nil {
 		println(err.Error())

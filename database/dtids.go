@@ -29,7 +29,7 @@ func Dtid(session *DbSession) string {
 }
 
 // DbSession builds a Session_ShardSession from a dtid.
-func dbSession(dtid string) (*DbSession, error) {
+func NewDbSession(dtid string) (*DbSession, error) {
 	splits := strings.Split(dtid, ":")
 	if len(splits) != 3 {
 		return nil, fmt.Errorf("invalid parts in dtid: %s", dtid)

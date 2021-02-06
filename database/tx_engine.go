@@ -19,6 +19,7 @@ package database
 import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/core"
+	"github.com/XiaoMi/Gaea/core/provider"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/XiaoMi/Gaea/telemetry"
@@ -76,26 +77,31 @@ type TxEngine struct {
 	twoPC        *TwoPC
 }
 
-// NewTxEngine creates a new TxEngine.
 func NewTxEngine(conn *mysql.ConnParams, config DbConfig) *TxEngine {
+	coord, _ := provider.DefaultRegistry().LoadFirst(provider.TxCoordinator).(Coordinator)
+	return NewTxEngineWithCoord(conn, config, coord)
+}
+
+// NewTxEngine creates a new TxEngine.
+func NewTxEngineWithCoord(conn *mysql.ConnParams, config DbConfig, coordinator Coordinator) *TxEngine {
 	te := &TxEngine{
 		connParam:           conn,
 		shutdownGracePeriod: config.GracePeriods.ShutdownSeconds,
-		coord:               new(coordinatorImpl),
 	}
 	limiter := NewTxLimiter(config.Tx)
 	te.txPool = NewTxPool(config, limiter)
+	te.coord = coordinator
 	te.twopcEnabled = config.Tx.EnableTwoPC
-	//if te.twopcEnabled {
-	//	if config.TwoPCCoordinatorAddress == "" {
-	//		log.Error("Coordinator address not specified: Disabling 2PC")
-	//		te.twopcEnabled = false
-	//	}
-	//	if config.TwoPCAbandonAge <= 0 {
-	//		log.Error("2PC abandon age not specified: Disabling 2PC")
-	//		te.twopcEnabled = false
-	//	}
-	//}
+	if te.twopcEnabled {
+		if coordinator == nil {
+			log.Error("Coordinator address not specified: Disabling 2PC")
+			te.twopcEnabled = false
+		}
+		if config.Tx.TwoPCAbandonAge <= 0 {
+			log.Error("2PC abandon age not specified: Disabling 2PC")
+			te.twopcEnabled = false
+		}
+	}
 	//te.coordinatorAddress = config.TwoPCCoordinatorAddress
 	te.abandonAge = config.Tx.TwoPCAbandonAge
 	te.ticks = timer.NewTimer(te.abandonAge / 2)
@@ -109,6 +115,7 @@ func NewTxEngine(conn *mysql.ConnParams, config DbConfig) *TxEngine {
 	readPool := NewPool("TxReadPool", ConnPoolConfig{
 		Size:               3,
 		IdleTimeoutSeconds: config.Tx.Pool.IdleTimeoutSeconds,
+		TimeoutSeconds:     120,
 	})
 	te.twoPC = NewTwoPC(readPool)
 
@@ -160,7 +167,11 @@ func (te *TxEngine) transition(state txEngineState) {
 			DbStats.AddInternalErrors(context.TODO(), "TwopcResurrection", 1)
 			log.Errorf("Could not prepare transactions: %v", err)
 		}
-		te.startWatchdog()
+		if te.coord != nil {
+			te.startWatchdog()
+		} else {
+			log.Error("Tx coordinator is nil, so can not start watchdog !")
+		}
 	}
 }
 
@@ -421,15 +432,15 @@ func (te *TxEngine) startWatchdog() {
 		// Use 5x abandonAge to give opportunity for watchdog to resolve these.
 		count, err := te.twoPC.CountUnresolvedRedo(ctx, time.Now().Add(-te.abandonAge*5))
 		if err != nil {
-			DbStats.AddInternalErrors(context.TODO(), "WatchdogFail", 1)
+			DbStats.AddInternalErrors(ctx, "WatchdogFail", 1)
 			log.Errorf("Error reading unresolved prepares: %v", err)
 		}
-		DbStats.RecordUnresolved(context.TODO(), "Prepares", count)
+		DbStats.RecordUnresolved(ctx, "Prepares", count)
 
 		// Resolve lingering distributed transactions.
 		txs, err := te.twoPC.ReadAbandoned(ctx, time.Now().Add(-te.abandonAge))
 		if err != nil {
-			DbStats.AddInternalErrors(context.TODO(), "WatchdogFail", 1)
+			DbStats.AddInternalErrors(ctx, "WatchdogFail", 1)
 			log.Errorf("Error reading transactions for 2pc watchdog: %v", err)
 			return
 		}
@@ -439,7 +450,7 @@ func (te *TxEngine) startWatchdog() {
 
 		coordConn, err := te.coord.Connect(ctx, te)
 		if err != nil {
-			DbStats.AddInternalErrors(context.TODO(), "WatchdogFail", 1)
+			DbStats.AddInternalErrors(ctx, "WatchdogFail", 1)
 			log.Errorf("Error connecting to coordinator: %v", err)
 			return
 		}
