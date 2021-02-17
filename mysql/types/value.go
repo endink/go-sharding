@@ -34,6 +34,23 @@ type Value struct {
 	Value     []byte
 }
 
+func (v *Value) Clone() *Value {
+	if v == nil {
+		return nil
+	}
+
+	var b []byte
+	if v.Value != nil {
+		b = make([]byte, len(v.Value))
+		copy(b, v.Value)
+	}
+
+	return &Value{
+		ValueType: v.ValueType,
+		Value:     b,
+	}
+}
+
 var (
 	// NULL represents the NULL value.
 	NULL = Value{}

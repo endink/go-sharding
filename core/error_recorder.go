@@ -120,7 +120,7 @@ func (aer *AllErrorRecorder) Error() error {
 		for _, e := range errors {
 			errs = append(errs, e.Error())
 		}
-		return fmt.Errorf("%v", strings.Join(errs, "\n"))
+		return fmt.Errorf("%v", strings.Join(errs, LineSeparator))
 	})
 }
 

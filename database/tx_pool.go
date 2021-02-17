@@ -147,7 +147,7 @@ func (tp *TxPool) WaitForEmpty() {
 func (tp *TxPool) GetAndLock(connID int64, reason string) (*StatefulConnection, error) {
 	conn, err := tp.scp.GetAndLock(connID, reason)
 	if err != nil {
-		return nil, fmt.Errorf("transaction %d: %v", connID, err)
+		return nil, fmt.Errorf("%w\ntransaction %d: %v", ErrHasAborted, connID, err)
 	}
 	return conn, nil
 }
@@ -214,7 +214,7 @@ func (tp *TxPool) Begin(ctx context.Context, options *types.ExecuteOptions, read
 	} else {
 		c := CallerFromContext(ctx)
 		if !tp.limiter.Get(c) {
-			return nil, "", fmt.Errorf("per-user transaction pool connection limit exceeded")
+			return nil, "", fmt.Errorf("%w\nper-user transaction pool connection limit exceeded", ErrResourceExhausted)
 		}
 		conn, err = tp.createConn(ctx, options)
 		defer func() {
@@ -254,10 +254,10 @@ func (tp *TxPool) createConn(ctx context.Context, options *types.ExecuteOptions)
 		switch err {
 		case util.ErrCtxTimeout:
 			//tp.LogActive()
-			err = fmt.Errorf("transaction pool aborting request due to already expired context")
+			err = fmt.Errorf("%w\ntransaction pool aborting request due to already expired context", ErrResourceExhausted)
 		case util.ErrTimeout:
 			//tp.LogActive()
-			err = fmt.Errorf("transaction pool connection limit exceeded")
+			err = fmt.Errorf("%w\ntransaction pool connection limit exceeded", ErrResourceExhausted)
 		}
 		return nil, err
 	}
@@ -268,15 +268,15 @@ func createTransaction(ctx context.Context, options *types.ExecuteOptions, conn 
 	beginQueries := ""
 
 	autocommitTransaction := false
-	if queries, ok := txIsolations[options.TransactionIsolation]; ok {
-		if queries.setIsolationLevel != "" {
-			txQuery := "set transaction isolation level " + queries.setIsolationLevel
+	if txQueries, ok := txIsolations[options.TransactionIsolation]; ok {
+		if txQueries.setIsolationLevel != "" {
+			txQuery := "set transaction isolation level " + txQueries.setIsolationLevel
 			if err := conn.execWithRetry(ctx, txQuery, 1, false); err != nil {
 				return "", false, util.Wrap(err, txQuery)
 			}
-			beginQueries = queries.setIsolationLevel + "; "
+			beginQueries = txQueries.setIsolationLevel + "; "
 		}
-		beginSQL := queries.openTransaction
+		beginSQL := txQueries.openTransaction
 		if readOnly &&
 			options.TransactionIsolation != types.IsolationConsistentSnapshotReadOnly {
 			beginSQL = "start transaction read only"

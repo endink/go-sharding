@@ -21,6 +21,7 @@ package server
 import (
 	"context"
 	"github.com/XiaoMi/Gaea/core"
+	"github.com/XiaoMi/Gaea/logging"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/XiaoMi/Gaea/util/sync2"
@@ -31,13 +32,14 @@ import (
 
 const maxDuration time.Duration = 1<<63 - 1
 
-var busyConnections = sync2.NewAtomicInt32(0)
 var lockHeartbeatTime = time.Second * 5
 
 type mysqlHandler struct {
-	mutex        sync.Mutex
-	connections  map[*mysql.Conn]struct{}
-	queryTimeout time.Duration
+	mutex           sync.Mutex
+	connections     map[*mysql.Conn]struct{}
+	queryTimeout    time.Duration
+	busyConnections sync2.AtomicInt32
+	TxConn          TxConn
 }
 
 func (m *mysqlHandler) ConnectionCount() int {
@@ -46,7 +48,7 @@ func (m *mysqlHandler) ConnectionCount() int {
 	return len(m.connections)
 }
 
-func (m *mysqlHandler) newSession(c *mysql.Conn) *Session {
+func (m *mysqlHandler) session(c *mysql.Conn) *Session {
 	session, _ := c.ClientData.(*Session)
 	if session == nil {
 		u, _ := uuid.NewUUID()
@@ -60,6 +62,13 @@ func (m *mysqlHandler) newSession(c *mysql.Conn) *Session {
 		c.ClientData = session
 	}
 	return session
+}
+
+// CloseSession closes the session, rolling back any implicit transactions. This has the
+// same effect as if a "rollback" statement was executed, but does not affect the query
+// statistics.
+func (m *mysqlHandler) closeSession(ctx context.Context, session *Session) error {
+	return m.TxConn.ReleaseAll(ctx, NewSafeSession(session))
 }
 
 func (m *mysqlHandler) NewConnection(c *mysql.Conn) {
@@ -83,11 +92,11 @@ func (m *mysqlHandler) ConnectionClosed(c *mysql.Conn) {
 	} else {
 		ctx = context.Background()
 	}
-	session := m.newSession(c)
+	session := m.session(c)
 	if session.InTransaction {
-		defer busyConnections.Add(-1)
+		defer m.busyConnections.Add(-1)
 	}
-	_ = vh.vtg.CloseSession(ctx, session)
+	m.closeSession(ctx, session)
 }
 
 func (m *mysqlHandler) ComQuery(c *mysql.Conn, query string, callback func(*types.Result) error) error {
@@ -103,9 +112,17 @@ func (m *mysqlHandler) ComStmtExecute(c *mysql.Conn, prepare *mysql.PrepareData,
 }
 
 func (m *mysqlHandler) WarningCount(c *mysql.Conn) uint16 {
-	panic("implement me")
+	return uint16(len(m.session(c).Warnings))
 }
 
 func (m *mysqlHandler) ComResetConnection(c *mysql.Conn) {
-	panic("implement me")
+	ctx := context.Background()
+	session := m.session(c)
+	if session.InTransaction {
+		defer m.busyConnections.Add(-1)
+	}
+	err := m.closeSession(ctx, session)
+	if err != nil {
+		logging.DefaultLogger.Errorf("Error happened in transaction rollback: %v", err)
+	}
 }

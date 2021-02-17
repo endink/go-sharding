@@ -30,7 +30,7 @@ import (
 )
 
 type coordConnImpl struct {
-	executor *database.TxExecutor
+	engine *database.TxEngine
 }
 
 func (cd *coordConnImpl) Close() {
@@ -38,7 +38,7 @@ func (cd *coordConnImpl) Close() {
 }
 
 func (cd *coordConnImpl) ResolveTransaction(ctx context.Context, dtid string) error {
-	transaction, err := cd.executor.ReadTransaction(ctx, dtid)
+	transaction, err := cd.engine.ReadTransaction(ctx, dtid)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (cd *coordConnImpl) commitPrepared(ctx context.Context, target *database.Ta
 		"CommitPrepared", "commit_prepared", nil,
 		target, nil,
 		func(c context.Context) error {
-			return cd.executor.CommitPrepared(c, dtid)
+			return cd.engine.CommitPrepared(c, dtid)
 		},
 	)
 }
@@ -115,20 +115,20 @@ func (cd *coordConnImpl) rollbackPrepared(ctx context.Context, target *database.
 		"RollbackPrepared", "rollback_prepared", nil,
 		target, nil,
 		func(c context.Context) error {
-			return cd.executor.RollbackPrepared(c, dtid, originalID)
+			return cd.engine.RollbackPrepared(c, dtid, originalID)
 		},
 	)
 }
 
-// SetRollback transitions the 2pc transaction to the Rollback state.
+// Complete transitions the 2pc transaction to the Rollback state.
 // If a transaction id is provided, that transaction is also rolled back.
 func (cd *coordConnImpl) setRollback(ctx context.Context, target *database.Target, dtid string, transactionID int64) (err error) {
 	return cd.exec(
 		ctx,
-		"SetRollback", "set_rollback", nil,
+		"Complete", "set_rollback", nil,
 		target, nil, /* allowOnShutdown */
 		func(c context.Context) error {
-			return cd.executor.SetRollback(c, dtid, transactionID)
+			return cd.engine.Complete(c, dtid, transactionID)
 		},
 	)
 }
@@ -139,7 +139,7 @@ func (cd *coordConnImpl) concludeTransaction(ctx context.Context, target *databa
 		"ConcludeTransaction", "conclude_transaction", nil,
 		target, nil,
 		func(ctx context.Context) error {
-			return cd.executor.ConcludeTransaction(ctx, dtid)
+			return cd.engine.ConcludeTransaction(ctx, dtid)
 		},
 	)
 }

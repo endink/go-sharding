@@ -16,28 +16,26 @@
  *  File author: Anders Xiao
  */
 
-package database
+package server
 
-// TabletType represents the type of a given tablet.
-type TabletType int32
-
-const (
-	// UNKNOWN is not a valid value.
-	TabletTypeUnknown TabletType = iota
-	// MASTER is the master server for the shard. Only MASTER allows DMLs.
-	TabletTypeMaster
-	// REPLICA replicates from master. It is used to serve live traffic.
-	// A REPLICA can be promoted to MASTER. A demoted MASTER will go to REPLICA.
-	TabletTypeReplica
+import (
+	"context"
+	"github.com/XiaoMi/Gaea/database"
+	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/XiaoMi/Gaea/parser"
 )
 
-var tabletTypeNames = map[TabletType]string{
-	TabletTypeUnknown: "UNKNOWN",
-	TabletTypeMaster:  "MASTER",
-	TabletTypeReplica: "REPLICA",
+type QueryExecutor struct {
+	query          string
+	marginComments parser.MarginComments
+	bindVars       map[string]*types.BindVariable
+	connID         int64
+	options        *types.ExecuteOptions
+	ctx            context.Context
+	executor       *Executor
+	target         *database.Target
 }
 
-func (t TabletType) String() string {
-	n, _ := tabletTypeNames[t]
-	return n
+func (qre *QueryExecutor) Execute() (*types.Result, error) {
+	return nil, nil
 }

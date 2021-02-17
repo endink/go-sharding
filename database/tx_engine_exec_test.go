@@ -40,7 +40,7 @@ func TestTxExecutorEmptyPrepare(t *testing.T) {
 	err := txe.Prepare(context.TODO(), txid, "aa")
 	require.NoError(t, err)
 	// Nothing should be prepared.
-	require.Empty(t, txe.te.preparedPool.conns, "txe.te.preparedPool.conns")
+	require.Empty(t, txe.preparedPool.conns, "txe.te.preparedPool.conns")
 }
 
 func TestTxExecutorPrepare(t *testing.T) {
@@ -220,12 +220,12 @@ func TestExecutorSetRollback(t *testing.T) {
 		int(TransactionStateRollback), int(TransactionStatePrepare))
 	db.AddQuery(rollbackTransition, &types.Result{RowsAffected: 1})
 	txid := newTxForPrep(txe)
-	err := txe.SetRollback(context.TODO(), "aa", txid)
+	err := txe.Complete(context.TODO(), "aa", txid)
 	require.NoError(t, err)
 
 	db.AddQuery(rollbackTransition, &types.Result{})
 	txid = newTxForPrep(txe)
-	err = txe.SetRollback(context.TODO(), "aa", txid)
+	err = txe.Complete(context.TODO(), "aa", txid)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "could not transition to ROLLBACK: aa")
 }
@@ -343,7 +343,7 @@ func TestExecutorReadAllTransactions(t *testing.T) {
 	txe, db := newTestTxExecutor(t)
 	defer db.Close()
 
-	db.AddQuery(txe.te.twoPC.readAllTransactions, &types.Result{
+	db.AddQuery(txe.twoPC.readAllTransactions, &types.Result{
 		Fields: []*types.Field{
 			{Type: types.VarChar},
 			{Type: types.Int64},
@@ -421,8 +421,8 @@ func TestNoTwopc(t *testing.T) {
 		desc: "StartCommit",
 		fun:  func() error { return txe.StartCommit(c, 1, "aa") },
 	}, {
-		desc: "SetRollback",
-		fun:  func() error { return txe.SetRollback(c, "aa", 1) },
+		desc: "Complete",
+		fun:  func() error { return txe.Complete(c, "aa", 1) },
 	}, {
 		desc: "ConcludeTransaction",
 		fun:  func() error { return txe.ConcludeTransaction(c, "aa") },
@@ -449,32 +449,28 @@ func TestNoTwopc(t *testing.T) {
 
 var TestUpdateSql = "update test_table set `name` = 2 where pk = 1"
 
-func newTestTxExecutor(t *testing.T) (txe *TxExecutor, db *fakesqldb.DB) {
-	db = setUpQueryExecutorTest(t)
+func newTestTxExecutor(t *testing.T) (txe *TxEngine, db *fakesqldb.DB) {
+	db = setUpDbForTest(t)
 	te := newTestTxEngine(db, smallTxPool)
 	db.AddQueryPattern(fmt.Sprintf("insert into %s\\.redo_state\\(dtid, state, time_created\\) values \\('aa', 1,.*", TwopcDbName), &types.Result{})
 	db.AddQueryPattern(fmt.Sprintf("insert into %s\\.redo_statement.*", TwopcDbName), &types.Result{})
 	db.AddQuery(fmt.Sprintf("delete from %s.redo_state where dtid = 'aa'", TwopcDbName), &types.Result{})
 	db.AddQuery(fmt.Sprintf("delete from %s.redo_statement where dtid = 'aa'", TwopcDbName), &types.Result{})
 	db.AddQuery(TestUpdateSql, &types.Result{})
-	return &TxExecutor{
-		te: te,
-	}, db
+	return te, db
 }
 
 // newNoTwopcExecutor is same as newTestTxExecutor, but 2pc disabled.
-func newNoTwopcExecutor(t *testing.T) (txe *TxExecutor, db *fakesqldb.DB) {
-	db = setUpQueryExecutorTest(t)
+func newNoTwopcExecutor(t *testing.T) (txe *TxEngine, db *fakesqldb.DB) {
+	db = setUpDbForTest(t)
 	te := newTestTxEngine(db, noTwopc)
-	return &TxExecutor{
-		te: te,
-	}, db
+	return te, db
 }
 
 // newTxForPrep creates a non-empty transaction.
-func newTxForPrep(txe *TxExecutor) int64 {
+func newTxForPrep(txe *TxEngine) int64 {
 	txid := newTransaction(txe, nil)
-	conn, err := txe.te.txPool.GetAndLock(txid, "for exec")
+	conn, err := txe.txPool.GetAndLock(txid, "for exec")
 	if err != nil {
 		panic(err)
 	}
@@ -488,11 +484,11 @@ func newTxForPrep(txe *TxExecutor) int64 {
 	return txid
 }
 
-func newTransaction(txe *TxExecutor, options *types.ExecuteOptions) int64 {
+func newTransaction(txe *TxEngine, options *types.ExecuteOptions) int64 {
 	if options == nil {
 		options = &types.ExecuteOptions{}
 	}
-	transactionID, _, err := txe.te.Begin(context.Background(), nil, 0, options)
+	transactionID, _, err := txe.Begin(context.Background(), nil, 0, options)
 	if err != nil {
 		panic(util.Wrap(err, "failed to start a transaction"))
 	}

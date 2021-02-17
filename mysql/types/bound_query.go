@@ -16,28 +16,13 @@
  *  File author: Anders Xiao
  */
 
-package database
+package types
 
-// TabletType represents the type of a given tablet.
-type TabletType int32
-
-const (
-	// UNKNOWN is not a valid value.
-	TabletTypeUnknown TabletType = iota
-	// MASTER is the master server for the shard. Only MASTER allows DMLs.
-	TabletTypeMaster
-	// REPLICA replicates from master. It is used to serve live traffic.
-	// A REPLICA can be promoted to MASTER. A demoted MASTER will go to REPLICA.
-	TabletTypeReplica
-)
-
-var tabletTypeNames = map[TabletType]string{
-	TabletTypeUnknown: "UNKNOWN",
-	TabletTypeMaster:  "MASTER",
-	TabletTypeReplica: "REPLICA",
-}
-
-func (t TabletType) String() string {
-	n, _ := tabletTypeNames[t]
-	return n
+// BoundQuery is a query with its bind variables
+type BoundQuery struct {
+	// sql is the SQL query to execute
+	Sql string
+	// bind_variables is a map of all bind variables to expand in the query.
+	// nil values are not allowed. Use NULL_TYPE to express a NULL value.
+	BindVariables map[string]*BindVariable
 }

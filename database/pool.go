@@ -144,7 +144,7 @@ func (cp *Pool) Get(ctx context.Context) (*DBConn, error) {
 		waiterCount := cp.waiterCount.Add(1)
 		defer cp.waiterCount.Add(-1)
 		if waiterCount > cp.waiterCap {
-			return nil, fmt.Errorf("pool %s waiter count exceeded", cp.name)
+			return nil, fmt.Errorf("%w\npool %s waiter count exceeded", ErrResourceExhausted, cp.name)
 		}
 	}
 

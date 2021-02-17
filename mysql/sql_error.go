@@ -72,6 +72,15 @@ func (se *SQLError) SQLState() string {
 	return se.State
 }
 
+func (se *SQLError) IsDuplexError() bool {
+	switch se.Num {
+	case ERTableExists, ERDupEntry, ERFileExists, ERUDFExists:
+		return true
+	default:
+		return false
+	}
+}
+
 var errExtract = regexp.MustCompile(`.*\(errno ([0-9]*)\) \(sqlstate ([0-9a-zA-Z]{5})\).*`)
 
 // NewSQLErrorFromError returns a *SQLError from the provided error.

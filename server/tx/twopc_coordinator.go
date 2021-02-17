@@ -28,6 +28,6 @@ type coordinatorImpl struct {
 
 func (n *coordinatorImpl) Connect(_ context.Context, te *database.TxEngine) (database.CoordConn, error) {
 	return &coordConnImpl{
-		executor: database.NewTxExecutor(te),
+		engine: te,
 	}, nil
 }

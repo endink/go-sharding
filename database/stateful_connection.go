@@ -68,9 +68,9 @@ func (sc *StatefulConnection) IsInTransaction() bool {
 func (sc *StatefulConnection) Exec(ctx context.Context, query string, maxrows int, wantfields bool) (*types.Result, error) {
 	if sc.IsClosed() {
 		if sc.IsInTransaction() {
-			return nil, fmt.Errorf("transaction was aborted: %v", sc.txProps.Conclusion)
+			return nil, fmt.Errorf("%w\ntransaction was aborted: %v", ErrHasAborted, sc.txProps.Conclusion)
 		}
-		return nil, errors.New("connection was aborted")
+		return nil, fmt.Errorf("%w\nconnection was aborted", ErrHasAborted)
 	}
 	r, err := sc.dbConn.ExecOnce(ctx, query, maxrows, wantfields)
 	if err != nil {

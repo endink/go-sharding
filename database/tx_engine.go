@@ -195,7 +195,13 @@ func (te *TxEngine) Close() {
 // statement(s) used to execute the begin (if any).
 //
 // Subsequent statements can access the connection through the transaction id.
-func (te *TxEngine) Begin(ctx context.Context, preQueries []string, reservedID int64, options *types.ExecuteOptions) (int64, string, error) {
+func (te *TxEngine) Begin(ctx context.Context, preQueries []string, reservedID int64, options *types.ExecuteOptions) (newResId int64, beginSQL string, err error) {
+	start := time.Now()
+	defer func() {
+		if beginSQL != "" {
+			DbStats.QueryTime.RecordLatency(ctx, "BEGIN", start)
+		}
+	}()
 	ctx, span := telemetry.GlobalTracer.Start(ctx, "TxEngine.Begin")
 	defer span.End()
 	te.stateLock.Lock()
@@ -218,11 +224,13 @@ func (te *TxEngine) Begin(ctx context.Context, preQueries []string, reservedID i
 		return 0, "", err
 	}
 	defer conn.UnlockUpdateTime()
-	return conn.ReservedID(), beginSQL, err
+	newResId = conn.ReservedID()
+	return reservedID, beginSQL, err
 }
 
 // Commit commits the specified transaction and renews connection id if one exists.
 func (te *TxEngine) Commit(ctx context.Context, transactionID int64) (int64, string, error) {
+	startTime := time.Now()
 	ctx, span := telemetry.GlobalTracer.Start(ctx, "TxEngine.Commit")
 	defer span.End()
 	var query string
@@ -231,15 +239,17 @@ func (te *TxEngine) Commit(ctx context.Context, transactionID int64) (int64, str
 		query, err = te.txPool.Commit(ctx, conn)
 		return err
 	})
-
+	if query != "" {
+		DbStats.QueryTime.RecordLatency(ctx, "COMMIT", startTime)
+	}
 	return connID, query, err
 }
 
-// Rollback rolls back the specified transaction.
+// Rollback rolls back the specified transaction, if auto commit, it will try committing.
 func (te *TxEngine) Rollback(ctx context.Context, transactionID int64) (int64, error) {
 	ctx, span := telemetry.GlobalTracer.Start(ctx, "TxEngine.Complete")
 	defer span.End()
-
+	defer DbStats.QueryTime.RecordLatency(ctx, "ROLLBACK", time.Now())
 	return te.txFinish(transactionID, TxRollback, func(conn *StatefulConnection) error {
 		return te.txPool.Complete(ctx, conn)
 	})
@@ -561,7 +571,8 @@ func (te *TxEngine) taintConn(ctx context.Context, conn *StatefulConnection, pre
 }
 
 // Release closes the underlying connection.
-func (te *TxEngine) Release(connID int64) error {
+func (te *TxEngine) Release(ctx context.Context, connID int64) error {
+	defer DbStats.QueryTime.RecordLatency(ctx, "RELEASE", time.Now())
 	conn, err := te.txPool.GetAndLock(connID, "for release")
 	if err != nil {
 		return err

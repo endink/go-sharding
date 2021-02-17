@@ -23,3 +23,18 @@ type DbSession struct {
 	TransactionId int64
 	ReservedId    int64
 }
+
+func (s *DbSession) Clone() *DbSession {
+	var target *Target
+
+	if s.Target != nil {
+		t := *s.Target
+		target = &t
+	}
+
+	return &DbSession{
+		Target:        target,
+		TransactionId: s.TransactionId,
+		ReservedId:    s.ReservedId,
+	}
+}

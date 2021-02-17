@@ -30,6 +30,11 @@ import (
 	"sort"
 )
 
+var (
+	ErrResourceExhausted = errors.New("resources exhausted")
+	ErrHasAborted        = errors.New("operation was aborted")
+)
+
 // HandlePanic is part of the UpdateStream interface
 func HandlePanic(err *error) {
 	if x := recover(); x != nil {
@@ -106,4 +111,26 @@ func NewSqlError(ctx context.Context, sql string, bindVariables map[string]*type
 	}
 
 	return err
+}
+
+func CopyMap(source map[string]string) map[string]string {
+	if source == nil {
+		return nil
+	}
+	dest := make(map[string]string, len(source))
+	for k, v := range source {
+		dest[k] = v
+	}
+	return dest
+}
+
+func CopyArray(source []string) []string {
+	if source == nil {
+		return nil
+	}
+	dest := make([]string, len(source))
+	for i, v := range source {
+		dest[i] = v
+	}
+	return dest
 }

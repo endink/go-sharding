@@ -29,6 +29,6 @@ const (
 	CommitOrderPre
 	// POST is used to designate post_sessions.
 	CommitOrderPost
-	// AUTOCOMMIT is used to run the statement as autocommitted transaction.
+	// AUTOCOMMIT is used to run the statement as autoCommitted transaction.
 	CommitOrderAutocommit
 )

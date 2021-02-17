@@ -24,16 +24,25 @@ import (
 	"github.com/pingcap/parser/ast"
 	_ "github.com/pingcap/tidb/types/parser_driver"
 	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 var TestParser = parser.New()
 
-func ParseSelect(sql string, t assert.TestingT) *ast.SelectStmt {
+func ParseSelect(sql string, t testing.TB) *ast.SelectStmt {
 	node, err := TestParser.ParseOneStmt(sql, "", "")
 	if err != nil {
-		panic(err)
+		t.Fatalf(err.Error())
 	}
 	sel, ok := node.(*ast.SelectStmt)
 	assert.True(t, ok, fmt.Sprint("provided content is not select sql text", "\n", "SQL:", "\n", sql))
 	return sel
+}
+
+func ParseForTest(sql string, t testing.TB) ast.StmtNode {
+	node, err := TestParser.ParseOneStmt(sql, "", "")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	return node
 }

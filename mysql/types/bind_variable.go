@@ -26,3 +26,25 @@ type BindVariable struct {
 	// values are set if type is TUPLE.
 	Values []*Value
 }
+
+func (bv *BindVariable) Clone() *BindVariable {
+	var values []*Value
+	if bv.Values != nil {
+		values = make([]*Value, len(values))
+		for i, value := range bv.Values {
+			values[i] = value.Clone()
+		}
+	}
+
+	var value []byte
+	if bv.Value != nil {
+		value = make([]byte, len(bv.Value))
+		copy(value, bv.Value)
+	}
+
+	return &BindVariable{
+		Type:   bv.Type,
+		Value:  value,
+		Values: values,
+	}
+}

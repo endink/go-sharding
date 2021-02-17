@@ -62,7 +62,7 @@ type Session struct {
 	RowCount int64
 	// Stores savepoint and release savepoint calls inside a transaction
 	// and is reset once transaction is committed or rolled back.
-	Savepoints []string
+	SavePoints []string
 	// in_reserved_conn is set to true if the session should be using reserved connections.
 	InReservedConn bool
 	// lock_session keep tracks of shard on which the lock query is sent.
@@ -75,4 +75,69 @@ type Session struct {
 	SessionUUID string
 	// enable_system_settings defines if we can use reserved connections.
 	EnableSystemSettings bool
+}
+
+func (s *Session) Clone() *Session {
+	ops := *s.Options
+
+	newSession := &Session{
+		InTransaction:        s.InTransaction,
+		Autocommit:           s.Autocommit,
+		ShardSessions:        cloneDbSessions(s.ShardSessions),
+		Options:              &ops,
+		TargetString:         s.TargetString,
+		SystemVariables:      database.CopyMap(s.SystemVariables),
+		TransactionMode:      s.TransactionMode,
+		Warnings:             database.CopyArray(s.Warnings),
+		PreSessions:          cloneDbSessions(s.PreSessions),
+		PostSessions:         cloneDbSessions(s.PostSessions),
+		LastInsertId:         s.LastInsertId,
+		FoundRows:            s.FoundRows,
+		UserDefinedVariables: s.cloneUserDefinedVariables(),
+		RowCount:             s.RowCount,
+		SavePoints:           database.CopyArray(s.SavePoints),
+		InReservedConn:       s.InReservedConn,
+		LockSession:          cloneDbSession(s.LockSession),
+		LastLockHeartbeat:    s.LastLockHeartbeat,
+		DDLStrategy:          s.DDLStrategy,
+		SessionUUID:          s.SessionUUID,
+		EnableSystemSettings: s.EnableSystemSettings,
+	}
+
+	return newSession
+}
+
+func (s *Session) cloneUserDefinedVariables() map[string]*types.BindVariable {
+	if s.UserDefinedVariables == nil {
+		return nil
+	}
+	dest := make(map[string]*types.BindVariable, len(s.UserDefinedVariables))
+	for name, variable := range s.UserDefinedVariables {
+		if variable == nil {
+			dest[name] = nil
+		} else {
+			dest[name] = variable.Clone()
+		}
+	}
+	return dest
+}
+
+func cloneDbSession(source *database.DbSession) *database.DbSession {
+	if source == nil {
+		return nil
+	}
+
+	return source.Clone()
+}
+
+func cloneDbSessions(source []*database.DbSession) []*database.DbSession {
+	if source == nil {
+		return nil
+	}
+
+	sessions := make([]*database.DbSession, len(source))
+	for i, s := range source {
+		sessions[i] = s.Clone()
+	}
+	return sessions
 }

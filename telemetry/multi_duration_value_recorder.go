@@ -36,10 +36,10 @@ type MultiDurationValueRecorder struct {
 	meter           metric.MeterMust
 }
 
-func NewMultiDurationValueRecorder(meter metric.MeterMust, name string, mos ...metric.InstrumentOption) MultiDurationValueRecorder {
+func NewMultiDurationValueRecorder(meter metric.Meter, name string, mos ...metric.InstrumentOption) MultiDurationValueRecorder {
 	return MultiDurationValueRecorder{
 		recorderFactory: NewDurationValueRecorder,
-		meter:           meter,
+		meter:           metric.Must(meter),
 		name:            name,
 		options:         append(mos, metric.WithUnit(unit.Milliseconds)),
 		recorders:       make(map[string]DurationValueRecorder),
@@ -59,12 +59,24 @@ func (d *MultiDurationValueRecorder) getOrPut(name string) DurationValueRecorder
 	return v
 }
 
+func (d *MultiDurationValueRecorder) RecordMulti(ctx context.Context, names []string, duration time.Duration, labels ...label.KeyValue) {
+	for _, name := range names {
+		d.Record(ctx, name, duration, labels...)
+	}
+}
+
+func (d *MultiDurationValueRecorder) RecordMultiLatency(ctx context.Context, names []string, startTime time.Time, labels ...label.KeyValue) {
+	for _, name := range names {
+		d.RecordLatency(ctx, name, startTime, labels...)
+	}
+}
+
 func (d *MultiDurationValueRecorder) Record(ctx context.Context, name string, duration time.Duration, labels ...label.KeyValue) {
-	r := d.getOrPut(name)
+	r := d.getOrPut(BuildMetricName(name))
 	r.Record(ctx, duration, labels...)
 }
 
 func (d *MultiDurationValueRecorder) RecordLatency(ctx context.Context, name string, startTime time.Time, labels ...label.KeyValue) {
-	r := d.getOrPut(name)
+	r := d.getOrPut(BuildMetricName(name))
 	r.RecordLatency(ctx, startTime, labels...)
 }

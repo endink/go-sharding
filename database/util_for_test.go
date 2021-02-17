@@ -55,7 +55,7 @@ const (
 	smallResultSize
 )
 
-func setUpQueryExecutorTest(t *testing.T) *fakesqldb.DB {
+func setUpDbForTest(t *testing.T) *fakesqldb.DB {
 	db := fakesqldb.New(t)
 	initQueryExecutorTestDB(db, true)
 	return db

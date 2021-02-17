@@ -38,7 +38,7 @@ func TestReadAllRedo(t *testing.T) {
 	// Reuse code from tx_executor_test.
 	txe, db := newTestTxExecutor(t)
 	defer db.Close()
-	tpc := txe.te.twoPC
+	tpc := txe.twoPC
 	ctx := context.Background()
 
 	pool := openTestConnPool(db)
@@ -244,7 +244,7 @@ func TestReadAllRedo(t *testing.T) {
 func TestReadAllTransactions(t *testing.T) {
 	txe, db := newTestTxExecutor(t)
 	defer db.Close()
-	tpc := txe.te.twoPC
+	tpc := txe.twoPC
 	ctx := context.Background()
 
 	pool := openTestConnPool(db)

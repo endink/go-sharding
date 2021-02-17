@@ -16,28 +16,10 @@
  *  File author: Anders Xiao
  */
 
-package database
+package server
 
-// TabletType represents the type of a given tablet.
-type TabletType int32
+import "github.com/XiaoMi/Gaea/config"
 
-const (
-	// UNKNOWN is not a valid value.
-	TabletTypeUnknown TabletType = iota
-	// MASTER is the master server for the shard. Only MASTER allows DMLs.
-	TabletTypeMaster
-	// REPLICA replicates from master. It is used to serve live traffic.
-	// A REPLICA can be promoted to MASTER. A demoted MASTER will go to REPLICA.
-	TabletTypeReplica
-)
-
-var tabletTypeNames = map[TabletType]string{
-	TabletTypeUnknown: "UNKNOWN",
-	TabletTypeMaster:  "MASTER",
-	TabletTypeReplica: "REPLICA",
-}
-
-func (t TabletType) String() string {
-	n, _ := tabletTypeNames[t]
-	return n
+type Server struct {
+	mgr config.Manager
 }

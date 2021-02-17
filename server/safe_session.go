@@ -23,7 +23,6 @@ import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/database"
 	"github.com/XiaoMi/Gaea/mysql/types"
-	"github.com/XiaoMi/Gaea/util"
 	"sync"
 	"time"
 )
@@ -37,6 +36,7 @@ type SafeSession struct {
 	mustRollback    bool
 	autocommitState autocommitState
 	commitOrder     CommitOrder
+	SavePoints      []string
 
 	// this is a signal that found_rows has already been handles by the primitives,
 	// and doesn't have to be updated by the executor
@@ -63,9 +63,9 @@ type SafeSession struct {
 type autocommitState int
 
 const (
-	notAutocommittable autocommitState = iota
-	autocommittable
-	autocommitted
+	notAutoCommittable autocommitState = iota
+	autoCommittable
+	autoCommitted
 )
 
 // NewSafeSession returns a new SafeSession based on the Session
@@ -78,18 +78,15 @@ func NewSafeSession(sessn *Session) *SafeSession {
 
 // NewAutocommitSession returns a SafeSession based on the original
 // session, but with autocommit enabled.
-func NewAutocommitSession(sessn *Session) (*SafeSession, error) {
-	newSession := &Session{}
-	if err := util.JsonClone(newSession, sessn); err != nil {
-		return nil, err
-	}
+func NewAutocommitSession(sessn *Session) *SafeSession {
+	newSession := sessn.Clone()
 	newSession.InTransaction = false
 	newSession.ShardSessions = nil
 	newSession.PreSessions = nil
 	newSession.PostSessions = nil
 	newSession.Autocommit = true
 	newSession.Warnings = nil
-	return NewSafeSession(newSession), nil
+	return NewSafeSession(newSession)
 }
 
 // ResetTx clears the session
@@ -97,10 +94,10 @@ func (session *SafeSession) ResetTx() {
 	session.mu.Lock()
 	defer session.mu.Unlock()
 	session.mustRollback = false
-	session.autocommitState = notAutocommittable
+	session.autocommitState = notAutoCommittable
 	session.Session.InTransaction = false
 	session.commitOrder = CommitOrderNormal
-	session.Savepoints = nil
+	session.SavePoints = nil
 	if !session.Session.InReservedConn {
 		session.ShardSessions = nil
 		session.PreSessions = nil
@@ -113,47 +110,47 @@ func (session *SafeSession) Reset() {
 	session.mu.Lock()
 	defer session.mu.Unlock()
 	session.mustRollback = false
-	session.autocommitState = notAutocommittable
+	session.autocommitState = notAutoCommittable
 	session.Session.InTransaction = false
 	session.commitOrder = CommitOrderNormal
-	session.Savepoints = nil
+	session.SavePoints = nil
 	session.ShardSessions = nil
 	session.PreSessions = nil
 	session.PostSessions = nil
 }
 
-// SetAutocommittable sets the state to autocommitable if true.
-// Otherwise, it's notAutocommitable.
-func (session *SafeSession) SetAutocommittable(flag bool) {
+// SetAutoCommittable sets the state to autoCommittable if true.
+// Otherwise, it's notAutoCommittable.
+func (session *SafeSession) SetAutoCommittable(flag bool) {
 	session.mu.Lock()
 	defer session.mu.Unlock()
 
-	if session.autocommitState == autocommitted {
+	if session.autocommitState == autoCommitted {
 		// Unreachable.
 		return
 	}
 
 	if flag {
-		session.autocommitState = autocommittable
+		session.autocommitState = autoCommittable
 	} else {
-		session.autocommitState = notAutocommittable
+		session.autocommitState = notAutoCommittable
 	}
 }
 
-// AutocommitApproval returns true if we can perform a single round-trip
+// AutoCommitApproval returns true if we can perform a single round-trip
 // autocommit. If so, the caller is responsible for committing their
 // transaction.
-func (session *SafeSession) AutocommitApproval() bool {
+func (session *SafeSession) AutoCommitApproval() bool {
 	session.mu.Lock()
 	defer session.mu.Unlock()
 
-	if session.autocommitState == autocommitted {
+	if session.autocommitState == autoCommitted {
 		// Unreachable.
 		return false
 	}
 
-	if session.autocommitState == autocommittable {
-		session.autocommitState = autocommitted
+	if session.autocommitState == autoCommittable {
+		session.autocommitState = autoCommitted
 		return true
 	}
 	return false
@@ -220,7 +217,7 @@ func (session *SafeSession) AppendOrUpdate(shardSession *database.DbSession, txM
 	// additional check of transaction id is required
 	// as now in autocommit mode there can be session due to reserved connection
 	// that needs to be stored as shard session.
-	if session.autocommitState == autocommitted && shardSession.TransactionId != 0 {
+	if session.autocommitState == autoCommitted && shardSession.TransactionId != 0 {
 		// Should be unreachable
 		return errors.New("BUG: SafeSession.AppendOrUpdate: unexpected autocommit state")
 	}
@@ -228,7 +225,7 @@ func (session *SafeSession) AppendOrUpdate(shardSession *database.DbSession, txM
 		// Should be unreachable
 		return errors.New("BUG: SafeSession.AppendOrUpdate: not in transaction and not in reserved connection")
 	}
-	session.autocommitState = notAutocommittable
+	session.autocommitState = notAutoCommittable
 
 	// Always append, in order for rollback to succeed.
 	switch session.commitOrder {
@@ -328,7 +325,7 @@ func (session *SafeSession) SetOptions(options *types.ExecuteOptions) {
 func (session *SafeSession) StoreSavepoint(sql string) {
 	session.mu.Lock()
 	defer session.mu.Unlock()
-	session.Savepoints = append(session.Savepoints, sql)
+	session.SavePoints = append(session.SavePoints, sql)
 }
 
 // InReservedConn returns true if the session needs to execute on a dedicated connection
@@ -400,17 +397,17 @@ func (session *SafeSession) ResetAll() {
 	session.mu.Lock()
 	defer session.mu.Unlock()
 	session.mustRollback = false
-	session.autocommitState = notAutocommittable
+	session.autocommitState = notAutoCommittable
 	session.Session.InTransaction = false
 	session.commitOrder = CommitOrderNormal
-	session.Savepoints = nil
+	session.SavePoints = nil
 	session.ShardSessions = nil
 	session.PreSessions = nil
 	session.PostSessions = nil
 	session.LockSession = nil
 }
 
-// ResetShard reset the shard session for the provided tablet alias.
+// ResetShard reset the shard session for the provided tablet target.
 func (session *SafeSession) ResetShard(target *database.Target) error {
 	session.mu.Lock()
 	defer session.mu.Unlock()

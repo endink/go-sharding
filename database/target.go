@@ -28,7 +28,10 @@ func (t *Target) Equals(other interface{}) bool {
 	if other == nil {
 		return false
 	}
-	otherT, _ := other.(*Target)
+	otherT, ok := other.(*Target)
+	if !ok {
+		return false
+	}
 	return t.IsSame(otherT)
 }
 
