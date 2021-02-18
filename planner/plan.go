@@ -33,6 +33,7 @@ type Plan struct {
 	BindVarNeeds *sqlparser.BindVarNeeds // Stores BindVars needed to be provided as part of expression rewriting
 	Permissions  []core.Permission
 
+	Query        *parser.ParsedQuery
 	mu           sync.Mutex    // Mutex to protect the fields below
 	ExecCount    uint64        // Count of times this plan was executed
 	ExecTime     time.Duration // Total execution time

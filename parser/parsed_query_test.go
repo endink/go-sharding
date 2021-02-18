@@ -167,6 +167,15 @@ func TestParseAndBind(t *testing.T) {
 			in:    "name=%a",
 			binds: []*types.BindVariable{types.StringBindVariable("xyz")},
 			out:   "name='xyz'",
+		}, {
+			in:    "name=?",
+			binds: []*types.BindVariable{types.StringBindVariable("v0")},
+			out:   "name='v0'",
+		},
+		{
+			in:    "name=? and id=?",
+			binds: []*types.BindVariable{types.StringBindVariable("v0"), types.StringBindVariable("v1")},
+			out:   "name='v0' and id='v1'",
 		},
 	}
 

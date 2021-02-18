@@ -33,6 +33,7 @@ type SqlExplain struct {
 	maxSubQueryDepth      int32
 	valuesChanged         bool
 	values                map[string]*core.ShardingValues
+	bindVarsCount         int
 }
 
 func MockSqlExplain(shardingTables ...*ShardingTableMocked) *SqlExplain {

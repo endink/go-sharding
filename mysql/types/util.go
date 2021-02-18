@@ -74,6 +74,11 @@ func Float64BindVariable(v float64) *BindVariable {
 	return ValueBindVariable(NewFloat64(v))
 }
 
+// Float64BindVariable converts a float64 to a bind var.
+func Float32BindVariable(v float32) *BindVariable {
+	return ValueBindVariable(NewFloat32(v))
+}
+
 // StringBindVariable converts a string to a bind var.
 func StringBindVariable(v string) *BindVariable {
 	return ValueBindVariable(NewVarBinary(v))

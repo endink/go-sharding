@@ -44,23 +44,28 @@ func NewTrackedBuffer() *TrackedBuffer {
 
 // astPrintf is for internal use by the ast structs
 func (buf *TrackedBuffer) astPrintf(format string, values ...interface{}) {
-
+	var argIndex int
 	end := len(format)
 	fieldnum := 0
 	for i := 0; i < end; {
 		lasti := i
-		for i < end && format[i] != '%' && format[i] != ':' {
+		for i < end && format[i] != '%' && format[i] != ':' && format[i] != '?' {
 			i++
 		}
+
 		if i > lasti {
 			_, _ = buf.WriteString(format[lasti:i])
-		} else if i == lasti {
-			_ = buf.WriteByte(format[lasti])
 		}
+
 		if i >= end {
 			break
 		}
+
 		switch format[i] {
+		case '?':
+			buf.WriteArg(fmt.Sprintf(":p%d", argIndex))
+			argIndex++
+			i++
 		case '%':
 			offset := buf.procTemplate(format, values, i, fieldnum)
 			fieldnum++
@@ -138,12 +143,12 @@ func (buf *TrackedBuffer) printIf(condition bool, text string) {
 // WriteArg writes a value argument into the buffer along with
 // tracking information for future substitutions. arg must contain
 // the ":" or "::"
-func (buf *TrackedBuffer) WriteArg(arg string) {
-	if !strings.HasPrefix(arg, ":") {
+func (buf *TrackedBuffer) WriteArg(argName string) {
+	if !strings.HasPrefix(argName, ":") {
 		panic("The argument name must begin with a colon (:)")
 	}
 	buf.bindLocations = append(buf.bindLocations, bindLocation{
-		argName: arg,
+		argName: argName,
 		offset:  buf.Len(),
 		length:  1,
 	})
@@ -159,11 +164,4 @@ func (buf *TrackedBuffer) ParsedQuery() *ParsedQuery {
 // HasBindVars returns true if the parsed query uses bind vars.
 func (buf *TrackedBuffer) HasBindVars() bool {
 	return len(buf.bindLocations) != 0
-}
-
-// BuildParsedQuery builds a ParsedQuery from the input.
-func BuildParsedQuery(in string, vars ...interface{}) *ParsedQuery {
-	buf := NewTrackedBuffer()
-	buf.astPrintf(in, vars...)
-	return buf.ParsedQuery()
 }

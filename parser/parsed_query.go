@@ -134,13 +134,20 @@ func fetchBindVar(name string, bindVariables map[string]*types.BindVariable) (va
 func ParseAndBind(in string, binds ...*types.BindVariable) (query string, err error) {
 	vars := make([]interface{}, len(binds))
 	for i := range binds {
-		vars[i] = fmt.Sprintf(":var%d", i)
+		vars[i] = fmt.Sprintf(":p%d", i)
 	}
 	parsed := BuildParsedQuery(in, vars...)
 
 	bindVars := map[string]*types.BindVariable{}
 	for i := range binds {
-		bindVars[fmt.Sprintf("var%d", i)] = binds[i]
+		bindVars[fmt.Sprintf("p%d", i)] = binds[i]
 	}
 	return parsed.GenerateQuery(bindVars, nil)
+}
+
+// BuildParsedQuery builds a ParsedQuery from the input.
+func BuildParsedQuery(in string, vars ...interface{}) *ParsedQuery {
+	buf := NewTrackedBuffer()
+	buf.astPrintf(in, vars...)
+	return buf.ParsedQuery()
 }

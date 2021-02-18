@@ -56,11 +56,13 @@ func buildPlan(statement ast.StmtNode, tables map[string]*core.ShardingTable, is
 
 	switch stmt := statement.(type) {
 	case *ast.UnionStmt:
-		plan, err = &Plan{
-			PlanID:     PlanSelect,
-			FieldQuery: GenerateFieldQuery(stmt),
-			FullQuery:  parser.GenerateLimitQuery(statement, 1000),
-		}, nil
+		query, err := parser.GenerateLimitQuery(statement, 1000)
+		if err == nil {
+			plan, err = &Plan{
+				PlanID: PlanSelect,
+				Query:  query,
+			}, nil
+		}
 	case *ast.SelectStmt:
 		plan, err = analyzeSelect(stmt, tables)
 	case *ast.InsertStmt:

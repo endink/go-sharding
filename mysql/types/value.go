@@ -144,6 +144,11 @@ func NewFloat64(v float64) Value {
 	return MakeTrusted(Float64, strconv.AppendFloat(nil, v, 'g', -1, 64))
 }
 
+// NewFloat32 builds an Float32 Value.
+func NewFloat32(v float32) Value {
+	return MakeTrusted(Float32, strconv.AppendFloat(nil, float64(v), 'g', -1, 32))
+}
+
 // NewVarChar builds a VarChar Value.
 func NewVarChar(v string) Value {
 	return MakeTrusted(VarChar, []byte(v))
