@@ -20,6 +20,7 @@ package rewriting
 
 import (
 	"github.com/XiaoMi/Gaea/explain"
+	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/pingcap/errors"
 	"github.com/pingcap/parser/ast"
 )
@@ -28,6 +29,10 @@ var _ explain.Rewriter = &Engine{}
 
 type Engine struct {
 	runtime Runtime
+}
+
+func (engine *Engine) RewriteBindVariable(bindVars []*types.BindVariable) (explain.RewriteBindVarsResult, error) {
+	panic("implement me")
 }
 
 func NewEngine(runtime Runtime) *Engine {

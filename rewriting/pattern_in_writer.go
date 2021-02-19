@@ -19,31 +19,35 @@
 package rewriting
 
 import (
+	"errors"
 	"fmt"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/explain"
+	myTypes "github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
 	"github.com/pingcap/parser/types"
-	driver "github.com/pingcap/tidb/types/parser_driver"
 	"io"
 )
 
-// type check
 var _ ast.ExprNode = &PatternInWriter{}
 
 // PatternInWriter decorate PatternInExpr
-// 这里记录tableIndexes和indexValueMap是没有问题的, 因为如果是OR条件, 导致路由索引[]int变宽,
-// 改写的SQL只是IN这一项没有值, 并不会影响SQL正确性和执行结果.
+// 需要反向查找，不同的分片表查询不同的值
 type PatternInWriter struct {
 	Expr ast.ExprNode
 	Not  bool
 
 	tables      []string
-	tableValues map[string][]ast.ExprNode // table - columnValue
+	tableValues map[string][]ast.ValueExpr // table - columnValue
 
+	originValues  []ast.ValueExpr
 	shardingTable *core.ShardingTable
 	runtime       Runtime
+	//是否需要根据分片改写值
+	isScattered bool
+
+	colName string
 }
 
 func NewPatternInWriter(
@@ -57,20 +61,33 @@ func NewPatternInWriter(
 	if colErr != nil {
 		return nil, fmt.Errorf("create pattern in writer fault: %v", colErr)
 	}
+	colName := explain.GetColumn(columnNameExpr.Name)
 
-	tables, valueMap, err := getPatternInRouteResult(explain.GetColumn(columnNameExpr.Name), n.Not, shardingTable, n.List)
-	if err != nil {
-		return nil, fmt.Errorf("getPatternInRouteResult error: %v", err)
+	isScattered := n.Not || !shardingTable.HasTableShardingColumn(colName) || !shardingTable.TableStrategy.IsScalarValueSupported()
+
+	allValues, caseErr := caseValueExpr(n.List)
+	if caseErr != nil {
+		return nil, fmt.Errorf("invalid value type in pattern 'in' value list: %v", caseErr)
+	}
+
+	var tables []string
+	var valueMap map[string][]ast.ValueExpr
+
+	if !isScattered { //如果不需要改写 in 的值可以创建时就固定, 否则，推迟到 Prepare 阶段
+		tables = shardingTable.GetTables()
+		valueMap = getBroadcastValueMap(tables, allValues)
 	}
 
 	ret := &PatternInWriter{
-		Expr: colWriter,
-		//List:        n.List,
+		colName:       colName,
+		Expr:          colWriter,
 		Not:           n.Not,
 		shardingTable: shardingTable,
 		runtime:       runtime,
 		tables:        tables,
 		tableValues:   valueMap,
+		isScattered:   isScattered,
+		originValues:  allValues,
 	}
 
 	return ret, nil
@@ -80,76 +97,72 @@ func NewPatternInWriter(
 // 如果是分片条件, 则构建值到索引的映射.
 // 例如, 1,2,3,4分别映射到索引0,2则[]int = [0,2], map=[0:[1,2], 2:[3,4]]
 // 如果是全路由, 则每个分片都要返回所有的值.
-func getPatternInRouteResult(
-	column string,
-	isNotIn bool,
-	sharding *core.ShardingTable,
-	values []ast.ExprNode) ([]string, map[string][]ast.ExprNode, error) {
-
-	if err := checkValueType(values); err != nil {
-		return nil, nil, fmt.Errorf("check value error: %v", err)
-	}
-
-	if isNotIn {
-		tables := sharding.GetTables()
-		valueMap := getBroadcastValueMap(tables, values)
-		return tables, valueMap, nil
-	}
-	if !sharding.HasTableShardingColumn(column) || !sharding.TableStrategy.IsScalarValueSupported() { //不支持明确值分片或者不分片
-		tables := sharding.GetTables()
-		valueMap := getBroadcastValueMap(tables, values)
-		return tables, valueMap, nil
-	}
-
+func (p *PatternInWriter) Prepare(bindVariables map[string]*myTypes.BindVariable) (map[string][]*myTypes.BindVariable, error) {
 	var usedTables []string
-	valueMap := make(map[string][]ast.ExprNode)
-	nullErr := fmt.Sprintf("sharding column '%s' value can not be null", column)
-	if len(values) > 0 {
-		shardingValue := core.ShardingValuesForSingleScalar(sharding.Name, column)
-		for _, vi := range values {
-			v, _ := vi.(*driver.ValueExpr)
-			value, err := explain.GetValueFromExprStrictly(v, false, nullErr)
+	valueMap := make(map[string][]ast.ValueExpr)
+	varMap := make(map[string][]*myTypes.BindVariable)
+	if len(p.originValues) > 0 {
+		shardingValue := core.ShardingValuesForSingleScalar(p.shardingTable.Name, p.colName)
+		for _, v := range p.originValues {
+			value, err := explain.GetValueFromExpr(v)
 			if err != nil {
-				return nil, nil, err
+				return nil, err
 			}
-			//idx, err := shardingTable.FindTableIndex(value)
-			shardingValue.ScalarValues[column][0] = value
-			tables, e := sharding.TableStrategy.Shard(sharding.GetTables(), shardingValue)
+			if value.IsConst() {
+				if constVal, _ := value.GetValue(nil); constVal == nil {
+					return nil, errors.New(fmt.Sprintf("sharding column '%s' value can not be null when use 'in' expresion", p.colName))
+				}
+			}
+
+			var goValue interface{}
+			goValue, err = value.GetValue(bindVariables)
+			if err != nil {
+				return nil, err
+			}
+			shardingValue.ScalarValues[p.colName][0] = goValue
+			tables, e := p.shardingTable.TableStrategy.Shard(p.shardingTable.GetTables(), shardingValue)
 			if e != nil {
-				return nil, nil, e
+				return nil, e
 			}
 			for _, t := range tables {
 				if _, ok := valueMap[t]; !ok {
 					usedTables = append(usedTables, t)
 				}
-				valueMap[t] = append(valueMap[t], vi)
+				valueMap[t] = append(valueMap[t], v)
+				for _, n := range value.ParamNames() {
+					if bv, found := bindVariables[n]; found {
+						varMap[t] = append(varMap[t], bv)
+					}
+				}
+
 			}
 		}
 	}
-	return usedTables, valueMap, nil
+
+	p.tables = usedTables
+	p.tableValues = valueMap
+	return varMap, nil
 }
 
 // 所有的值类型必须为*driver.ValueExpr
-func checkValueType(values []ast.ExprNode) error {
+func caseValueExpr(values []ast.ExprNode) ([]ast.ValueExpr, error) {
+	list := make([]ast.ValueExpr, len(values))
 	for i, v := range values {
-		if _, ok := v.(*driver.ValueExpr); !ok {
-			return fmt.Errorf("value is not ValueExpr, index: %d, type: %T", i, v)
+		if vv, ok := explain.CaseValueOrParamExpr(v); !ok {
+			return nil, fmt.Errorf("value is not ValueExpr, index: %d, type: %T", i, v)
+		} else {
+			list[i] = vv
 		}
 	}
-	return nil
+	return list, nil
 }
 
-func getBroadcastValueMap(tables []string, nodes []ast.ExprNode) map[string][]ast.ExprNode {
-	ret := make(map[string][]ast.ExprNode)
+func getBroadcastValueMap(tables []string, nodes []ast.ValueExpr) map[string][]ast.ValueExpr {
+	ret := make(map[string][]ast.ValueExpr)
 	for _, t := range tables {
 		ret[t] = nodes
 	}
 	return ret
-}
-
-// GetCurrentRouteResult get route result of current decorator
-func (p *PatternInWriter) GetCurrentRouteResult() []string {
-	return p.tables
 }
 
 // Restore implement ast.Node
@@ -159,7 +172,7 @@ func (p *PatternInWriter) Restore(ctx *format.RestoreCtx) error {
 		return err
 	}
 
-	if err := p.Expr.Restore(ctx); err != nil {
+	if err = p.Expr.Restore(ctx); err != nil {
 		return fmt.Errorf("an error occurred while restore PatternInExpr.Expr: %v", err)
 	}
 	if p.Not {
@@ -173,7 +186,7 @@ func (p *PatternInWriter) Restore(ctx *format.RestoreCtx) error {
 		if i != 0 {
 			ctx.WritePlain(",")
 		}
-		if err := expr.Restore(ctx); err != nil {
+		if err = expr.Restore(ctx); err != nil {
 			return fmt.Errorf("an error occurred while restore PatternInExpr.List[%d], err: %v", i, err)
 		}
 	}

@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/core/comparison"
+	myTypes "github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
 	"github.com/pingcap/parser/opcode"
@@ -75,28 +76,75 @@ func IsSupportedOp(op opcode.Op) bool {
 
 // GetValueExprResult copy from ValueExpr.Restore()
 // TODO: 分表列是否需要支持等值比较NULL
-func GetExprValue(n *driver.ValueExpr) (interface{}, error) {
-	return GetExprValueStrictly(n, true, "")
+//func GetExprValue(n *driver.ValueExpr) (interface{}, error) {
+//	return getValueFromExprStrictly(n, true, "")
+//}
+
+func astTypeToMySqlType(astType byte) (myTypes.MySqlType, error) {
+	switch astType {
+	case types.KindNull:
+		return myTypes.Null, nil
+	case types.KindInt64:
+		return myTypes.Int64, nil
+	case types.KindUint64:
+		return myTypes.Uint64, nil
+	case types.KindFloat32:
+		return myTypes.Float32, nil
+	case types.KindFloat64:
+		return myTypes.Float64, nil
+	case types.KindString:
+		return myTypes.VarChar, nil
+	case types.KindBytes:
+		return myTypes.VarBinary, nil
+	case types.KindMysqlDecimal:
+		return myTypes.Decimal, nil
+	case types.KindMysqlDuration:
+		return myTypes.Timestamp, nil
+	case types.KindMysqlEnum:
+		return myTypes.Enum, nil
+	case types.KindMysqlBit:
+		return myTypes.Bit, nil
+	case types.KindMysqlSet:
+		return myTypes.Set, nil
+	case types.KindMysqlTime:
+		return myTypes.Time, nil
+	case types.KindMysqlJSON:
+		return myTypes.Json, nil
+	default:
+		return myTypes.Null, errors.New(fmt.Sprintf("unsupport ast type '%v' to mysql type", astType))
+	}
 }
 
-func GetExprValueStrictly(n *driver.ValueExpr, allowNull bool, nullErrorMsg string) (interface{}, error) {
+func getParamFromExprStrictly(n *driver.ParamMarkerExpr) (*ArgScalarRef, error) {
+	argName := fmt.Sprintf("p%d", n.Offset)
+	argType, err := astTypeToMySqlType(n.Kind())
+	if err != nil {
+		return nil, err
+	}
+	return &ArgScalarRef{
+		argName: argName,
+		varType: argType,
+	}, nil
+}
+
+func getValueFromExprStrictly(n *driver.ValueExpr, allowNull bool, nullErrorMsg string) (*ConstRef, error) {
 	switch n.Kind() {
 	case types.KindNull:
 		if !allowNull {
 			return nil, errors.New(core.IfBlankAndTrim(nullErrorMsg, "column value can not be null"))
 		} else {
-			return nil, nil
+			return NewConstRef(nil), nil
 		}
 	case types.KindInt64:
-		return n.GetInt64(), nil
+		return NewConstRef(n.GetInt64()), nil
 	case types.KindUint64:
-		return n.GetUint64(), nil
+		return NewConstRef(n.GetUint64()), nil
 	case types.KindFloat32:
-		return n.GetFloat32(), nil
+		return NewConstRef(n.GetFloat32()), nil
 	case types.KindFloat64:
-		return n.GetFloat64(), nil
+		return NewConstRef(n.GetFloat64()), nil
 	case types.KindString, types.KindBytes:
-		return n.GetString(), nil
+		return NewConstRef(n.GetString()), nil
 	default:
 		s := &strings.Builder{}
 		ctx := format.NewRestoreCtx(EscapeRestoreFlags, s)
@@ -104,19 +152,80 @@ func GetExprValueStrictly(n *driver.ValueExpr, allowNull bool, nullErrorMsg stri
 		if err != nil {
 			return nil, err
 		}
-		return s.String(), nil
+		return NewConstRef(s.String()), nil
 	}
 }
 
-// GetValueExprResult copy from ValueExpr.Restore()
-// TODO: 分表列是否需要支持等值比较NULL
-func getValueFromExpr(n *driver.ValueExpr) (interface{}, error) {
-	return GetValueFromExprStrictly(n, true, "")
+func GetValueFromExpr(n ast.ValueExpr) (ValueReference, error) {
+	v, isValue := n.(*driver.ValueExpr)
+	if isValue {
+		return getValueFromExprStrictly(v, true, "")
+	}
+
+	p, isParam := n.(*driver.ParamMarkerExpr)
+	if isParam {
+		return getParamFromExprStrictly(p)
+	}
+
+	return nil, errors.New("only ValueExpr or ParamMarkerExpr support value extract")
+}
+
+type ConstRangeCreateFunc func(lower interface{}, upper interface{}) (core.Range, error)
+type ParamRangeCreateFunc func(lowerArgName, upperArgName string, valueType myTypes.MySqlType) *ArgRangeRef
+
+func makeRangeReference(lower ValueReference, upper ValueReference, constFunc ConstRangeCreateFunc, paramFunc ParamRangeCreateFunc) (ValueReference, error) {
+	if lower == nil && upper == nil {
+		return nil, errors.New("for making range reference, lower and upper require at least one that is not nil")
+	}
+
+	if lower != nil && upper != nil && lower.IsConst() != upper.IsConst() {
+		return nil, errors.New("lower and upper must are all constants or all variables")
+	}
+
+	cLower, lowerIsConst := lower.(*ConstRef)
+	cUpper, upperIsConst := upper.(*ConstRef)
+
+	if lowerIsConst || upperIsConst {
+		var l, u interface{}
+		if cLower != nil {
+			l = cLower.value
+		}
+
+		if cUpper != nil {
+			u = cUpper.value
+		}
+		r, err := constFunc(l, u)
+		if err != nil {
+			return nil, err
+		}
+		return NewConstRef(r), nil
+	}
+
+	aLower, lowerIsArg := lower.(*ArgScalarRef)
+	aUpper, upperIsArg := upper.(*ArgScalarRef)
+
+	if lowerIsArg || upperIsArg {
+		var l, u string
+		var t myTypes.MySqlType
+
+		if aLower != nil {
+			l = aLower.argName
+			t = aLower.varType
+		}
+
+		if aUpper != nil {
+			u = aUpper.argName
+			t = aUpper.varType
+		}
+
+		return paramFunc(l, u, t), nil
+	}
+	return nil, errors.New("lower and upper must be ConstRef or ArgScalarRef")
 }
 
 //将算数运算符转换为可以理解的 value 值( scalar 或者 range )
-func GetValueFromOpValue(op opcode.Op, valueExpr *driver.ValueExpr) (interface{}, error) {
-	value, e := getValueFromExpr(valueExpr)
+func GetValueFromOpValue(op opcode.Op, valueExpr ast.ValueExpr) (ValueReference, error) {
+	value, e := GetValueFromExpr(valueExpr)
 	if e != nil {
 		return nil, e
 	}
@@ -124,128 +233,97 @@ func GetValueFromOpValue(op opcode.Op, valueExpr *driver.ValueExpr) (interface{}
 	case opcode.EQ:
 		return value, nil
 	case opcode.GT:
-		rng, err := core.NewRangeOpen(value, nil)
-		if err != nil {
-			return nil, err
-		}
-		return rng, nil
+		return makeRangeReference(value, nil, core.NewRangeOpen, NewArgRangeOpen)
 	case opcode.GE:
-		rng, err := core.NewRangeClose(value, nil)
-		if err != nil {
-			return nil, err
-		}
-		return rng, nil
+		return makeRangeReference(value, nil, core.NewRangeClose, NewArgRangeClose)
 	case opcode.LT:
-		rng, err := core.NewRangeOpen(nil, value)
-		if err != nil {
-			return nil, err
-		}
-		return rng, nil
+		return makeRangeReference(nil, value, core.NewRangeOpen, NewArgRangeOpen)
 	case opcode.LE:
-		rng, err := core.NewRangeClose(nil, value)
-		if err != nil {
-			return nil, err
-		}
-		return rng, nil
+		return makeRangeReference(nil, value, core.NewRangeClose, NewArgRangeClose)
 	}
 	return nil, fmt.Errorf("explain value fault, known opcode: %s", op.String())
 }
 
-func GetValueFromPatternIn(n *ast.PatternInExpr, allowNull bool) ([]interface{}, error) {
+func GetValueFromPatternIn(n *ast.PatternInExpr, allowNull bool) ([]ValueReference, error) {
 	if len(n.List) == 0 {
 		return nil, nil
 	}
-	values := make([]interface{}, 0, len(n.List))
+	values := make([]ValueReference, 0, len(n.List))
 	for _, value := range n.List {
-		v, ok := value.(*driver.ValueExpr)
-		if !ok {
+		switch value.(type) {
+		case *driver.ValueExpr, *driver.ParamMarkerExpr:
+			vv, err := GetValueFromExpr(value.(ast.ValueExpr))
+			if err != nil {
+				return nil, err
+			}
+			values = append(values, vv)
+		default:
 			return nil, nil
 		}
-		vv, err := GetValueFromExprStrictly(v, allowNull, "pattern in null value is not supported")
-		if err != nil {
-			return nil, err
-		}
-		values = append(values, vv)
 	}
 	return values, nil
 }
 
-func GetValueFromValueFromBetween(n *ast.BetweenExpr) ([]core.Range, error) {
-	leftValueExpr, ok := n.Left.(*driver.ValueExpr)
-	if !ok {
-		return nil, fmt.Errorf("n.Left is not a ValueExpr, type: %T", n.Left)
+func CaseValueOrParamExpr(node ast.ExprNode) (ast.ValueExpr, bool) {
+	switch node.(type) {
+	case *driver.ValueExpr, *driver.ParamMarkerExpr:
+		return node.(ast.ValueExpr), true
+	default:
+		return nil, false
 	}
-	leftValue, err := getValueFromExpr(leftValueExpr)
+}
+
+func GetValueFromValueFromBetween(n *ast.BetweenExpr) ([]ValueReference, error) {
+	leftValueExpr, ok := CaseValueOrParamExpr(n.Left)
+	if !ok {
+		return nil, fmt.Errorf("n.Left is not a ValueExpr or ParamMarkerExpr, type: %T", n.Left)
+	}
+	leftValue, err := GetValueFromExpr(leftValueExpr)
 	if err != nil {
 		return nil, fmt.Errorf("get value from n.Left error: %v", err)
 	}
 
-	rightValueExpr, ok := n.Right.(*driver.ValueExpr)
+	rightValueExpr, ok := CaseValueOrParamExpr(n.Right)
 	if !ok {
 		return nil, fmt.Errorf("n.Left is not a ValueExpr, type: %T", n.Right)
 	}
 
-	rightValue, err := getValueFromExpr(rightValueExpr)
+	rightValue, err := GetValueFromExpr(rightValueExpr)
 	if err != nil {
 		return nil, fmt.Errorf("get value from n.Right error: %v", err)
 	}
 
-	cm, cmpErr := comparison.Compare(leftValue, rightValue)
-	if cmpErr != nil {
-		return nil, err
+	if leftValue.IsConst() && rightValue.IsConst() {
+		lv, _ := leftValue.GetValue(nil)
+		rv, _ := rightValue.GetValue(nil)
+		cm, cmpErr := comparison.Compare(lv, rv)
+		if cmpErr != nil {
+			return nil, err
+		}
+
+		if cm > 0 {
+			return nil, fmt.Errorf("the 'between and' start value must be less than or equal to the end value (%v, %v)", leftValue, rightValue)
+		}
 	}
 
-	if cm > 0 {
-		return nil, fmt.Errorf("the 'between and' start value must be less than or equal to the end value (%v, %v)", leftValue, rightValue)
-	}
-
-	var r1, r2 core.Range
+	var r1, r2 ValueReference
 	if n.Not {
-		r1, err = core.NewRangeOpen(nil, leftValue)
+		r1, err = makeRangeReference(nil, leftValue, core.NewRangeOpen, NewArgRangeOpen)
 		if err != nil {
 			return nil, err
 		}
 
-		r2, err = core.NewRangeOpen(rightValue, nil)
+		r2, err = makeRangeReference(rightValue, nil, core.NewRangeOpen, NewArgRangeOpen)
 		if err != nil {
 			return nil, err
 		}
-		return []core.Range{r1, r2}, nil
+		return []ValueReference{r1, r2}, nil
 	} else {
-		r1, err = core.NewRangeClose(leftValue, rightValue)
+		r1, err = makeRangeReference(nil, leftValue, core.NewRangeClose, NewArgRangeClose)
 		if err != nil {
 			return nil, err
 		}
-		return []core.Range{r1}, nil
-	}
-}
-
-func GetValueFromExprStrictly(n *driver.ValueExpr, allowNull bool, nullErrorMsg string) (interface{}, error) {
-	switch n.Kind() {
-	case types.KindNull:
-		if !allowNull {
-			return nil, errors.New(core.IfBlankAndTrim(nullErrorMsg, "column value can not be null"))
-		} else {
-			return nil, nil
-		}
-	case types.KindInt64:
-		return n.GetInt64(), nil
-	case types.KindUint64:
-		return n.GetUint64(), nil
-	case types.KindFloat32:
-		return n.GetFloat32(), nil
-	case types.KindFloat64:
-		return n.GetFloat64(), nil
-	case types.KindString, types.KindBytes:
-		return n.GetString(), nil
-	default:
-		s := &strings.Builder{}
-		ctx := format.NewRestoreCtx(EscapeRestoreFlags, s)
-		err := n.Restore(ctx)
-		if err != nil {
-			return nil, err
-		}
-		return s.String(), nil
+		return []ValueReference{r1}, nil
 	}
 }
 

@@ -48,3 +48,11 @@ func (bv *BindVariable) Clone() *BindVariable {
 		Values: values,
 	}
 }
+
+func (bv *BindVariable) GetGolangValue() (interface{}, error) {
+	val, err := BindVariableToValue(bv)
+	if err != nil {
+		return nil, err
+	}
+	return ToNative(val)
+}

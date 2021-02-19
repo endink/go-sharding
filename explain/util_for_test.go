@@ -35,7 +35,9 @@ func parseExplainTables(t *testing.T, sql string, shardingTables ...*ShardingTab
 	err := explain.ExplainTables(stmt, NoneRewriter)
 	assert.Nil(t, err)
 
-	return explain.GetShardingValues()
+	values, err := explain.valueRedoLogs.Redo(newValueRedoContext(), nil)
+	assert.Nil(t, t, err)
+	return values
 }
 
 func parseExplainWhere(t *testing.T, sql string, shardingTables ...*ShardingTableMocked) map[string]*core.ShardingValues {
@@ -47,7 +49,9 @@ func parseExplainWhere(t *testing.T, sql string, shardingTables ...*ShardingTabl
 	if assert.NotNil(t, stmt.Where, "where statement requried") {
 		err := explain.ExplainWhere(stmt, NoneRewriter)
 		assert.Nil(t, err)
-		return explain.GetShardingValues()
+		values, e := explain.valueRedoLogs.Redo(newValueRedoContext(), nil)
+		assert.Nil(t, t, e)
+		return values
 	}
 	return nil
 }

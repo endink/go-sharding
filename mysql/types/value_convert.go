@@ -25,7 +25,6 @@ import (
 )
 
 func BindVariableFromDatum(value *types.Datum) (*BindVariable, bool) {
-
 	switch value.Kind() {
 	case types.KindNull:
 		return NullBindVariable, true

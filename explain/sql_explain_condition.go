@@ -44,10 +44,7 @@ func (s *SqlExplain) explainCondition(node ast.ExprNode, rewriter Rewriter, logi
 			return nil, err
 		}
 		expr.Expr = newExpr
-		err = s.EndValueGroup()
-		if err != nil {
-			return nil, err
-		}
+		s.EndValueGroup()
 		return expr, nil
 	default:
 		// 其他情况只替换表名 (但是不处理根节点是ColumnNameExpr的情况, 理论上也不会出现这种情况)
@@ -86,15 +83,8 @@ func (s *SqlExplain) explainBetween(expr *ast.BetweenExpr, rewriter Rewriter) (a
 			return nil, e
 		}
 
-		s.BeginValueGroup()
-		for _, r := range ranges {
-			if pushErr := s.PushAndValue(result.GetShardingTable(), result.GetColumn(), r); pushErr != nil {
-				return nil, pushErr
-			}
-		}
-		if scopeErr := s.EndValueGroup(); scopeErr != nil {
-			return nil, scopeErr
-		}
+		s.PushOrValueGroup(result.GetShardingTable(), result.GetColumn(), ranges...)
+
 		return result.GetNewNode(), nil
 	}
 	return expr, nil
@@ -111,10 +101,7 @@ func (s *SqlExplain) explainPatternIn(expr *ast.PatternInExpr, rewriter Rewriter
 		if e != nil {
 			return nil, e
 		}
-		e = s.PushOrValueGroup(result.GetShardingTable(), result.GetColumn(), values...)
-		if e != nil {
-			return nil, e
-		}
+		s.PushOrValueGroup(result.GetShardingTable(), result.GetColumn(), values...)
 		return result.GetNewNode(), nil
 	}
 	return expr, nil
@@ -209,17 +196,17 @@ func (s *SqlExplain) explainBinaryMath(expr *ast.BinaryOperationExpr, rewriter R
 		}
 	} else {
 		if lType == ColumnNameExpr {
-			return s.explainColumnAndValue(expr, rewriter, true)
+			return s.explainColumnWithValue(expr, rewriter, true)
 		}
 
 		if rType == ColumnNameExpr {
-			return s.explainColumnAndValue(expr, rewriter, false)
+			return s.explainColumnWithValue(expr, rewriter, false)
 		}
 	}
 	return expr, nil
 }
 
-func (s *SqlExplain) explainColumnAndValue(expr *ast.BinaryOperationExpr, rewriter Rewriter, columnLeft bool) (ast.ExprNode, error) {
+func (s *SqlExplain) explainColumnWithValue(expr *ast.BinaryOperationExpr, rewriter Rewriter, columnLeft bool) (ast.ExprNode, error) {
 	var columnNode, valueNode ast.ExprNode
 	var err error
 	var r RewriteResult
@@ -249,10 +236,7 @@ func (s *SqlExplain) explainColumnAndValue(expr *ast.BinaryOperationExpr, rewrit
 				if e != nil {
 					return nil, err
 				}
-				err = s.PushValue(r.GetShardingTable(), columnName, value)
-				if err != nil {
-					return nil, err
-				}
+				s.PushValue(r.GetShardingTable(), columnName, value)
 			}
 		}
 	}

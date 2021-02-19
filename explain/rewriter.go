@@ -19,6 +19,7 @@
 package explain
 
 import (
+	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/pingcap/parser/ast"
 )
 
@@ -43,8 +44,15 @@ type RewriteLimitResult interface {
 	GetNewNode() *ast.Limit
 }
 
+type RewriteBindVarsResult interface {
+	GetScatterVars(table string) []*types.BindVariable //key: physical table, value: vars
+	IsRewrote() bool
+}
+
 //SQL 改写器
 type Rewriter interface {
+	RewriteBindVariable(bindVars []*types.BindVariable) (RewriteBindVarsResult, error)
+
 	RewriteTable(table *ast.TableName, explainContext Context) (RewriteNodeResult, error)
 	RewriteField(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteExprResult, error)
 	//改写列，返回值为改写后的节点（装饰器）， 标志位 true 表示改写成功

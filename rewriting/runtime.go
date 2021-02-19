@@ -23,4 +23,5 @@ type Runtime interface {
 	GetCurrentTable(shardingTable string) (string, error)
 	GetCurrentDatabase() (string, error)
 	GetServerSchema() string
+	GetBindVariable(varName string) (interface{}, bool)
 }

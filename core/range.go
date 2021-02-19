@@ -79,10 +79,10 @@ func NewRangeClose(min interface{}, max interface{}) (Range, error) {
 	return NewRange(min, max, true, true)
 }
 
-func NewRange(min interface{}, max interface{}, closeLower bool, closeUppper bool) (Range, error) {
+func NewRange(min interface{}, max interface{}, closeLower bool, closeUpper bool) (Range, error) {
 	r := &defaultRange{
 		CloseL: closeLower,
-		CloseU: closeUppper,
+		CloseU: closeUpper,
 	}
 
 	if min == nil {
