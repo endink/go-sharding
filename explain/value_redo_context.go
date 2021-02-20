@@ -31,10 +31,12 @@ type valueRedoContext struct {
 }
 
 func newValueRedoContext() *valueRedoContext {
-	return &valueRedoContext{
+	ctx := &valueRedoContext{
 		logicStack: arraystack.New(),
 		valueStack: arraystack.New(),
 	}
+	ctx.beginValueGroup()
+	return ctx
 }
 
 func (vrc *valueRedoContext) currentValueScope() *valueScope {

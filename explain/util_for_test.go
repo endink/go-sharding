@@ -36,7 +36,7 @@ func parseExplainTables(t *testing.T, sql string, shardingTables ...*ShardingTab
 	assert.Nil(t, err)
 
 	values, err := explain.valueRedoLogs.Redo(newValueRedoContext(), nil)
-	assert.Nil(t, t, err)
+	assert.Nil(t, err)
 	return values
 }
 

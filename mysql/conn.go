@@ -1151,7 +1151,7 @@ func (c *Conn) handleComPrepare(handler Handler, data []byte) bool {
 
 	bindVars := make(map[string]*types.BindVariable, paramsCount)
 	for i := uint16(0); i < paramsCount; i++ {
-		parameterID := fmt.Sprintf("v%d", i+1)
+		parameterID := fmt.Sprintf("p%d", i+1)
 		bindVars[parameterID] = &types.BindVariable{}
 	}
 

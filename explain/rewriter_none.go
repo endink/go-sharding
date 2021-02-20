@@ -20,12 +20,17 @@ package explain
 
 import (
 	"errors"
+	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/pingcap/parser/ast"
 )
 
 var NoneRewriter Rewriter = &noneRewriter{}
 
 type noneRewriter struct {
+}
+
+func (m *noneRewriter) RewriteBindVariable(bindVars []*types.BindVariable) (RewriteBindVarsResult, error) {
+	return nil, nil
 }
 
 func (m *noneRewriter) containsTable(table string, explainContext Context) bool {

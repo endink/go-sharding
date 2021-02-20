@@ -45,8 +45,13 @@ type RewriteLimitResult interface {
 }
 
 type RewriteBindVarsResult interface {
-	GetScatterVars(table string) []*types.BindVariable //key: physical table, value: vars
+	GetChanges() map[string][]*BindVariableChange //key: physical table, value: change array
 	IsRewrote() bool
+}
+
+type BindVariableChange struct {
+	Action ChangeAction
+	Item   *types.BindVariable
 }
 
 //SQL 改写器

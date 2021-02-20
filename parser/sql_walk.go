@@ -20,6 +20,8 @@ package parser
 
 import "github.com/pingcap/parser/ast"
 
+var _ ast.Visitor = &walkVisitor{}
+
 // Visit defines the signature of a function that
 // can be used to visit all nodes of a parse tree.
 type Visit func(node ast.Node) (kontinue bool, err error)
@@ -29,7 +31,9 @@ type Visit func(node ast.Node) (kontinue bool, err error)
 // are also visited. If it returns an error, walking
 // is interrupted, and the error is returned.
 func Walk(visit Visit, nodes ...ast.Node) error {
-	v := &walkVisitor{}
+	v := &walkVisitor{
+		visit: visit,
+	}
 	for _, node := range nodes {
 		if node == nil {
 			continue
@@ -58,10 +62,10 @@ func (w *walkVisitor) Enter(n ast.Node) (node ast.Node, skipChildren bool) {
 	c, er := w.visit(n)
 	if er != nil {
 		w.err = er
-		w.skip = !c
 		return n, true // we have to return true here so that post gets called
 	}
-	return n, c
+	w.skip = !c
+	return n, w.skip
 }
 
 func (w *walkVisitor) Leave(n ast.Node) (node ast.Node, ok bool) {

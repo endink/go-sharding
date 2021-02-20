@@ -16,11 +16,36 @@
  *  File author: Anders Xiao
  */
 
-package rewriting
+package parser
 
-type Runtime interface {
-	GetCurrent(shardingTable string) (database string, table string, err error)
-	GetCurrentTable(shardingTable string) (string, error)
-	GetCurrentDatabase() (string, error)
-	GetServerSchema() string
+import (
+	"github.com/pingcap/parser/ast"
+	driver "github.com/pingcap/tidb/types/parser_driver"
+)
+
+func ParseSqlParamCount(sql string) (uint16, error) {
+	stmt, err := ParseSQL(sql)
+	if err != nil {
+		return 0, err
+	}
+
+	return parseNodeParam(stmt)
+}
+
+func parseNodeParam(stmt ast.Node) (uint16, error) {
+	var paramCount uint16
+
+	err := Walk(func(node ast.Node) (bool, error) {
+		if p, ok := node.(*driver.ParamMarkerExpr); ok {
+			p.SetOrder(int(paramCount))
+			paramCount++
+		}
+		return true, nil
+	}, stmt)
+
+	if err != nil {
+		return 0, err
+	}
+
+	return paramCount, nil
 }
