@@ -45,13 +45,11 @@ type RewriteLimitResult interface {
 }
 
 type RewriteBindVarsResult interface {
-	GetChanges() map[string][]*BindVariableChange //key: physical table, value: change array
+	//改写过的参数索引
+	GetRewroteVarIndexes() []int
+	// 根据分片表得到的索引
+	GetScatterVarIndexes() map[string][]int //key: physical table, value: change array
 	IsRewrote() bool
-}
-
-type BindVariableChange struct {
-	Action ChangeAction
-	Item   *types.BindVariable
 }
 
 //SQL 改写器

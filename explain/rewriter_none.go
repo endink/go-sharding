@@ -30,7 +30,7 @@ type noneRewriter struct {
 }
 
 func (m *noneRewriter) RewriteBindVariable(bindVars []*types.BindVariable) (RewriteBindVarsResult, error) {
-	return nil, nil
+	return NoBindVarsResult, nil
 }
 
 func (m *noneRewriter) containsTable(table string, explainContext Context) bool {

@@ -30,6 +30,7 @@ var NoneRewriteNodeResult = ResultFromNode(nil, "")
 var NoneRewriteExprResult = ResultFromExrp(nil, "", "")
 var NoneRewriteLimitResult = ResultFromLimit(nil)
 var NoneRewriteResult RewriteResult = &noneRewriteResult{}
+var NoBindVarsResult RewriteBindVarsResult = &rewriteVarsResult{rewrote: nil}
 
 type rewriteNodeResult struct {
 	isRewrote     bool
@@ -37,9 +38,30 @@ type rewriteNodeResult struct {
 	node          ast.Node
 }
 
+func (r *rewriteNodeResult) IsRewrote() bool {
+	return r.isRewrote
+}
+
+func (r *rewriteNodeResult) GetNewNode() ast.Node {
+	return r.node
+}
+
+func (r *rewriteNodeResult) GetShardingTable() string {
+	return r.shardingTable
+}
+
 type rewriteExprResult struct {
 	column string
 	*rewriteNodeResult
+}
+
+func (r *rewriteExprResult) GetColumn() string {
+	return r.column
+}
+
+func (r *rewriteExprResult) GetNewNode() ast.ExprNode {
+	expr := r.node.(ast.ExprNode)
+	return expr
 }
 
 type noneRewriteResult struct {
@@ -53,29 +75,8 @@ func (n *noneRewriteResult) GetShardingTable() string {
 	return ""
 }
 
-func (r *rewriteNodeResult) GetShardingTable() string {
-	return r.shardingTable
-}
-
-func (r *rewriteExprResult) GetColumn() string {
-	return r.column
-}
-
 type rewriteLimitResult struct {
 	*rewriteNodeResult
-}
-
-func (r *rewriteNodeResult) IsRewrote() bool {
-	return r.isRewrote
-}
-
-func (r *rewriteNodeResult) GetNewNode() ast.Node {
-	return r.node
-}
-
-func (r *rewriteExprResult) GetNewNode() ast.ExprNode {
-	expr := r.node.(ast.ExprNode)
-	return expr
 }
 
 func (r *rewriteLimitResult) GetNewNode() *ast.Limit {
@@ -104,4 +105,29 @@ func ResultFromLimit(node *ast.Limit) *rewriteLimitResult {
 	return &rewriteLimitResult{
 		r,
 	}
+}
+
+type rewriteVarsResult struct {
+	rewrote        []int
+	scatterIndexes map[string][]int
+}
+
+func (r *rewriteVarsResult) GetRewroteVarIndexes() []int {
+	return r.rewrote
+}
+
+func (r *rewriteVarsResult) GetScatterVarIndexes() map[string][]int {
+	return r.scatterIndexes
+}
+
+func (r *rewriteVarsResult) IsRewrote() bool {
+	return r.rewrote != nil && len(r.rewrote) > 0
+}
+
+func ResultFromScatterVars(rewroteIndexes []int, scatterIndexes map[string][]int) RewriteBindVarsResult {
+	r := &rewriteVarsResult{
+		rewrote:        rewroteIndexes,
+		scatterIndexes: scatterIndexes,
+	}
+	return r
 }

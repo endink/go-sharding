@@ -55,7 +55,6 @@ func NewPatternInWriter(
 	context explain.Context,
 	runtime Runtime,
 	shardingTable *core.ShardingTable) (*PatternInWriter, error) {
-
 	columnNameExpr := n.Expr.(*ast.ColumnNameExpr)
 	colWriter, colErr := NewColumnNameWriter(columnNameExpr, context, runtime, shardingTable.Name)
 	if colErr != nil {

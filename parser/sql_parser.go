@@ -19,7 +19,7 @@
 package parser
 
 import (
-	tidb "github.com/pingcap/parser"
+	sqlParser "github.com/pingcap/parser"
 	"github.com/pingcap/parser/ast"
 	_ "github.com/pingcap/tidb/types/parser_driver"
 	"sync"
@@ -28,12 +28,12 @@ import (
 var parserPool = sync.Pool{}
 
 func ParseSQL(sql string) (ast.StmtNode, error) {
-	var parser *tidb.Parser
+	var parser *sqlParser.Parser
 	i := parserPool.Get()
 	if i != nil {
-		parser = i.(*tidb.Parser)
+		parser = i.(*sqlParser.Parser)
 	} else {
-		parser = tidb.New()
+		parser = sqlParser.New()
 	}
 
 	defer func() {
