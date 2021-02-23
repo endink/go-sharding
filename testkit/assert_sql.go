@@ -18,26 +18,29 @@
  *
  */
 
-package planner
+package testkit
 
 import (
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/parser"
 	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/format"
+	"github.com/stretchr/testify/assert"
+	"strings"
+	"testing"
 )
 
-func planSelect(sel *ast.SelectStmt, tables map[string]*core.ShardingTable) (*Plan, error) {
-	query, err := parser.GenerateLimitQuery(sel, 1000)
-	if err != nil {
-		return nil, err
-	}
-	plan := &Plan{
-		PlanID: PlanSelect,
-		Query:  query,
-	}
-	if sel.LockTp == ast.SelectLockForUpdate || sel.LockTp == ast.SelectLockForUpdateNoWait {
-		plan.PlanID = PlanSelectLock
-	}
+func AssertEqualSql(t testing.TB, sql1 string, sql2 string) {
+	n1 := ParseForTest(sql1, t)
+	n2 := ParseForTest(sql2, t)
 
-	return plan, nil
+	s1 := writeNode(t, n1)
+	s2 := writeNode(t, n2)
+	assert.Equal(t, s1, s2)
+}
+
+func writeNode(t testing.TB, node ast.Node) string {
+	var sb = new(strings.Builder)
+	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags, sb)
+	err := node.Restore(ctx)
+	assert.Nil(t, err)
+	return sb.String()
 }

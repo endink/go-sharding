@@ -24,6 +24,7 @@ import (
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/core/comparison"
 	myTypes "github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/XiaoMi/Gaea/parser"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
 	"github.com/pingcap/parser/opcode"
@@ -34,8 +35,6 @@ import (
 
 // BinaryOperationFieldtype declares field type of binary operation
 type BinaryOperationFieldtype int
-
-var EscapeRestoreFlags = format.RestoreStringSingleQuotes | format.RestoreStringEscapeBackslash | format.RestoreKeyWordUppercase | format.RestoreNameBackQuotes
 
 // Expr type
 const (
@@ -147,7 +146,7 @@ func getValueFromExprStrictly(n *driver.ValueExpr, allowNull bool, nullErrorMsg 
 		return NewConstRef(n.GetString()), nil
 	default:
 		s := &strings.Builder{}
-		ctx := format.NewRestoreCtx(EscapeRestoreFlags, s)
+		ctx := format.NewRestoreCtx(parser.EscapeRestoreFlags, s)
 		err := n.Restore(ctx)
 		if err != nil {
 			return nil, err

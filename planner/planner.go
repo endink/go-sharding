@@ -20,24 +20,6 @@
 
 package planner
 
-import (
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/parser"
-	"github.com/pingcap/parser/ast"
-)
-
-func planSelect(sel *ast.SelectStmt, tables map[string]*core.ShardingTable) (*Plan, error) {
-	query, err := parser.GenerateLimitQuery(sel, 1000)
-	if err != nil {
-		return nil, err
-	}
-	plan := &Plan{
-		PlanID: PlanSelect,
-		Query:  query,
-	}
-	if sel.LockTp == ast.SelectLockForUpdate || sel.LockTp == ast.SelectLockForUpdateNoWait {
-		plan.PlanID = PlanSelectLock
-	}
-
-	return plan, nil
+type Planner struct {
+	*Plan
 }

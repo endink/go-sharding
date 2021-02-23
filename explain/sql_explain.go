@@ -30,7 +30,6 @@ type SqlExplain struct {
 	logicStack            *arraystack.Stack
 	subQueryDepth         sync2.AtomicInt32
 	maxSubQueryDepth      int32
-	values                map[string]*core.ShardingValues
 	bindVarsCount         int
 	valueRedoLogs         *valueRedoLogs
 }
@@ -51,7 +50,6 @@ func NewSqlExplain(stProvider ShardingTableProvider) *SqlExplain {
 		logicStack:            arraystack.New(),
 		ctx:                   NewContext(),
 		maxSubQueryDepth:      int32(5),
-		values:                make(map[string]*core.ShardingValues, 0),
 		valueRedoLogs:         newValueRedoLogs(),
 	}
 }

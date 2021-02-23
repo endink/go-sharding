@@ -64,7 +64,7 @@ func buildPlan(statement ast.StmtNode, tables map[string]*core.ShardingTable, is
 			}, nil
 		}
 	case *ast.SelectStmt:
-		plan, err = analyzeSelect(stmt, tables)
+		plan, err = planSelect(stmt, tables)
 	case *ast.InsertStmt:
 		plan, err = analyzeInsert(stmt, tables)
 	case *ast.UpdateStmt:

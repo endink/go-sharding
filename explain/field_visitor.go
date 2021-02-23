@@ -26,6 +26,7 @@ import (
 type fieldVisitor struct {
 	re      Rewriter
 	context Context
+	err     error
 }
 
 func NewFieldVisitor(rewriter Rewriter, context Context) *fieldVisitor {
@@ -49,11 +50,11 @@ func (s *fieldVisitor) Leave(n ast.Node) (node ast.Node, ok bool) {
 
 	result, err := s.re.RewriteField(field, s.context)
 	if err != nil {
-		panic(fmt.Errorf("check rewrite column name for ColumnNameExpr error: %v", err))
+		s.err = fmt.Errorf("check rewrite column name for ColumnNameExpr error: %v", err)
 	}
 	if result.IsRewrote() {
 		return result.GetNewNode(), true
 	}
 
-	return n, true
+	return n, s.err == nil
 }

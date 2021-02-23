@@ -4,11 +4,14 @@ import (
 	"fmt"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
+	"github.com/pingcap/parser/opcode"
 	driver "github.com/pingcap/tidb/types/parser_driver"
 	"strings"
 )
 
 const resultTableNameFlag format.RestoreFlags = 0
+
+var EscapeRestoreFlags = format.RestoreStringSingleQuotes | format.RestoreStringEscapeBackslash | format.RestoreKeyWordUppercase | format.RestoreNameBackQuotes
 
 var lockingFunctions = map[string]interface{}{
 	"get_lock":          nil,
@@ -16,6 +19,18 @@ var lockingFunctions = map[string]interface{}{
 	"is_used_lock":      nil,
 	"release_all_locks": nil,
 	"release_lock":      nil,
+}
+
+var ImpossibleWhereClause = &ast.BinaryOperationExpr{
+	L:  makeConstValue(1),
+	R:  makeConstValue(1),
+	Op: opcode.NE,
+}
+
+func makeConstValue(value int64) *driver.ValueExpr {
+	nv := &driver.ValueExpr{}
+	nv.SetInt64(value)
+	return nv
 }
 
 // NodeToStringWithoutQuote get node text
@@ -102,3 +117,26 @@ func GenerateLimitQuery(selStmt ast.StmtNode, count int64) (*ParsedQuery, error)
 	}
 	return BuildParsedQuery(sb.String()), nil
 }
+
+func WriteNode(node ast.Node, flag format.RestoreFlags) (string, error) {
+	var sb = new(strings.Builder)
+	ctx := format.NewRestoreCtx(flag, sb)
+	err := node.Restore(ctx)
+	if err != nil {
+		return "", err
+	} else {
+		return sb.String(), nil
+	}
+}
+
+// GenerateFieldQuery generates a query to just fetch the field info
+// by adding impossible where clauses as needed.
+//func GenerateFieldQuery(statement ast.StmtNode) *ParsedQuery {
+//	buf := sqlparser.NewTrackedBuffer(sqlparser.FormatImpossibleQuery).WriteNode(statement)
+//
+//	if buf.HasBindVars() {
+//		return nil
+//	}
+//
+//	return buf.ParsedQuery()
+//}

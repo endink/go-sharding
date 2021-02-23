@@ -26,13 +26,11 @@ import (
 )
 
 type Plan struct {
-	PlanID       PlanType
-	Type         parser.StatementType    // The type of query we have
-	Original     string                  // Original is the original query.
-	Instructions Primitive               // Instructions contains the instructions needed to fulfil the query.
-	BindVarNeeds *sqlparser.BindVarNeeds // Stores BindVars needed to be provided as part of expression rewriting
-	Permissions  []core.Permission
+	PlanID      PlanType
+	Original    string // Original is the original query.
+	Permissions []core.Permission
 
+	FieldQuery   *parser.ParsedQuery
 	Query        *parser.ParsedQuery
 	mu           sync.Mutex    // Mutex to protect the fields below
 	ExecCount    uint64        // Count of times this plan was executed

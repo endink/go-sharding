@@ -53,17 +53,15 @@ func (s *SqlExplain) explainCondition(node ast.ExprNode, rewriter Rewriter, logi
 	}
 }
 
-func (s *SqlExplain) rewriteField(rewriter Rewriter, errMsg string, expr ...ast.Node) (err error) {
-	defer func() {
-		if e := recover(); e != nil {
-			msg := core.IfBlank(errMsg, "visitor rewrite fault !")
-			err = errors.New(fmt.Sprint(msg, core.LineSeparator, fmt.Sprintf("%v", e)))
-		}
-	}()
+func (s *SqlExplain) rewriteField(rewriter Rewriter, errMsg string, expr ...ast.Node) error {
 	for _, node := range expr {
 		if node != nil {
-			columnNameRewriter := NewFieldVisitor(rewriter, s.currentContext())
-			node.Accept(columnNameRewriter)
+			v := NewFieldVisitor(rewriter, s.currentContext())
+			node.Accept(v)
+			if v.err != nil {
+				msg := core.IfBlank(errMsg, "visitor rewrite fault !")
+				return errors.New(fmt.Sprint(msg, core.LineSeparator, fmt.Sprintf("%v", v.err)))
+			}
 		}
 	}
 

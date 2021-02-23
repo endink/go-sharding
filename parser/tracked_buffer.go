@@ -20,6 +20,8 @@ package parser
 
 import (
 	"fmt"
+	"github.com/pingcap/parser/ast"
+	pf "github.com/pingcap/parser/format"
 	"strings"
 )
 
@@ -33,12 +35,19 @@ import (
 type TrackedBuffer struct {
 	*strings.Builder
 	bindLocations []bindLocation
+	flag          pf.RestoreFlags
 }
 
 // NewTrackedBuffer creates a new TrackedBuffer.
 func NewTrackedBuffer() *TrackedBuffer {
+	return NewTrackedBufferWithFlag(EscapeRestoreFlags)
+}
+
+// NewTrackedBuffer creates a new TrackedBuffer.
+func NewTrackedBufferWithFlag(flag pf.RestoreFlags) *TrackedBuffer {
 	return &TrackedBuffer{
 		Builder: new(strings.Builder),
+		flag:    flag,
 	}
 }
 
@@ -127,6 +136,19 @@ func (buf *TrackedBuffer) procTemplate(format string, values []interface{}, offs
 			buf.WriteArg(v)
 		default:
 			panic(fmt.Sprint("'%a' must match the string type, actual type is: ", fmt.Sprintf("%T", v)))
+		}
+	case 'v':
+		value := values[fieldnum]
+		if n, ok := value.(ast.Node); ok {
+			rsCtx := pf.NewRestoreCtx(buf.flag, buf)
+			if err := n.Restore(rsCtx); err != nil {
+				panic(err)
+			}
+		} else {
+			content := fmt.Sprintf("%v", value)
+			if _, err := buf.WriteString(content); err != nil {
+				panic(err)
+			}
 		}
 	default:
 		panic("unexpected")
