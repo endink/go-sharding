@@ -46,15 +46,15 @@ type RewriteLimitResult interface {
 
 type RewriteBindVarsResult interface {
 	//改写过的参数索引
-	GetRewroteVarIndexes() []int
+	RewroteVariables() []string
 	// 根据分片表得到的索引
-	GetScatterVarIndexes() map[string][]int //key: physical table, value: change array
+	ScatterVariables() map[string][]string //key: physical table, value: parameter name
 	IsRewrote() bool
 }
 
 //SQL 改写器
 type Rewriter interface {
-	RewriteBindVariable(bindVars []*types.BindVariable) (RewriteBindVarsResult, error)
+	RewriteBindVariables(bindVars map[string]*types.BindVariable) (RewriteBindVarsResult, error)
 
 	RewriteTable(table *ast.TableName, explainContext Context) (RewriteNodeResult, error)
 	RewriteField(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteExprResult, error)

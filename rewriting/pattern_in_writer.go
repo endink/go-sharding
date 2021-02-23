@@ -27,6 +27,7 @@ import (
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
 	"github.com/pingcap/parser/types"
+	driver "github.com/pingcap/tidb/types/parser_driver"
 	"io"
 )
 
@@ -92,17 +93,23 @@ func NewPatternInWriter(
 	return ret, nil
 }
 
-// 返回路由, 并构建路由索引到值的映射.
-// 如果是分片条件, 则构建值到索引的映射.
-// 例如, 1,2,3,4分别映射到索引0,2则[]int = [0,2], map=[0:[1,2], 2:[3,4]]
-// 如果是全路由, 则每个分片都要返回所有的值.
-func (p *PatternInWriter) Prepare(bindVariables map[string]*myTypes.BindVariable) (map[string][]*myTypes.BindVariable, error) {
+func (p *PatternInWriter) rewriteBindVars(bindVariables map[string]*myTypes.BindVariable) (explain.RewriteBindVarsResult, error) {
 	var usedTables []string
 	valueMap := make(map[string][]ast.ValueExpr)
-	varMap := make(map[string][]*myTypes.BindVariable)
+	varMap := make(map[string][]string)
+	params := make([]string, 0, len(p.originValues))
+
 	if len(p.originValues) > 0 {
 		shardingValue := core.ShardingValuesForSingleScalar(p.shardingTable.Name, p.colName)
 		for _, v := range p.originValues {
+
+			argName := ""
+			switch typedValue := v.(type) {
+			case *driver.ParamMarkerExpr:
+				argName = fmt.Sprintf("p%d", typedValue.Order)
+				params = append(params, argName)
+			}
+
 			value, err := explain.GetValueFromExpr(v)
 			if err != nil {
 				return nil, err
@@ -128,9 +135,14 @@ func (p *PatternInWriter) Prepare(bindVariables map[string]*myTypes.BindVariable
 					usedTables = append(usedTables, t)
 				}
 				valueMap[t] = append(valueMap[t], v)
-				for _, n := range value.ParamNames() {
-					if bv, found := bindVariables[n]; found {
-						varMap[t] = append(varMap[t], bv)
+
+				if argName != "" {
+					for _, n := range value.ParamNames() {
+						if _, found := bindVariables[n]; found {
+							varMap[t] = append(varMap[t], n)
+						} else {
+							return nil, errors.New(fmt.Sprintf("Parameter '%s' not in bind variables list", n))
+						}
 					}
 				}
 
@@ -140,7 +152,8 @@ func (p *PatternInWriter) Prepare(bindVariables map[string]*myTypes.BindVariable
 
 	p.tables = usedTables
 	p.tableValues = valueMap
-	return varMap, nil
+
+	return explain.ResultFromScatterVars(params, varMap), nil
 }
 
 // 所有的值类型必须为*driver.ValueExpr

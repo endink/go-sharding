@@ -23,22 +23,59 @@ import (
 	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/pingcap/errors"
 	"github.com/pingcap/parser/ast"
+	"github.com/scylladb/go-set/strset"
 )
 
 var _ explain.Rewriter = &Engine{}
 
 type Engine struct {
-	runtime Runtime
-}
-
-func (engine *Engine) RewriteBindVariable(bindVars []*types.BindVariable) (explain.RewriteBindVarsResult, error) {
-	panic("implement me")
+	runtime                  Runtime
+	bindVariableRewriterList []bindVariableRewriter
 }
 
 func NewEngine(runtime Runtime) *Engine {
 	return &Engine{
 		runtime: runtime,
 	}
+}
+
+func (engine *Engine) RewriteBindVariables(bindVars map[string]*types.BindVariable) (explain.RewriteBindVarsResult, error) {
+	if len(engine.bindVariableRewriterList) == 0 {
+		return explain.NoneRewriteBindVarsResult, nil
+	}
+
+	rewroteNames := strset.New()
+	scatterNameSet := make(map[string]*strset.Set)
+
+	isRewrote := false
+	for _, rw := range engine.bindVariableRewriterList {
+		r, err := rw.rewriteBindVars(bindVars)
+		if err != nil {
+			return nil, err
+		}
+		isRewrote = isRewrote || r.IsRewrote()
+		if r.IsRewrote() {
+			rewroteNames.Add(r.RewroteVariables()...)
+			for n, v := range r.ScatterVariables() {
+				set, ok := scatterNameSet[n]
+				if !ok {
+					set = strset.New()
+					scatterNameSet[n] = set
+				}
+				set.Add(v...)
+			}
+		}
+	}
+	if !isRewrote {
+		return explain.NoneRewriteBindVarsResult, nil
+	}
+
+	scatterNames := make(map[string][]string, len(scatterNameSet))
+	for name, set := range scatterNameSet {
+		scatterNames[name] = set.List()
+	}
+
+	return explain.ResultFromScatterVars(rewroteNames.List(), scatterNames), nil
 }
 
 func (engine *Engine) RewriteTable(tableName *ast.TableName, explainContext explain.Context) (explain.RewriteNodeResult, error) {
@@ -97,6 +134,7 @@ func (engine *Engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainConte
 	}
 	if ok {
 		if writer, e := NewPatternInWriter(patternIn, explainContext, engine.runtime, sd); e == nil {
+			engine.bindVariableRewriterList = append(engine.bindVariableRewriterList, writer)
 			return explain.ResultFromExrp(writer, sd.Name, explain.GetColumn(columnNameExpr.Name)), nil
 		} else {
 			return nil, e

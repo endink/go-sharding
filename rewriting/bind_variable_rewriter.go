@@ -20,8 +20,11 @@
 
 package rewriting
 
-import "github.com/XiaoMi/Gaea/mysql/types"
+import (
+	"github.com/XiaoMi/Gaea/explain"
+	"github.com/XiaoMi/Gaea/mysql/types"
+)
 
-type preparer interface {
-	Prepare(bindVariables map[string]*types.BindVariable) (map[string][]*types.BindVariable, error)
+type bindVariableRewriter interface {
+	rewriteBindVars(bindVariables map[string]*types.BindVariable) (explain.RewriteBindVarsResult, error)
 }
