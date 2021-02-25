@@ -25,7 +25,7 @@ import (
 	"github.com/pingcap/parser/ast"
 )
 
-func (s *SqlExplain) ExplainTables(sel *ast.SelectStmt, rewriter Rewriter) error {
+func (s *SqlExplain) explainTables(sel *ast.SelectStmt, rewriter Rewriter) error {
 	if sel.From == nil {
 		return errors.New("select 'from' statement is missing")
 	}
@@ -116,7 +116,7 @@ func (s *SqlExplain) rewriteTableSource(table *ast.TableSource, rewriter Rewrite
 			return fmt.Errorf("rewrite left TableSource error: %v", e)
 		}
 		if result.IsRewrote() {
-			table.Source = result.GetNewNode()
+			table.Source = wrapFormatter(result.GetFormatter())
 		}
 		return nil
 	case *ast.SelectStmt:

@@ -29,7 +29,7 @@ var NoneRewriter Rewriter = &noneRewriter{}
 type noneRewriter struct {
 }
 
-func (m *noneRewriter) RewriteBindVariable(bindVars []*types.BindVariable) (RewriteBindVarsResult, error) {
+func (m *noneRewriter) RewriteBindVariables(bindVars map[string]*types.BindVariable) (RewriteBindVarsResult, error) {
 	return NoneRewriteBindVarsResult, nil
 }
 
@@ -46,52 +46,52 @@ func (m *noneRewriter) findTable(columnName *ast.ColumnNameExpr, explainContext 
 	return "", false
 }
 
-func (m *noneRewriter) RewriteTable(table *ast.TableName, explainContext Context) (RewriteNodeResult, error) {
+func (m *noneRewriter) RewriteTable(table *ast.TableName, explainContext Context) (RewriteFormattedResult, error) {
 	tableName := table.Name.L
 	if m.containsTable(tableName, explainContext) {
-		return ResultFromNode(table, tableName), nil
+		return ResultFromNode(table, tableName, ""), nil
 	}
-	return NoneRewriteNodeResult, nil
+	return NoneRewriteFormattedResult, nil
 }
 
-func (m *noneRewriter) RewriteField(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteExprResult, error) {
+func (m *noneRewriter) RewriteField(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteFormattedResult, error) {
 	colName := GetColumn(columnName.Name)
 	if t, ok := m.findTable(columnName, explainContext, false); ok {
-		return ResultFromExrp(columnName, t, colName), nil
+		return ResultFromNode(columnName, t, colName), nil
 	}
-	return NoneRewriteExprResult, nil
+	return NoneRewriteFormattedResult, nil
 }
 
-func (m *noneRewriter) RewriteColumn(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteExprResult, error) {
+func (m *noneRewriter) RewriteColumn(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteFormattedResult, error) {
 	colName := GetColumn(columnName.Name)
 	if t, ok := m.findTable(columnName, explainContext, true); ok {
-		return ResultFromExrp(columnName, t, colName), nil
+		return ResultFromNode(columnName, t, colName), nil
 	}
-	return NoneRewriteExprResult, nil
+	return NoneRewriteFormattedResult, nil
 }
 
-func (m *noneRewriter) RewritePatterIn(patternIn *ast.PatternInExpr, explainContext Context) (RewriteExprResult, error) {
+func (m *noneRewriter) RewritePatterIn(patternIn *ast.PatternInExpr, explainContext Context) (RewriteFormattedResult, error) {
 	columnName, ok := patternIn.Expr.(*ast.ColumnNameExpr)
 	if !ok {
 		return nil, errors.New("pattern in statement required ColumnNameExpr")
 	}
 	colName := GetColumn(columnName.Name)
 	if t, ok := m.findTable(columnName, explainContext, true); ok {
-		return ResultFromExrp(columnName, t, colName), nil
+		return ResultFromNode(columnName, t, colName), nil
 	}
-	return NoneRewriteExprResult, nil
+	return NoneRewriteFormattedResult, nil
 }
 
-func (m *noneRewriter) RewriteBetween(between *ast.BetweenExpr, explainContext Context) (RewriteExprResult, error) {
+func (m *noneRewriter) RewriteBetween(between *ast.BetweenExpr, explainContext Context) (RewriteFormattedResult, error) {
 	columnName, ok := between.Expr.(*ast.ColumnNameExpr)
 	if !ok {
 		return nil, errors.New("between and statement required ColumnNameExpr")
 	}
 	colName := GetColumn(columnName.Name)
 	if t, ok := m.findTable(columnName, explainContext, true); ok {
-		return ResultFromExrp(columnName, t, colName), nil
+		return ResultFromNode(columnName, t, colName), nil
 	}
-	return NoneRewriteExprResult, nil
+	return NoneRewriteFormattedResult, nil
 }
 
 func (m *noneRewriter) RewriteLimit(limit *ast.Limit, explainContext Context) (RewriteLimitResult, error) {

@@ -19,10 +19,11 @@
 package explain
 
 import (
+	"github.com/XiaoMi/Gaea/parser"
 	"github.com/pingcap/parser/ast"
 )
 
-func (s *SqlExplain) ExplainLimit(stmt *ast.SelectStmt, rewriter Rewriter) error {
+func (s *SqlExplain) explainLimit(stmt *ast.SelectStmt, rewriter Rewriter) error {
 	if stmt.Limit != nil {
 		s.currentContext().LimitLookup().setLimit(stmt.Limit)
 		result, err := rewriter.RewriteLimit(stmt.Limit, s.currentContext())
@@ -30,7 +31,7 @@ func (s *SqlExplain) ExplainLimit(stmt *ast.SelectStmt, rewriter Rewriter) error
 			return err
 		}
 		if result.IsRewrote() {
-			stmt.Limit = result.GetNewNode()
+			stmt.Limit = parser.NewLimit(result.GetLimit())
 		}
 	}
 	return nil

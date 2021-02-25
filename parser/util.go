@@ -21,12 +21,6 @@ var lockingFunctions = map[string]interface{}{
 	"release_lock":      nil,
 }
 
-var ImpossibleWhereClause = &ast.BinaryOperationExpr{
-	L:  makeConstValue(1),
-	R:  makeConstValue(1),
-	Op: opcode.NE,
-}
-
 func makeConstValue(value int64) *driver.ValueExpr {
 	nv := &driver.ValueExpr{}
 	nv.SetInt64(value)
@@ -131,12 +125,44 @@ func WriteNode(node ast.Node, flag format.RestoreFlags) (string, error) {
 
 // GenerateFieldQuery generates a query to just fetch the field info
 // by adding impossible where clauses as needed.
-//func GenerateFieldQuery(statement ast.StmtNode) *ParsedQuery {
-//	buf := sqlparser.NewTrackedBuffer(sqlparser.FormatImpossibleQuery).WriteNode(statement)
-//
-//	if buf.HasBindVars() {
-//		return nil
-//	}
-//
-//	return buf.ParsedQuery()
-//}
+func GenerateFieldQuery(statement ast.StmtNode) (*ParsedQuery, error) {
+	c, err := ParseNodeParam(statement)
+	if err != nil {
+		return nil, err
+	}
+	if c > 0 {
+		return nil, nil
+	}
+	buf := NewTrackedBuffer()
+	FormatImpossibleQuery(buf, statement)
+	return buf.ParsedQuery(), nil
+}
+
+// IsImpossible returns true if the comparison in the expression can never evaluate to true.
+// Note that this is not currently exhaustive to ALL impossible comparisons.
+func IsImpossibleExpr(node *ast.BinaryOperationExpr) bool {
+	var left, right *driver.ValueExpr
+	var ok bool
+	if left, ok = node.L.(*driver.ValueExpr); !ok {
+		return false
+	}
+	if right, ok = node.R.(*driver.ValueExpr); !ok {
+		return false
+	}
+	if node.Op == opcode.NE && left.Type.Tp == right.Type.Tp {
+		lr := left.GetRaw()
+		rr := right.GetRaw()
+
+		if len(lr) != len(rr) {
+			return false
+		}
+
+		for i := range lr {
+			if lr[i] != rr[i] {
+				return false
+			}
+		}
+		return true
+	}
+	return false
+}

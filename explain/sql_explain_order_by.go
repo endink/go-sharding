@@ -22,7 +22,7 @@ import (
 	"github.com/pingcap/parser/ast"
 )
 
-func (s *SqlExplain) ExplainOrderBy(stmt *ast.SelectStmt, rewriter Rewriter) error {
+func (s *SqlExplain) explainOrderBy(stmt *ast.SelectStmt, rewriter Rewriter) error {
 
 	if stmt.OrderBy == nil {
 		return nil

@@ -31,22 +31,34 @@ func TestSelectSimple(t *testing.T) {
 		sql  string
 		r    string
 	}{
+
 		{
 			name: "simple-select",
 			sql:  "select a, b, c, d from e where a = 3 and b = 4",
 			r:    "select a, b, c, d from e where 1!=1",
 		},
 		{
+			name: "group-by",
+			sql:  "select count(name), a, b, c, d from e where a = 3 and b = 4 group by name",
+			r:    "select count(name), a, b, c, d from e where 1!=1 group by name",
+		},
+		{
 			name: "join",
 			sql:  "select e.a, e.b, e.c, e.d from e join f on e.id = f.id and e.b = 4",
-			r:    "select e.a, e.b, e.c, e.d from e join f on e.id = f.id and e.b = 4",
+			r:    "select e.a, e.b, e.c, e.d from e join f on 1!=1",
+		},
+		{
+			name: "union",
+			sql:  "SELECT c1 FROM table1 UNION SELECT c2 FROM table2",
+
+			r: "SELECT c1 FROM table1 where 1!=1",
 		},
 	}
 
 	for _, c := range testCases {
 		t.Run(c.name, func(tt *testing.T) {
 			buf := NewTrackedBuffer()
-			stmt := testkit.ParseSelect(c.sql, t)
+			stmt := testkit.ParseForTest(c.sql, t)
 			FormatImpossibleQuery(buf, stmt)
 
 			rewrote := buf.ParsedQuery().Query

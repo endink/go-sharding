@@ -20,12 +20,16 @@ package explain
 
 import "github.com/XiaoMi/Gaea/core"
 
-type mockedShardingProvider struct {
+type simpleShardingProvider struct {
 	shardingTables map[string]*core.ShardingTable
 }
 
+func NewShardingTableProvider(shardingTables map[string]*core.ShardingTable) ShardingTableProvider {
+	return &simpleShardingProvider{shardingTables: shardingTables}
+}
+
 func MockShardingTableProvider(tables ...*ShardingTableMocked) ShardingTableProvider {
-	mocked := &mockedShardingProvider{
+	mocked := &simpleShardingProvider{
 		shardingTables: make(map[string]*core.ShardingTable),
 	}
 	for _, table := range tables {
@@ -40,7 +44,7 @@ func MockShardingTableProvider(tables ...*ShardingTableMocked) ShardingTableProv
 	return mocked
 }
 
-func (m *mockedShardingProvider) GetShardingTable(table string) (*core.ShardingTable, bool) {
+func (m *simpleShardingProvider) GetShardingTable(table string) (*core.ShardingTable, bool) {
 	name := core.TrimAndLower(table)
 	sdt, ok := m.shardingTables[name]
 	return sdt, ok

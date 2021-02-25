@@ -38,13 +38,13 @@ func (s *SqlExplain) explainCondition(node ast.ExprNode, rewriter Rewriter, logi
 	case *ast.BetweenExpr:
 		return s.explainBetween(expr, rewriter)
 	case *ast.ParenthesesExpr:
-		s.BeginValueGroup()
+		s.beginValueGroup()
 		newExpr, err := s.explainCondition(expr.Expr, rewriter, logic)
 		if err != nil {
 			return nil, err
 		}
 		expr.Expr = newExpr
-		s.EndValueGroup()
+		s.endValueGroup()
 		return expr, nil
 	default:
 		// 其他情况只替换表名 (但是不处理根节点是ColumnNameExpr的情况, 理论上也不会出现这种情况)
@@ -81,9 +81,9 @@ func (s *SqlExplain) explainBetween(expr *ast.BetweenExpr, rewriter Rewriter) (a
 			return nil, e
 		}
 
-		s.PushOrValueGroup(result.GetShardingTable(), result.GetColumn(), ranges...)
+		s.pushOrValueGroup(result.GetShardingTable(), result.GetColumn(), ranges...)
 
-		return result.GetNewNode(), nil
+		return wrapFormatter(result.GetFormatter()), nil
 	}
 	return expr, nil
 }
@@ -99,8 +99,8 @@ func (s *SqlExplain) explainPatternIn(expr *ast.PatternInExpr, rewriter Rewriter
 		if e != nil {
 			return nil, e
 		}
-		s.PushOrValueGroup(result.GetShardingTable(), result.GetColumn(), values...)
-		return result.GetNewNode(), nil
+		s.pushOrValueGroup(result.GetShardingTable(), result.GetColumn(), values...)
+		return wrapFormatter(result.GetFormatter()), nil
 	}
 	return expr, nil
 }
@@ -234,7 +234,7 @@ func (s *SqlExplain) explainColumnWithValue(expr *ast.BinaryOperationExpr, rewri
 				if e != nil {
 					return nil, err
 				}
-				s.PushValue(r.GetShardingTable(), columnName, value)
+				s.pushValue(r.GetShardingTable(), columnName, value)
 			}
 		}
 	}
@@ -251,7 +251,7 @@ func (s *SqlExplain) rewriteLeftColumn(expr *ast.BinaryOperationExpr, rewriter R
 		return nil, err
 	}
 	if result != nil && result.IsRewrote() {
-		expr.L = result.GetNewNode()
+		expr.L = wrapFormatter(result.GetFormatter())
 	}
 	return result, nil
 }
@@ -266,7 +266,7 @@ func (s *SqlExplain) rewriteRightColumn(expr *ast.BinaryOperationExpr, rewriter 
 		return nil, err
 	}
 	if result != nil && result.IsRewrote() {
-		expr.R = result.GetNewNode()
+		expr.R = wrapFormatter(result.GetFormatter())
 	}
 	return result, nil
 }

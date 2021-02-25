@@ -20,6 +20,7 @@ package planner
 
 import (
 	"github.com/XiaoMi/Gaea/core"
+	"github.com/XiaoMi/Gaea/explain"
 	"github.com/XiaoMi/Gaea/parser"
 	"sync"
 	"time"
@@ -29,6 +30,7 @@ type Plan struct {
 	PlanID      PlanType
 	Original    string // Original is the original query.
 	Permissions []core.Permission
+	explain     *explain.SqlExplain
 
 	FieldQuery   *parser.ParsedQuery
 	Query        *parser.ParsedQuery

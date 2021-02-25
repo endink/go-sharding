@@ -30,7 +30,7 @@ import (
 type ValueReference interface {
 	ParamNames() []string
 	GetValue(variables map[string]*types.BindVariable) (interface{}, error)
-	IsConst() bool
+	IsLiteral() bool
 }
 
 type ArgScalarRef struct {
@@ -45,7 +45,7 @@ func (a ArgScalarRef) ParamNames() []string {
 	return []string{a.argName}
 }
 
-func (a ArgScalarRef) IsConst() bool {
+func (a ArgScalarRef) IsLiteral() bool {
 	return false
 }
 
@@ -122,7 +122,7 @@ func (arf ArgRangeRef) ParamNames() []string {
 	return names
 }
 
-func (arf ArgRangeRef) IsConst() bool {
+func (arf ArgRangeRef) IsLiteral() bool {
 	return false
 }
 
@@ -168,7 +168,7 @@ func NewConstRef(value interface{}) *ConstRef {
 	return &ConstRef{value: value}
 }
 
-func (c ConstRef) IsConst() bool {
+func (c ConstRef) IsLiteral() bool {
 	return true
 }
 

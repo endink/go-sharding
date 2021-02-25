@@ -24,8 +24,9 @@ import (
 	"github.com/XiaoMi/Gaea/explain"
 	"github.com/XiaoMi/Gaea/proxy/router"
 	"github.com/pingcap/parser/ast"
-	"github.com/pingcap/parser/format"
 )
+
+var _ explain.StatementFormatter = &BetweenWriter{}
 
 // BetweenExprDecorator decorate BetweenExpr
 // Between只需要改写表名并计算路由, 不需要改写边界值.
@@ -36,13 +37,13 @@ type BetweenWriter struct {
 	tables []string
 
 	rule    router.Rule
-	runtime Runtime
+	runtime explain.Runtime
 }
 
 // NewBetweenWriter create BetweenExprDecorator
-func NewBetweenWriter(n *ast.BetweenExpr, context explain.Context, runtime Runtime, shardingTable *core.ShardingTable) (*BetweenWriter, error) {
+func NewBetweenWriter(n *ast.BetweenExpr, shardingTable *core.ShardingTable) (*BetweenWriter, error) {
 	columnNameExpr := n.Expr.(*ast.ColumnNameExpr)
-	columnNameExprDecorator, err := NewColumnNameWriter(columnNameExpr, context, runtime, shardingTable.Name)
+	columnNameExprDecorator, err := NewColumnNameWriter(columnNameExpr, shardingTable.Name)
 	if err != nil {
 		return nil, err
 	}
@@ -54,14 +55,9 @@ func NewBetweenWriter(n *ast.BetweenExpr, context explain.Context, runtime Runti
 	return ret, nil
 }
 
-// Accept do nothing and return current decorator
-func (b *BetweenWriter) Accept(v ast.Visitor) (ast.Node, bool) {
-	return b, true
-}
-
-// Restore column name restore is different from BetweenExpr
-func (b *BetweenWriter) Restore(ctx *format.RestoreCtx) error {
-	if err := b.column.Restore(ctx); err != nil {
+func (b *BetweenWriter) Format(ctx explain.StatementContext) error {
+	rsCtx := ctx.GetRestoreCtx()
+	if err := b.column.Restore(rsCtx); err != nil {
 		return fmt.Errorf("an error occurred while restore BetweenExpr.Expr: %v", err)
 	}
 	if b.Not {
@@ -69,11 +65,11 @@ func (b *BetweenWriter) Restore(ctx *format.RestoreCtx) error {
 	} else {
 		ctx.WriteKeyWord(" BETWEEN ")
 	}
-	if err := b.Left.Restore(ctx); err != nil {
+	if err := b.Left.Restore(rsCtx); err != nil {
 		return fmt.Errorf("an error occurred while restore BetweenExpr.Left: %v", err)
 	}
 	ctx.WriteKeyWord(" AND ")
-	if err := b.Right.Restore(ctx); err != nil {
+	if err := b.Right.Restore(rsCtx); err != nil {
 		return fmt.Errorf("an error occurred while restore BetweenExpr.Right: %v", err)
 	}
 	return nil

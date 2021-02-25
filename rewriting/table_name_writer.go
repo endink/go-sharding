@@ -20,35 +20,33 @@ package rewriting
 
 import (
 	"fmt"
+	"github.com/XiaoMi/Gaea/explain"
 	"github.com/pingcap/parser/ast"
-	"github.com/pingcap/parser/format"
+	"github.com/pingcap/parser/types"
 )
 
-var _ ast.Node = &TableNameWriter{}
+var _ explain.StatementFormatter = &TableNameWriter{}
 
 type TableNameWriter struct {
 	origin        *ast.TableName
-	runtime       Runtime
 	shardingTable string
 }
 
-func NewTableNameWriter(n *ast.TableName, runtime Runtime) (*TableNameWriter, error) {
+func NewTableNameWriter(n *ast.TableName) (*TableNameWriter, error) {
 	if len(n.PartitionNames) != 0 {
 		return nil, fmt.Errorf("TableName does not support PartitionNames in sharding")
 	}
 
 	ret := &TableNameWriter{
 		origin:        n,
-		runtime:       runtime,
 		shardingTable: n.Name.L,
 	}
 
 	return ret, nil
 }
 
-// Restore implement ast.Node
-func (t *TableNameWriter) Restore(ctx *format.RestoreCtx) error {
-	table, err := t.runtime.GetCurrentTable(t.shardingTable)
+func (t *TableNameWriter) Format(ctx explain.StatementContext) error {
+	table, err := ctx.GetRuntime().GetCurrentTable(t.shardingTable)
 	if err != nil {
 		return err
 	}
@@ -62,14 +60,14 @@ func (t *TableNameWriter) Restore(ctx *format.RestoreCtx) error {
 	return nil
 }
 
-func (t *TableNameWriter) Accept(v ast.Visitor) (ast.Node, bool) {
-	return t, true
+func (t *TableNameWriter) GetType() *types.FieldType {
+	return nil
+}
+
+func (t *TableNameWriter) GetFlag() uint64 {
+	return 0
 }
 
 func (t *TableNameWriter) Text() string {
 	return t.origin.Text()
-}
-
-func (t *TableNameWriter) SetText(text string) {
-	t.origin.SetText(text)
 }

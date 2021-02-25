@@ -18,92 +18,76 @@
 
 package explain
 
-import (
-	"github.com/pingcap/parser/ast"
-)
+import "github.com/pingcap/parser/ast"
 
-var _ RewriteNodeResult = &rewriteNodeResult{}
-var _ RewriteExprResult = &rewriteExprResult{}
+var _ RewriteFormattedResult = &rewriteFormattedResult{}
 var _ RewriteLimitResult = &rewriteLimitResult{}
 
-var NoneRewriteNodeResult = ResultFromNode(nil, "")
-var NoneRewriteExprResult = ResultFromExrp(nil, "", "")
-var NoneRewriteLimitResult = ResultFromLimit(nil)
-var NoneRewriteResult RewriteResult = &noneRewriteResult{}
+var NoneRewriteFormattedResult = ResultFromFormatter(nil, "", "")
+var NoneRewriteLimitResult = ResultFromLimit(-1)
+var NoneRewriteResult RewriteResult = &rewriteResultBase{isRewrote: false}
 var NoneRewriteBindVarsResult RewriteBindVarsResult = &rewriteVarsResult{rewroteParams: nil}
 
-type rewriteNodeResult struct {
+type rewriteResultBase struct {
 	isRewrote     bool
 	shardingTable string
-	node          ast.Node
 }
 
-func (r *rewriteNodeResult) IsRewrote() bool {
+func (r *rewriteResultBase) IsRewrote() bool {
 	return r.isRewrote
 }
 
-func (r *rewriteNodeResult) GetNewNode() ast.Node {
-	return r.node
-}
-
-func (r *rewriteNodeResult) GetShardingTable() string {
+func (r *rewriteResultBase) GetShardingTable() string {
 	return r.shardingTable
 }
 
-type rewriteExprResult struct {
+type rewriteFormattedResult struct {
+	*rewriteResultBase
 	column string
-	*rewriteNodeResult
+	f      StatementFormatter
 }
 
-func (r *rewriteExprResult) GetColumn() string {
+func (r *rewriteFormattedResult) GetColumn() string {
 	return r.column
 }
 
-func (r *rewriteExprResult) GetNewNode() ast.ExprNode {
-	expr := r.node.(ast.ExprNode)
-	return expr
-}
-
-type noneRewriteResult struct {
-}
-
-func (n *noneRewriteResult) IsRewrote() bool {
-	return false
-}
-
-func (n *noneRewriteResult) GetShardingTable() string {
-	return ""
+func (r *rewriteFormattedResult) GetFormatter() StatementFormatter {
+	return r.f
 }
 
 type rewriteLimitResult struct {
-	*rewriteNodeResult
+	*rewriteResultBase
+	count int64
 }
 
-func (r *rewriteLimitResult) GetNewNode() *ast.Limit {
-	expr := r.node.(*ast.Limit)
-	return expr
+func (r *rewriteLimitResult) GetLimit() int64 {
+	return r.count
 }
 
-func ResultFromNode(node ast.Node, shardingTable string) *rewriteNodeResult {
-	return &rewriteNodeResult{
-		isRewrote:     node != nil,
+func ResultFromNode(node ast.Node, shardingTable string, column string) RewriteFormattedResult {
+	formatter := &nodeFormatter{node}
+	return ResultFromFormatter(formatter, shardingTable, column)
+}
+
+func ResultFromFormatter(formatter StatementFormatter, shardingTable string, column string) RewriteFormattedResult {
+	base := &rewriteResultBase{
+		isRewrote:     formatter != nil,
 		shardingTable: shardingTable,
-		node:          node,
 	}
-}
-
-func ResultFromExrp(node ast.ExprNode, shardingTable string, column string) *rewriteExprResult {
-	r := ResultFromNode(node, shardingTable)
-	return &rewriteExprResult{
-		rewriteNodeResult: r,
+	return &rewriteFormattedResult{
+		rewriteResultBase: base,
+		f:                 formatter,
 		column:            column,
 	}
 }
 
-func ResultFromLimit(node *ast.Limit) *rewriteLimitResult {
-	r := ResultFromNode(node, "")
+func ResultFromLimit(count int64) *rewriteLimitResult {
+	base := &rewriteResultBase{
+		isRewrote: count >= 0,
+	}
 	return &rewriteLimitResult{
-		r,
+		rewriteResultBase: base,
+		count:             count,
 	}
 }
 

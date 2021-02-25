@@ -23,7 +23,7 @@ import (
 	"github.com/pingcap/parser/ast"
 )
 
-func (s *SqlExplain) ExplainGroupBy(stmt *ast.SelectStmt, rewriter Rewriter) error {
+func (s *SqlExplain) explainGroupBy(stmt *ast.SelectStmt, rewriter Rewriter) error {
 
 	if stmt.GroupBy == nil {
 		return nil
@@ -104,7 +104,7 @@ func (s *SqlExplain) newFieldFromByItem(item *ast.ByItem, rewriter Rewriter) (*a
 	}
 
 	if result.IsRewrote() {
-		item.Expr = result.GetNewNode()
+		item.Expr = wrapFormatter(result.GetFormatter())
 	}
 
 	ret := &ast.SelectField{

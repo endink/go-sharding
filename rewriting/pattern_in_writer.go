@@ -25,39 +25,38 @@ import (
 	"github.com/XiaoMi/Gaea/explain"
 	myTypes "github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/pingcap/parser/ast"
-	"github.com/pingcap/parser/format"
 	"github.com/pingcap/parser/types"
 	driver "github.com/pingcap/tidb/types/parser_driver"
-	"io"
 )
 
-var _ ast.ExprNode = &PatternInWriter{}
+var _ explain.StatementFormatter = &PatternInWriter{}
 
 // PatternInWriter decorate PatternInExpr
 // 需要反向查找，不同的分片表查询不同的值
 type PatternInWriter struct {
-	Expr ast.ExprNode
-	Not  bool
+	colFormatter explain.StatementFormatter
+	Not          bool
 
 	tables      []string
 	tableValues map[string][]ast.ValueExpr // table - columnValue
 
 	originValues  []ast.ValueExpr
 	shardingTable *core.ShardingTable
-	runtime       Runtime
 	//是否需要根据分片改写值
 	isScattered bool
 
 	colName string
 }
 
+func (p *PatternInWriter) GetFlag() uint64 {
+	panic("implement me")
+}
+
 func NewPatternInWriter(
 	n *ast.PatternInExpr,
-	context explain.Context,
-	runtime Runtime,
 	shardingTable *core.ShardingTable) (*PatternInWriter, error) {
 	columnNameExpr := n.Expr.(*ast.ColumnNameExpr)
-	colWriter, colErr := NewColumnNameWriter(columnNameExpr, context, runtime, shardingTable.Name)
+	colWriter, colErr := NewColumnNameWriter(columnNameExpr, shardingTable.Name)
 	if colErr != nil {
 		return nil, fmt.Errorf("create pattern in writer fault: %v", colErr)
 	}
@@ -80,10 +79,9 @@ func NewPatternInWriter(
 
 	ret := &PatternInWriter{
 		colName:       colName,
-		Expr:          colWriter,
+		colFormatter:  colWriter,
 		Not:           n.Not,
 		shardingTable: shardingTable,
-		runtime:       runtime,
 		tables:        tables,
 		tableValues:   valueMap,
 		isScattered:   isScattered,
@@ -114,7 +112,7 @@ func (p *PatternInWriter) rewriteBindVars(bindVariables map[string]*myTypes.Bind
 			if err != nil {
 				return nil, err
 			}
-			if value.IsConst() {
+			if value.IsLiteral() {
 				if constVal, _ := value.GetValue(nil); constVal == nil {
 					return nil, errors.New(fmt.Sprintf("sharding column '%s' value can not be null when use 'in' expresion", p.colName))
 				}
@@ -177,14 +175,15 @@ func getBroadcastValueMap(tables []string, nodes []ast.ValueExpr) map[string][]a
 	return ret
 }
 
-// Restore implement ast.Node
-func (p *PatternInWriter) Restore(ctx *format.RestoreCtx) error {
-	table, err := p.runtime.GetCurrentTable(p.shardingTable.Name)
+func (p *PatternInWriter) Format(ctx explain.StatementContext) error {
+	rstCtx := ctx.GetRestoreCtx()
+
+	table, err := ctx.GetRuntime().GetCurrentTable(p.shardingTable.Name)
 	if err != nil {
 		return err
 	}
 
-	if err = p.Expr.Restore(ctx); err != nil {
+	if err = p.colFormatter.Format(ctx); err != nil {
 		return fmt.Errorf("an error occurred while restore PatternInExpr.Expr: %v", err)
 	}
 	if p.Not {
@@ -198,7 +197,7 @@ func (p *PatternInWriter) Restore(ctx *format.RestoreCtx) error {
 		if i != 0 {
 			ctx.WritePlain(",")
 		}
-		if err = expr.Restore(ctx); err != nil {
+		if err = expr.Restore(rstCtx); err != nil {
 			return fmt.Errorf("an error occurred while restore PatternInExpr.List[%d], err: %v", i, err)
 		}
 	}
@@ -207,42 +206,11 @@ func (p *PatternInWriter) Restore(ctx *format.RestoreCtx) error {
 	return nil
 }
 
-// Accept implement ast.Node
-func (p *PatternInWriter) Accept(v ast.Visitor) (node ast.Node, ok bool) {
-	return p, ok
-}
-
 // Text implement ast.Node
 func (p *PatternInWriter) Text() string {
-	return ""
+	return "in"
 }
 
-// SetText implement ast.Node
-func (p *PatternInWriter) SetText(text string) {
-	return
-}
-
-// SetType implement ast.ExprNode
-func (p *PatternInWriter) SetType(tp *types.FieldType) {
-	return
-}
-
-// GetType implement ast.ExprNode
 func (p *PatternInWriter) GetType() *types.FieldType {
-	return nil
-}
-
-// SetFlag implement ast.ExprNode
-func (p *PatternInWriter) SetFlag(flag uint64) {
-	return
-}
-
-// GetFlag implement ast.ExprNode
-func (p *PatternInWriter) GetFlag() uint64 {
-	return 0
-}
-
-// Format implement ast.ExprNode
-func (p *PatternInWriter) Format(w io.Writer) {
-	return
+	return p.colFormatter.GetType()
 }

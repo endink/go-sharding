@@ -53,7 +53,7 @@ func (s *fieldVisitor) Leave(n ast.Node) (node ast.Node, ok bool) {
 		s.err = fmt.Errorf("check rewrite column name for ColumnNameExpr error: %v", err)
 	}
 	if result.IsRewrote() {
-		return result.GetNewNode(), true
+		return wrapFormatter(result.GetFormatter()), true
 	}
 
 	return n, s.err == nil

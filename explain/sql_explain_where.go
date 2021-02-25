@@ -23,7 +23,7 @@ import (
 	"github.com/pingcap/parser/ast"
 )
 
-func (s *SqlExplain) ExplainWhere(sel *ast.SelectStmt, rewriter Rewriter) error {
+func (s *SqlExplain) explainWhere(sel *ast.SelectStmt, rewriter Rewriter) error {
 	where := sel.Where
 	if where != nil {
 		expr, err := s.explainCondition(where, rewriter, core.LogicAnd)

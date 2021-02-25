@@ -24,7 +24,7 @@ import (
 )
 
 func (s *SqlExplain) explainSubQuery(subQuery *ast.SelectStmt, rewriter Rewriter) error {
-	if err := s.ExplainTables(subQuery, rewriter); err != nil {
+	if err := s.explainTables(subQuery, rewriter); err != nil {
 		return fmt.Errorf("explain sub query tables fault: %v", err)
 	}
 

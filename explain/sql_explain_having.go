@@ -20,7 +20,7 @@ package explain
 
 import "github.com/pingcap/parser/ast"
 
-func (s *SqlExplain) ExplainHaving(stmt *ast.SelectStmt, rewriter Rewriter) error {
+func (s *SqlExplain) explainHaving(stmt *ast.SelectStmt, rewriter Rewriter) error {
 
 	having := stmt.Having
 	if having == nil {

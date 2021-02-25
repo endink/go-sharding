@@ -22,7 +22,7 @@ import (
 	"github.com/pingcap/parser/ast"
 )
 
-func (s *SqlExplain) ExplainFields(stmt *ast.SelectStmt, rewriter Rewriter) error {
+func (s *SqlExplain) explainFields(stmt *ast.SelectStmt, rewriter Rewriter) error {
 	fields := stmt.Fields
 	if fields == nil {
 		return nil

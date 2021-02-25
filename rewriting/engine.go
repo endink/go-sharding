@@ -29,14 +29,11 @@ import (
 var _ explain.Rewriter = &Engine{}
 
 type Engine struct {
-	runtime                  Runtime
 	bindVariableRewriterList []bindVariableRewriter
 }
 
-func NewEngine(runtime Runtime) *Engine {
-	return &Engine{
-		runtime: runtime,
-	}
+func NewEngine() *Engine {
+	return &Engine{}
 }
 
 func (engine *Engine) RewriteBindVariables(bindVars map[string]*types.BindVariable) (explain.RewriteBindVarsResult, error) {
@@ -78,52 +75,52 @@ func (engine *Engine) RewriteBindVariables(bindVars map[string]*types.BindVariab
 	return explain.ResultFromScatterVars(rewroteNames.List(), scatterNames), nil
 }
 
-func (engine *Engine) RewriteTable(tableName *ast.TableName, explainContext explain.Context) (explain.RewriteNodeResult, error) {
+func (engine *Engine) RewriteTable(tableName *ast.TableName, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
 	sd, ok, fe := explain.FindShardingTableByTable(tableName, explainContext, "")
 	if fe != nil {
 		return nil, fe
 	}
 	if ok {
-		if writer, err := NewTableNameWriter(tableName, engine.runtime); err == nil {
-			return explain.ResultFromNode(writer, sd.Name), nil
+		if writer, err := NewTableNameWriter(tableName); err == nil {
+			return explain.ResultFromFormatter(writer, sd.Name, ""), nil
 		} else {
 			return nil, err
 		}
 	}
-	return explain.NoneRewriteNodeResult, nil
+	return explain.NoneRewriteFormattedResult, nil
 }
 
-func (engine *Engine) RewriteField(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
+func (engine *Engine) RewriteField(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
 	sd, ok, err := explain.FindShardingTableByColumn(columnName, explainContext, false)
 	if err != nil {
 		return nil, err
 	}
 	if ok {
-		if writer, e := NewColumnNameWriter(columnName, explainContext, engine.runtime, sd.Name); e == nil {
-			return explain.ResultFromExrp(writer, sd.Name, explain.GetColumn(columnName.Name)), nil
+		if writer, e := NewColumnNameWriter(columnName, sd.Name); e == nil {
+			return explain.ResultFromFormatter(writer, sd.Name, explain.GetColumn(columnName.Name)), nil
 		} else {
 			return nil, e
 		}
 	}
-	return explain.NoneRewriteExprResult, nil
+	return explain.NoneRewriteFormattedResult, nil
 }
 
-func (engine *Engine) RewriteColumn(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
+func (engine *Engine) RewriteColumn(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
 	sd, ok, err := explain.FindShardingTableByColumn(columnName, explainContext, true)
 	if err != nil {
 		return nil, err
 	}
 	if ok {
-		if writer, e := NewColumnNameWriter(columnName, explainContext, engine.runtime, sd.Name); e == nil {
-			return explain.ResultFromExrp(writer, sd.Name, explain.GetColumn(columnName.Name)), nil
+		if writer, e := NewColumnNameWriter(columnName, sd.Name); e == nil {
+			return explain.ResultFromFormatter(writer, sd.Name, explain.GetColumn(columnName.Name)), nil
 		} else {
 			return nil, e
 		}
 	}
-	return explain.NoneRewriteExprResult, nil
+	return explain.NoneRewriteFormattedResult, nil
 }
 
-func (engine *Engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
+func (engine *Engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
 	columnNameExpr, ok := patternIn.Expr.(*ast.ColumnNameExpr)
 	if !ok {
 		return nil, errors.New("pattern in statement required ColumnNameExpr")
@@ -133,17 +130,17 @@ func (engine *Engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainConte
 		return nil, err
 	}
 	if ok {
-		if writer, e := NewPatternInWriter(patternIn, explainContext, engine.runtime, sd); e == nil {
+		if writer, e := NewPatternInWriter(patternIn, sd); e == nil {
 			engine.bindVariableRewriterList = append(engine.bindVariableRewriterList, writer)
-			return explain.ResultFromExrp(writer, sd.Name, explain.GetColumn(columnNameExpr.Name)), nil
+			return explain.ResultFromFormatter(writer, sd.Name, explain.GetColumn(columnNameExpr.Name)), nil
 		} else {
 			return nil, e
 		}
 	}
-	return explain.NoneRewriteExprResult, nil
+	return explain.NoneRewriteFormattedResult, nil
 }
 
-func (engine *Engine) RewriteBetween(between *ast.BetweenExpr, explainContext explain.Context) (explain.RewriteExprResult, error) {
+func (engine *Engine) RewriteBetween(between *ast.BetweenExpr, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
 	columnNameExpr, ok := between.Expr.(*ast.ColumnNameExpr)
 	if !ok {
 		return nil, errors.New("between and statement required ColumnNameExpr")
@@ -153,23 +150,23 @@ func (engine *Engine) RewriteBetween(between *ast.BetweenExpr, explainContext ex
 		return nil, err
 	}
 	if ok {
-		if writer, e := NewBetweenWriter(between, explainContext, engine.runtime, sd); e == nil {
-			return explain.ResultFromExrp(writer, sd.Name, explain.GetColumn(columnNameExpr.Name)), nil
+		if writer, e := NewBetweenWriter(between, sd); e == nil {
+			return explain.ResultFromFormatter(writer, sd.Name, explain.GetColumn(columnNameExpr.Name)), nil
 		} else {
 			return nil, e
 		}
 	}
-	return explain.NoneRewriteExprResult, nil
+	return explain.NoneRewriteFormattedResult, nil
 }
 
 func (engine *Engine) RewriteLimit(limit *ast.Limit, explainContext explain.Context) (explain.RewriteLimitResult, error) {
 	lookup := explainContext.LimitLookup()
 	if lookup.HasLimit() && lookup.HasOffset() {
-		writer, err := NewLimitWriter(explainContext)
+		count, err := newLimit(explainContext)
 		if err != nil {
 			return nil, err
 		}
-		return explain.ResultFromLimit(writer), nil
+		return explain.ResultFromLimit(count), nil
 	}
 	return explain.NoneRewriteLimitResult, nil
 }

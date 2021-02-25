@@ -20,8 +20,10 @@ package explain
 
 import (
 	"github.com/XiaoMi/Gaea/core"
+	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/XiaoMi/Gaea/util/sync2"
 	"github.com/emirpasic/gods/stacks/arraystack"
+	"github.com/pingcap/parser/ast"
 )
 
 type SqlExplain struct {
@@ -30,14 +32,8 @@ type SqlExplain struct {
 	logicStack            *arraystack.Stack
 	subQueryDepth         sync2.AtomicInt32
 	maxSubQueryDepth      int32
-	bindVarsCount         int
+	bindVarCount          int
 	valueRedoLogs         *valueRedoLogs
-}
-
-func MockSqlExplain(shardingTables ...*ShardingTableMocked) *SqlExplain {
-	provider := MockShardingTableProvider(shardingTables...)
-	exp := NewSqlExplain(provider)
-	return exp
 }
 
 func NewSqlExplain(stProvider ShardingTableProvider) *SqlExplain {
@@ -45,24 +41,58 @@ func NewSqlExplain(stProvider ShardingTableProvider) *SqlExplain {
 	valueStack.Push(newValueScope(core.LogicAnd))
 	redoLogs := newValueRedoLogs()
 	_ = redoLogs.append(redoBeginLogic{logic: core.LogicAnd})
+
 	return &SqlExplain{
 		shardingTableProvider: stProvider,
 		logicStack:            arraystack.New(),
 		ctx:                   NewContext(),
 		maxSubQueryDepth:      int32(5),
 		valueRedoLogs:         newValueRedoLogs(),
+		bindVarCount:          0,
 	}
+}
+
+func (s *SqlExplain) ExplainSelect(sel *ast.SelectStmt, rewriter Rewriter) error {
+	var err error
+	if err = s.orderParams(sel); err != nil {
+		return err
+	}
+	if err = s.explainTables(sel, rewriter); err != nil {
+		return err
+	}
+	if err = s.explainFields(sel, rewriter); err != nil {
+		return err
+	}
+	if err = s.explainGroupBy(sel, rewriter); err != nil {
+		return err
+	}
+	if err = s.explainOrderBy(sel, rewriter); err != nil {
+		return err
+	}
+	if err = s.explainWhere(sel, rewriter); err != nil {
+		return err
+	}
+
+	if err = s.explainHaving(sel, rewriter); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (s *SqlExplain) setVariables(bindVariables map[string]*types.BindVariable) (map[string]*core.ShardingValues, error) {
+	ctx := newValueRedoContext()
+	return s.valueRedoLogs.Redo(ctx, bindVariables)
 }
 
 func (s *SqlExplain) GetShardingTable(table string) (*core.ShardingTable, bool) {
 	return s.shardingTableProvider.GetShardingTable(table)
 }
 
-func (s *SqlExplain) BeginValueGroup() {
+func (s *SqlExplain) beginValueGroup() {
 	_ = s.valueRedoLogs.append(new(redoBeginParentheses))
 }
 
-func (s *SqlExplain) EndValueGroup() {
+func (s *SqlExplain) endValueGroup() {
 	_ = s.valueRedoLogs.append(new(redoEndParentheses))
 }
 
@@ -70,43 +100,45 @@ func (s *SqlExplain) currentContext() Context {
 	return s.ctx
 }
 
-func (s *SqlExplain) PushOrValueGroup(table string, column string, values ...ValueReference) {
+func (s *SqlExplain) pushOrValueGroup(table string, column string, values ...ValueReference) {
 	s.pushValueGroupWithLogic(table, column, core.LogicOr, values...)
 }
 
-func (s *SqlExplain) PushAndValueGroup(table string, column string, values ...ValueReference) {
+func (s *SqlExplain) pushAndValueGroup(table string, column string, values ...ValueReference) {
 	s.pushValueGroupWithLogic(table, column, core.LogicAnd, values...)
 }
 
-func (s *SqlExplain) PushOrValue(table string, column string, value ValueReference) {
+func (s *SqlExplain) pushOrValue(table string, column string, value ValueReference) {
 	s.pushValueGroupWithLogic(table, column, core.LogicOr, value)
 }
 
-func (s *SqlExplain) PushAndValue(table string, column string, value ValueReference) {
+func (s *SqlExplain) pushAndValue(table string, column string, value ValueReference) {
 	s.pushValueGroupWithLogic(table, column, core.LogicAnd, value)
+}
+
+func (s *SqlExplain) pushValue(table string, column string, values ...ValueReference) {
+	s.pushValueWithLogic(table, column, s.currentLogic(), values...)
 }
 
 func (s *SqlExplain) pushValueGroupWithLogic(table string, column string, logic core.BinaryLogic, values ...ValueReference) {
 	_ = s.valueRedoLogs.append(new(redoBeginParentheses))
-
-	for _, v := range values {
-		s.PushValueWithLogic(table, column, v, logic)
-	}
+	s.pushValueWithLogic(table, column, logic, values...)
 	_ = s.valueRedoLogs.append(new(redoEndParentheses))
 }
 
-func (s *SqlExplain) PushValue(table string, column string, value ValueReference) {
-	s.PushValueWithLogic(table, column, value, s.currentLogic())
-}
-
-func (s *SqlExplain) PushValueWithLogic(table string, column string, value ValueReference, logic core.BinaryLogic) {
+func (s *SqlExplain) pushValueWithLogic(table string, column string, logic core.BinaryLogic, values ...ValueReference) {
 	log := &redoPushValue{
 		table:  table,
 		column: column,
 		logic:  logic,
-		values: []ValueReference{value},
+		values: values,
 	}
 	_ = s.valueRedoLogs.append(log)
+	for _, value := range values {
+		if !value.IsLiteral() {
+			s.bindVarCount++
+		}
+	}
 }
 
 func (s *SqlExplain) pushLogic(logic core.BinaryLogic) {

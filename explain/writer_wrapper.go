@@ -18,26 +18,22 @@
  *
  */
 
-package planner
+package explain
 
 import (
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/parser"
-	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/errors"
+	"github.com/pingcap/parser/format"
+	"io"
 )
 
-func planSelect(sel *ast.SelectStmt, tables map[string]*core.ShardingTable) (*Plan, error) {
-	query, err := parser.GenerateLimitQuery(sel, 1000)
-	if err != nil {
-		return nil, err
-	}
-	plan := &Plan{
-		PlanID: PlanSelect,
-		Query:  query,
-	}
-	if sel.LockTp == ast.SelectLockForUpdate || sel.LockTp == ast.SelectLockForUpdateNoWait {
-		plan.PlanID = PlanSelectLock
-	}
+func wrapWriter(restoreCtx *format.RestoreCtx, runtime Runtime, ctx Context) io.Writer {
+	return NewStatementContext(ctx, restoreCtx, runtime)
+}
 
-	return plan, nil
+func unwrapWriter(writer io.Writer) (StatementContext, error) {
+	ctx, ok := writer.(StatementContext)
+	if !ok {
+		return nil, errors.New("writer is not an 'writerWrapper' for restoring")
+	}
+	return ctx, nil
 }

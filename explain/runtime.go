@@ -20,19 +20,9 @@
 
 package explain
 
-import (
-	"github.com/XiaoMi/Gaea/parser"
-	"github.com/pingcap/parser/ast"
-)
-
-func (s *SqlExplain) orderParams(node ast.Node) error {
-	index := 0
-	return parser.Walk(func(n ast.Node) (kontinue bool, err error) {
-		switch p := n.(type) {
-		case ast.ParamMarkerExpr:
-			p.SetOrder(index)
-			index++
-		}
-		return true, nil
-	}, node)
+type Runtime interface {
+	GetCurrent(shardingTable string) (database string, table string, err error)
+	GetCurrentTable(shardingTable string) (string, error)
+	GetCurrentDatabase() (string, error)
+	GetServerSchema() string
 }

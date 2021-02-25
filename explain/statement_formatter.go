@@ -21,18 +21,36 @@
 package explain
 
 import (
-	"github.com/XiaoMi/Gaea/parser"
 	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/types"
 )
 
-func (s *SqlExplain) orderParams(node ast.Node) error {
-	index := 0
-	return parser.Walk(func(n ast.Node) (kontinue bool, err error) {
-		switch p := n.(type) {
-		case ast.ParamMarkerExpr:
-			p.SetOrder(index)
-			index++
-		}
-		return true, nil
-	}, node)
+type StatementFormatter interface {
+	Format(ctx StatementContext) error
+	Text() string
+	GetType() *types.FieldType
+	GetFlag() uint64
+}
+
+type nodeFormatter struct {
+	node ast.Node
+}
+
+func (a *nodeFormatter) Format(ctx StatementContext) error {
+	return a.node.Restore(ctx.GetRestoreCtx())
+}
+
+func (a *nodeFormatter) Text() string {
+	return a.Text()
+}
+
+func (a *nodeFormatter) GetType() *types.FieldType {
+	return a.GetType()
+}
+
+func (a *nodeFormatter) GetFlag() uint64 {
+	if expr, ok := a.node.(ast.ExprNode); ok {
+		return expr.GetFlag()
+	}
+	return 0
 }

@@ -21,38 +21,37 @@ package rewriting
 import (
 	"github.com/XiaoMi/Gaea/explain"
 	"github.com/pingcap/parser/ast"
-	"github.com/pingcap/parser/format"
 )
 
-var _ ast.ExprNode = &ColumnNameWriter{}
+var _ explain.StatementFormatter = &ColumnNameWriter{}
 
 // ColumnNameWriter decorate ColumnNameExpr to rewrite table name
 type ColumnNameWriter struct {
 	*ast.ColumnNameExpr
 	columnName    *ast.ColumnName
-	isAlias       bool
-	runtime       Runtime
 	shardingTable string
 }
 
-func NewColumnNameWriter(n *ast.ColumnNameExpr, context explain.Context, runtime Runtime, shardingTable string) (*ColumnNameWriter, error) {
-	name := n.Name
-	tableName, err := explain.GetTable(name, runtime.GetServerSchema())
-	if err != nil {
-		return nil, err
-	}
-
+func NewColumnNameWriter(n *ast.ColumnNameExpr, shardingTable string) (*ColumnNameWriter, error) {
 	return &ColumnNameWriter{
 		ColumnNameExpr: n,
 		columnName:     n.Name,
-		isAlias:        context.TableLookup().HasAlias(tableName),
-		runtime:        runtime,
 		shardingTable:  shardingTable,
 	}, nil
 }
 
-func (c *ColumnNameWriter) Restore(ctx *format.RestoreCtx) error {
-	table, err := c.runtime.GetCurrentTable(c.shardingTable)
+func (c *ColumnNameWriter) Text() string {
+	return c.columnName.Text()
+}
+
+func (c *ColumnNameWriter) Format(ctx explain.StatementContext) error {
+	tableName, err := explain.GetTable(c.columnName, ctx.GetRuntime().GetServerSchema())
+	if err != nil {
+		return err
+	}
+	isAlias := ctx.GetContext().TableLookup().HasAlias(tableName)
+
+	table, err := ctx.GetRuntime().GetCurrentTable(c.shardingTable)
 	if err != nil {
 		return err
 	}
@@ -62,7 +61,7 @@ func (c *ColumnNameWriter) Restore(ctx *format.RestoreCtx) error {
 	//	ctx.WritePlain(".")
 	//}
 
-	if c.isAlias {
+	if isAlias {
 		ctx.WriteName(c.columnName.Table.String())
 		ctx.WritePlain(".")
 	} else {
@@ -74,16 +73,4 @@ func (c *ColumnNameWriter) Restore(ctx *format.RestoreCtx) error {
 	ctx.WriteName(c.columnName.Name.O)
 
 	return nil
-}
-
-func (c *ColumnNameWriter) Accept(v ast.Visitor) (ast.Node, bool) {
-	return c, true
-}
-
-func (c *ColumnNameWriter) Text() string {
-	return c.columnName.Text()
-}
-
-func (c *ColumnNameWriter) SetText(text string) {
-	c.columnName.SetText(text)
 }

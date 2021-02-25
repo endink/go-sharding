@@ -29,10 +29,10 @@ func ParseSqlParamCount(sql string) (uint16, error) {
 		return 0, err
 	}
 
-	return parseNodeParam(stmt)
+	return ParseNodeParam(stmt)
 }
 
-func parseNodeParam(stmt ast.Node) (uint16, error) {
+func ParseNodeParam(stmt ast.Node) (uint16, error) {
 	var paramCount uint16
 
 	err := Walk(func(node ast.Node) (bool, error) {

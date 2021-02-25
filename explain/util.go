@@ -177,7 +177,7 @@ func makeRangeReference(lower ValueReference, upper ValueReference, constFunc Co
 		return nil, errors.New("for making range reference, lower and upper require at least one that is not nil")
 	}
 
-	if lower != nil && upper != nil && lower.IsConst() != upper.IsConst() {
+	if lower != nil && upper != nil && lower.IsLiteral() != upper.IsLiteral() {
 		return nil, errors.New("lower and upper must are all constants or all variables")
 	}
 
@@ -292,7 +292,7 @@ func GetValueFromValueFromBetween(n *ast.BetweenExpr) ([]ValueReference, error) 
 		return nil, fmt.Errorf("get value from n.Right error: %v", err)
 	}
 
-	if leftValue.IsConst() && rightValue.IsConst() {
+	if leftValue.IsLiteral() && rightValue.IsLiteral() {
 		lv, _ := leftValue.GetValue(nil)
 		rv, _ := rightValue.GetValue(nil)
 		cm, cmpErr := comparison.Compare(lv, rv)

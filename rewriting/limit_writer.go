@@ -21,13 +21,11 @@ package rewriting
 import (
 	"errors"
 	"github.com/XiaoMi/Gaea/explain"
-	"github.com/pingcap/parser/ast"
-	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
-func NewLimitWriter(context explain.Context) (*ast.Limit, error) {
+func newLimit(context explain.Context) (int64, error) {
 	if context.LimitLookup().HasLimit() {
-		return nil, errors.New("there is none limit in plain context")
+		return 0, errors.New("there is none limit in plain context")
 	}
 
 	newCount := context.LimitLookup().Count()
@@ -35,10 +33,5 @@ func NewLimitWriter(context explain.Context) (*ast.Limit, error) {
 		newCount += context.LimitLookup().Offset()
 	}
 
-	nv := &driver.ValueExpr{}
-	nv.SetInt64(newCount)
-	newLimit := &ast.Limit{
-		Count: nv,
-	}
-	return newLimit, nil
+	return newCount, nil
 }

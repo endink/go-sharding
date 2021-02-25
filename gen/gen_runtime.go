@@ -23,11 +23,10 @@ import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/explain"
-	"github.com/XiaoMi/Gaea/rewriting"
 	"github.com/scylladb/go-set/strset"
 )
 
-var _ rewriting.Runtime = &genRuntime{}
+var _ explain.Runtime = &genRuntime{}
 
 var ErrRuntimeResourceNotFound = errors.New("resource was not found in runtime")
 

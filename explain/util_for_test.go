@@ -25,6 +25,12 @@ import (
 	"testing"
 )
 
+func MockSqlExplain(shardingTables ...*ShardingTableMocked) *SqlExplain {
+	provider := MockShardingTableProvider(shardingTables...)
+	exp := NewSqlExplain(provider)
+	return exp
+}
+
 func parseExplainTables(t *testing.T, sql string, shardingTables ...*ShardingTableMocked) map[string]*core.ShardingValues {
 
 	//sql = "SELECT A.ID as AID, B.ID AS AID from student A,student B,student C"
@@ -32,7 +38,7 @@ func parseExplainTables(t *testing.T, sql string, shardingTables ...*ShardingTab
 	assert.NotNil(t, stmt)
 
 	explain := MockSqlExplain(shardingTables...)
-	err := explain.ExplainTables(stmt, NoneRewriter)
+	err := explain.explainTables(stmt, NoneRewriter)
 	assert.Nil(t, err)
 
 	values, err := explain.valueRedoLogs.Redo(newValueRedoContext(), nil)
@@ -47,7 +53,7 @@ func parseExplainWhere(t *testing.T, sql string, shardingTables ...*ShardingTabl
 
 	explain := MockSqlExplain(shardingTables...)
 	if assert.NotNil(t, stmt.Where, "where statement requried") {
-		err := explain.ExplainWhere(stmt, NoneRewriter)
+		err := explain.explainWhere(stmt, NoneRewriter)
 		assert.Nil(t, err)
 		values, e := explain.valueRedoLogs.Redo(newValueRedoContext(), nil)
 		assert.Nil(t, t, e)
@@ -100,7 +106,7 @@ func assertTableAlias(t *testing.T, sql string, mockedShardingTables []*Sharding
 
 	explain := MockSqlExplain(mockedShardingTables...)
 
-	err := explain.ExplainTables(stmt, NoneRewriter)
+	err := explain.explainTables(stmt, NoneRewriter)
 	assert.Nil(t, err)
 
 	lookup := explain.currentContext().TableLookup()
@@ -119,7 +125,7 @@ func assertTableLookup(t *testing.T, sql string, mockedShardingTables []*Shardin
 
 	explain := MockSqlExplain(mockedShardingTables...)
 
-	err := explain.ExplainTables(stmt, NoneRewriter)
+	err := explain.explainTables(stmt, NoneRewriter)
 	assert.Nil(t, err)
 
 	shardingTables := explain.currentContext().TableLookup().ShardingTables()

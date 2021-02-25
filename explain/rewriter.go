@@ -28,20 +28,15 @@ type RewriteResult interface {
 	GetShardingTable() string
 }
 
-type RewriteNodeResult interface {
-	RewriteResult
-	GetNewNode() ast.Node
-}
-
-type RewriteExprResult interface {
+type RewriteFormattedResult interface {
 	GetColumn() string
 	RewriteResult
-	GetNewNode() ast.ExprNode
+	GetFormatter() StatementFormatter
 }
 
 type RewriteLimitResult interface {
 	RewriteResult
-	GetNewNode() *ast.Limit
+	GetLimit() int64
 }
 
 type RewriteBindVarsResult interface {
@@ -56,11 +51,11 @@ type RewriteBindVarsResult interface {
 type Rewriter interface {
 	RewriteBindVariables(bindVars map[string]*types.BindVariable) (RewriteBindVarsResult, error)
 
-	RewriteTable(table *ast.TableName, explainContext Context) (RewriteNodeResult, error)
-	RewriteField(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteExprResult, error)
+	RewriteTable(table *ast.TableName, explainContext Context) (RewriteFormattedResult, error)
+	RewriteField(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteFormattedResult, error)
 	//改写列，返回值为改写后的节点（装饰器）， 标志位 true 表示改写成功
-	RewriteColumn(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteExprResult, error)
-	RewritePatterIn(patternIn *ast.PatternInExpr, explainContext Context) (RewriteExprResult, error)
-	RewriteBetween(patternIn *ast.BetweenExpr, explainContext Context) (RewriteExprResult, error)
+	RewriteColumn(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteFormattedResult, error)
+	RewritePatterIn(patternIn *ast.PatternInExpr, explainContext Context) (RewriteFormattedResult, error)
+	RewriteBetween(patternIn *ast.BetweenExpr, explainContext Context) (RewriteFormattedResult, error)
 	RewriteLimit(limit *ast.Limit, explainContext Context) (RewriteLimitResult, error)
 }

@@ -20,7 +20,7 @@ package planner
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
+	"github.com/XiaoMi/Gaea/explain"
 	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/XiaoMi/Gaea/parser"
 	"github.com/pingcap/parser/ast"
@@ -46,7 +46,7 @@ func getPlan(sql string, comments parser.MarginComments, bindVars map[string]*ty
 }
 
 // Build builds a plan based on the schema.
-func buildPlan(statement ast.StmtNode, tables map[string]*core.ShardingTable, isReservedConn bool, dbName string) (plan *Plan, err error) {
+func buildPlan(statement ast.StmtNode, tables explain.ShardingTableProvider, isReservedConn bool, dbName string) (plan *Plan, err error) {
 	if !isReservedConn {
 		err = parser.CheckForPoolingUnsafeConstructs(statement)
 		if err != nil {
@@ -54,15 +54,8 @@ func buildPlan(statement ast.StmtNode, tables map[string]*core.ShardingTable, is
 		}
 	}
 
+	//TODO: UNION 不支持
 	switch stmt := statement.(type) {
-	case *ast.UnionStmt:
-		query, err := parser.GenerateLimitQuery(statement, 1000)
-		if err == nil {
-			plan, err = &Plan{
-				PlanID: PlanSelect,
-				Query:  query,
-			}, nil
-		}
 	case *ast.SelectStmt:
 		plan, err = planSelect(stmt, tables)
 	case *ast.InsertStmt:

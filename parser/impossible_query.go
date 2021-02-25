@@ -20,7 +20,16 @@
 
 package parser
 
-import "github.com/pingcap/parser/ast"
+import (
+	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/opcode"
+)
+
+var impossibleWhereClause = &ast.BinaryOperationExpr{
+	L:  makeConstValue(1),
+	R:  makeConstValue(1),
+	Op: opcode.NE,
+}
 
 // FormatImpossibleQuery creates an impossible query in a TrackedBuffer.
 // An impossible query is a modified version of a query where all selects have where clauses that are
@@ -33,15 +42,22 @@ import "github.com/pingcap/parser/ast"
 func FormatImpossibleQuery(buf *TrackedBuffer, stmt ast.StmtNode) {
 	switch node := stmt.(type) {
 	case *ast.SelectStmt:
-		buf.astPrintf("select %v from %v where 1 != 1", node.Fields, node.From)
-		if node.GroupBy != nil {
-			buf.astPrintf("%v", node.GroupBy)
+		if node.From.TableRefs.On == nil {
+			buf.astPrintf("select %v from %v where 1 != 1", node.Fields, node.From)
+			if node.GroupBy != nil {
+				buf.astPrintf(" %v", node.GroupBy)
+			}
+		} else {
+			oldWhere := node.From.TableRefs.On.Expr
+			defer func() {
+				node.From.TableRefs.On.Expr = oldWhere
+			}()
+			node.From.TableRefs.On.Expr = impossibleWhereClause
+			buf.astPrintf("%v", node)
 		}
 	case *ast.UnionStmt:
-		buf.astPrintf("%v", node.SelectList.Selects[0])
-		for _, us := range node.SelectList.Selects {
-			buf.astPrintf("%v", us)
-		}
+		sel := node.SelectList.Selects[0]
+		FormatImpossibleQuery(buf, sel)
 	default:
 		buf.astPrintf("%v", node)
 	}
