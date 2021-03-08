@@ -21,5 +21,6 @@ package explain
 import "github.com/XiaoMi/Gaea/core"
 
 type ShardingTableProvider interface {
+	Schema() string
 	GetShardingTable(table string) (*core.ShardingTable, bool)
 }

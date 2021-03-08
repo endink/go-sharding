@@ -46,7 +46,13 @@ func getPlan(sql string, comments parser.MarginComments, bindVars map[string]*ty
 }
 
 // Build builds a plan based on the schema.
-func buildPlan(statement ast.StmtNode, tables explain.ShardingTableProvider, isReservedConn bool, dbName string) (plan *Plan, err error) {
+func buildPlan(
+	sql string,
+	statement ast.StmtNode,
+	tables explain.ShardingTableProvider,
+	isReservedConn bool,
+	dbName string) (plan *Plan, err error) {
+
 	if !isReservedConn {
 		err = parser.CheckForPoolingUnsafeConstructs(statement)
 		if err != nil {
@@ -91,7 +97,7 @@ func buildPlan(statement ast.StmtNode, tables explain.ShardingTableProvider, isR
 	case *ast.LoadDataStmt:
 		plan, err = &Plan{PlanID: PlanLoad}, nil
 	case *ast.FlushStmt:
-		plan, err = &Plan{PlanID: PlanFlush, FullQuery: GenerateFullQuery(stmt)}, nil
+		plan, err = &Plan{PlanID: PlanFlush, FullQuery: parser.BuildParsedQuery(sql)}, nil
 	default:
 		return nil, fmt.Errorf("invalid SQL")
 	}

@@ -19,11 +19,14 @@
 package explain
 
 import (
+	"fmt"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/XiaoMi/Gaea/util/sync2"
 	"github.com/emirpasic/gods/stacks/arraystack"
 	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/format"
+	"strings"
 )
 
 type SqlExplain struct {
@@ -34,6 +37,8 @@ type SqlExplain struct {
 	maxSubQueryDepth      int32
 	bindVarCount          int
 	valueRedoLogs         *valueRedoLogs
+	AstNode               ast.Node
+	rewriter              Rewriter
 }
 
 func NewSqlExplain(stProvider ShardingTableProvider) *SqlExplain {
@@ -52,7 +57,14 @@ func NewSqlExplain(stProvider ShardingTableProvider) *SqlExplain {
 	}
 }
 
+func (s *SqlExplain) Schema() string {
+	return s.shardingTableProvider.Schema()
+}
+
 func (s *SqlExplain) ExplainSelect(sel *ast.SelectStmt, rewriter Rewriter) error {
+	s.AstNode = sel
+	s.rewriter = rewriter
+
 	var err error
 	if err = s.orderParams(sel); err != nil {
 		return err
@@ -79,9 +91,57 @@ func (s *SqlExplain) ExplainSelect(sel *ast.SelectStmt, rewriter Rewriter) error
 	return nil
 }
 
-func (s *SqlExplain) setVariables(bindVariables map[string]*types.BindVariable) (map[string]*core.ShardingValues, error) {
+func (s *SqlExplain) RestoreBindVars(bindVariables map[string]*types.BindVariable) (*ScatterBindVars, error) {
+	r, err := s.rewriter.RewriteBindVariables(bindVariables)
+	if err != nil {
+		return nil, err
+	}
+
+	if r.IsRewrote() {
+
+		for table, names := range r.ScatterVariables() {
+			vars := &TableBindVars{
+				DbTable: table,
+				Vars:    make(map[string]*types.BindVariable, len(names)),
+			}
+			i := 0
+			for _, n := range names {
+				v, ok := bindVariables[n]
+				if !ok {
+					return nil, fmt.Errorf("parameter named '%s' nout found", n)
+				}
+				vars.Vars[fmt.Sprintf("p%d", i)] = v
+				i++
+			}
+		}
+		return &ScatterBindVars{
+			IsScattered: true,
+			BindVars:    vars,
+		}
+	}
+}
+
+func (s *SqlExplain) RestoreSql(runtime Runtime) (string, error) {
+	sb := new(strings.Builder)
+
+	rstCtx := &format.RestoreCtx{
+		Flags: runtime.GetRestoreFlags(),
+		In:    wrapWriter(sb, runtime, s.currentContext()),
+	}
+	err := s.AstNode.Restore(rstCtx)
+	if err != nil {
+		return "", err
+	}
+	return sb.String(), nil
+}
+
+func (s *SqlExplain) RestoreShardingValues(bindVariables map[string]*types.BindVariable) (map[string]*core.ShardingValues, error) {
 	ctx := newValueRedoContext()
-	return s.valueRedoLogs.Redo(ctx, bindVariables)
+	vars := bindVariables
+	if bindVariables == nil {
+		vars = make(map[string]*types.BindVariable, 0)
+	}
+	return s.valueRedoLogs.Redo(ctx, vars)
 }
 
 func (s *SqlExplain) GetShardingTable(table string) (*core.ShardingTable, bool) {

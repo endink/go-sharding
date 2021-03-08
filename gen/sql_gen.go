@@ -20,62 +20,60 @@ package gen
 
 import (
 	"github.com/XiaoMi/Gaea/explain"
-	"github.com/XiaoMi/Gaea/util"
-	"github.com/pingcap/parser/ast"
-	"github.com/pingcap/parser/format"
-	"strings"
+	"github.com/XiaoMi/Gaea/mysql/types"
 )
 
-func GenerateSql(defaultDatabase string, stmt ast.StmtNode, explain *explain.SqlExplain) (*SqlGenResult, error) {
-	values := explain.GetShardingValues()
-
-	if len(values) == 0 { //没有存在任何分片表数据
-		return &SqlGenResult{
-			DataSources: []string{defaultDatabase},
-			Usage:       UsageRaw,
-		}, nil
-	}
-
-	runtime, err := NewRuntime(defaultDatabase, explain, values)
-
+func GenerateSql(defaultDataSource string, expl *explain.SqlExplain, bindVariables map[string]*types.BindVariable) (*SqlGenResult, error) {
+	values, err := expl.RestoreShardingValues(bindVariables)
 	if err != nil {
 		return nil, err
 	}
 
-	return gen(stmt, runtime)
+	runtime, err := NewRuntime(defaultDataSource, expl, values)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(values) == 0 { //没有存在任何分片表数据
+
+		sql, err := expl.RestoreSql(runtime)
+		if err != nil {
+			return nil, err
+		}
+
+		cmd := &ScatterCommand{
+			DataSource: defaultDataSource,
+			SqlCommand: sql,
+		}
+
+		return &SqlGenResult{
+			Commands: []*ScatterCommand{cmd},
+			Usage:    UsageRaw,
+		}, nil
+	}
+
+	return gen(expl, runtime)
 }
 
-func gen(stmt ast.StmtNode, runtime *genRuntime) (*SqlGenResult, error) {
+func gen(sqlExplain *explain.SqlExplain, runtime *genRuntime) (*SqlGenResult, error) {
 
 	genResult := &SqlGenResult{
-		SqlCommands: make([]string, 0, runtime.GetShardLength()),
-		DataSources: runtime.databases,
-		Usage:       UsageShard,
+		Usage: UsageShard,
 	}
 
 	for {
-		var firstDb string
 		if runtime.Next() {
-			currentDb, e := runtime.GetCurrentDatabase()
-			if e != nil {
-				return nil, e
+			sql, restErr := sqlExplain.RestoreSql(runtime)
+			if restErr != nil {
+				return nil, restErr
 			}
-			if firstDb == "" {
-				firstDb = currentDb
-			}
-			if firstDb == currentDb {
-				sb := &strings.Builder{}
-				//迭代执行改写引擎
-				ctx := format.NewRestoreCtx(util.EscapeRestoreFlags, sb)
-				if restErr := stmt.Restore(ctx); restErr != nil {
-					return nil, restErr
-				}
 
-				var sql = sb.String()
-				genResult.SqlCommands = append(genResult.SqlCommands, sql)
-			} else { //其他数据库简单的使用之前的生成结果， 预留后期如果改写 DB 在这里处理代码块
-				return genResult, nil
+			cmd := &ScatterCommand{
+				DataSource: runtime.currentDb,
+				SqlCommand: sql,
 			}
+
+			genResult.Commands = append(genResult.Commands, cmd)
 		} else {
 			//其他数据库循环重复生成目前没有意义，留作将来扩展
 			break

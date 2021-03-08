@@ -62,7 +62,7 @@ func NewPatternInWriter(
 	}
 	colName := explain.GetColumn(columnNameExpr.Name)
 
-	isScattered := n.Not || !shardingTable.HasTableShardingColumn(colName) || !shardingTable.TableStrategy.IsScalarValueSupported()
+	isScattered := !n.Not && shardingTable.HasTableShardingColumn(colName) && shardingTable.TableStrategy.IsScalarValueSupported()
 
 	allValues, caseErr := caseValueExpr(n.List)
 	if caseErr != nil {
@@ -176,7 +176,7 @@ func getBroadcastValueMap(tables []string, nodes []ast.ValueExpr) map[string][]a
 }
 
 func (p *PatternInWriter) Format(ctx explain.StatementContext) error {
-	rstCtx := ctx.GetRestoreCtx()
+	rstCtx := ctx.CreateRestoreCtx()
 
 	table, err := ctx.GetRuntime().GetCurrentTable(p.shardingTable.Name)
 	if err != nil {

@@ -29,6 +29,22 @@ type equatable interface {
 	Equals(v interface{}) bool
 }
 
+func ErrorDifferentInfo(excepted interface{}, actual interface{}) string {
+	sb := newStringBuilder()
+	sb.WriteLine("item not same")
+
+	sb.WriteLine("excepted: ")
+	sb.WriteLine(fmt.Sprintf("%v", excepted))
+	sb.WriteLine()
+
+	sb.WriteLine("actual: ")
+	sb.WriteLine(fmt.Sprintf("%v", actual))
+	sb.WriteLine()
+	sb.WriteLine()
+
+	return sb.String()
+}
+
 func errorDifferent(excepted []interface{}, actual []interface{}) string {
 	sb := newStringBuilder()
 	sb.WriteLine("array not same")

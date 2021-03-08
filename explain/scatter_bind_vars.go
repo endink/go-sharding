@@ -18,29 +18,16 @@
  *
  */
 
-package testkit
+package explain
 
-import (
-	"github.com/pingcap/parser/ast"
-	"github.com/pingcap/parser/format"
-	"github.com/stretchr/testify/assert"
-	"strings"
-	"testing"
-)
+import "github.com/XiaoMi/Gaea/mysql/types"
 
-func AssertEqualSql(t testing.TB, sql1 string, sql2 string) bool {
-	n1 := ParseForTest(sql1, t)
-	n2 := ParseForTest(sql2, t)
-
-	s1 := writeNode(t, n1)
-	s2 := writeNode(t, n2)
-	return assert.Equal(t, s1, s2)
+type ScatterBindVars struct {
+	IsScattered bool
+	BindVars    []*TableBindVars
 }
 
-func writeNode(t testing.TB, node ast.Node) string {
-	var sb = new(strings.Builder)
-	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags, sb)
-	err := node.Restore(ctx)
-	assert.Nil(t, err)
-	return sb.String()
+type TableBindVars struct {
+	DbTable string
+	Vars    map[string]*types.BindVariable
 }

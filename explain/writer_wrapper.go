@@ -21,19 +21,30 @@
 package explain
 
 import (
+	"github.com/XiaoMi/Gaea/core"
+	"github.com/XiaoMi/Gaea/util"
 	"github.com/pingcap/errors"
 	"github.com/pingcap/parser/format"
 	"io"
 )
 
-func wrapWriter(restoreCtx *format.RestoreCtx, runtime Runtime, ctx Context) io.Writer {
-	return NewStatementContext(ctx, restoreCtx, runtime)
+func wrapWriter(write io.Writer, runtime Runtime, ctx Context) io.Writer {
+	rstCtx := &format.RestoreCtx{
+		Flags: runtime.GetRestoreFlags(),
+		In:    write,
+	}
+	return NewStatementContext(ctx, rstCtx, runtime)
 }
 
 func unwrapWriter(writer io.Writer) (StatementContext, error) {
 	ctx, ok := writer.(StatementContext)
 	if !ok {
-		return nil, errors.New("writer is not an 'writerWrapper' for restoring")
+		sb := core.NewStringBuilder()
+		sb.WriteLine("writer is not an 'writerWrapper' for restoring")
+		sb.WriteLine("writer type: %T", writer)
+		sb.WriteLine("caller:")
+		sb.WriteLine(util.Stack(4))
+		return nil, errors.New(sb.String())
 	}
 	return ctx, nil
 }

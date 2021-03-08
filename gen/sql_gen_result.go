@@ -18,6 +18,11 @@
 
 package gen
 
+import (
+	"fmt"
+	"github.com/XiaoMi/Gaea/core"
+)
+
 type Usage byte
 
 const (
@@ -27,9 +32,36 @@ const (
 	UsageRaw
 )
 
+func (u Usage) String() string {
+	switch u {
+	case UsageShard:
+		return "Shard"
+	case UsageRaw:
+		return "Raw"
+	}
+	return "Known"
+}
+
+type ScatterCommand struct {
+	DataSource string
+	SqlCommand string
+}
+
+func (s *ScatterCommand) String() string {
+	return fmt.Sprint(s.DataSource, ": ", s.SqlCommand)
+}
+
 type SqlGenResult struct {
-	SqlCommands []string
-	DataSources []string
+	Commands []*ScatterCommand
 	//指示用法，如果为 Raw 使用原始 SQL 执行分片数据库即可
 	Usage Usage
+}
+
+func (r *SqlGenResult) String() string {
+	sb := core.NewStringBuilder()
+	sb.WriteLine("Usage: ", r.Usage.String())
+	for _, command := range r.Commands {
+		sb.WriteLine(command.String())
+	}
+	return sb.String()
 }

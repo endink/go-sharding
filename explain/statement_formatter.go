@@ -37,7 +37,7 @@ type nodeFormatter struct {
 }
 
 func (a *nodeFormatter) Format(ctx StatementContext) error {
-	return a.node.Restore(ctx.GetRestoreCtx())
+	return a.node.Restore(ctx.CreateRestoreCtx())
 }
 
 func (a *nodeFormatter) Text() string {

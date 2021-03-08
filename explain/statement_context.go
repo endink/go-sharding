@@ -38,7 +38,7 @@ type StatementContext interface {
 	GetContext() Context
 	GetFlags() format.RestoreFlags
 	GetRuntime() Runtime
-	GetRestoreCtx() *format.RestoreCtx
+	CreateRestoreCtx() *format.RestoreCtx
 }
 
 type statementContext struct {
@@ -48,8 +48,11 @@ type statementContext struct {
 	flags format.RestoreFlags
 }
 
-func (s *statementContext) GetRestoreCtx() *format.RestoreCtx {
-	return s.RestoreCtx
+func (s *statementContext) CreateRestoreCtx() *format.RestoreCtx {
+	return &format.RestoreCtx{
+		Flags: s.RestoreCtx.Flags,
+		In:    s,
+	}
 }
 
 func NewStatementContext(ctx Context, restoreCtx *format.RestoreCtx, rt Runtime) *statementContext {

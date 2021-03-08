@@ -65,8 +65,10 @@ func (c *ColumnNameWriter) Format(ctx explain.StatementContext) error {
 		ctx.WriteName(c.columnName.Table.String())
 		ctx.WritePlain(".")
 	} else {
-		ctx.WriteName(table)
-		ctx.WritePlain(".")
+		if c.Name.Table.O != "" {
+			ctx.WriteName(table)
+			ctx.WritePlain(".")
+		}
 	}
 
 	// 列名不需要改写

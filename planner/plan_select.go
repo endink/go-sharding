@@ -21,15 +21,11 @@
 package planner
 
 import (
-	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/explain"
 	"github.com/XiaoMi/Gaea/parser"
+	"github.com/XiaoMi/Gaea/rewriting"
 	"github.com/pingcap/parser/ast"
 )
-
-type tableFinder struct {
-	tables map[string]*core.ShardingTable
-}
 
 func planSelect(sel ast.StmtNode, tables explain.ShardingTableProvider) (*Plan, error) {
 	query, err := parser.GenerateLimitQuery(sel, 1000)
@@ -59,7 +55,10 @@ func planSelect(sel ast.StmtNode, tables explain.ShardingTableProvider) (*Plan, 
 			}
 		}
 		exp := explain.NewSqlExplain(tables)
-		exp.ExplainSelect()
+		if err = exp.ExplainSelect(stmt, rewriting.DefaultRewriter); err != nil {
+			return nil, err
+		}
+		plan.explain = exp
 	}
 
 	return plan, nil

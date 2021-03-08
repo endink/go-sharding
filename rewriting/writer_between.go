@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/explain"
-	"github.com/XiaoMi/Gaea/proxy/router"
 	"github.com/pingcap/parser/ast"
 )
 
@@ -36,7 +35,6 @@ type BetweenWriter struct {
 
 	tables []string
 
-	rule    router.Rule
 	runtime explain.Runtime
 }
 
@@ -56,7 +54,7 @@ func NewBetweenWriter(n *ast.BetweenExpr, shardingTable *core.ShardingTable) (*B
 }
 
 func (b *BetweenWriter) Format(ctx explain.StatementContext) error {
-	rsCtx := ctx.GetRestoreCtx()
+	rsCtx := ctx.CreateRestoreCtx()
 	if err := b.column.Restore(rsCtx); err != nil {
 		return fmt.Errorf("an error occurred while restore BetweenExpr.Expr: %v", err)
 	}

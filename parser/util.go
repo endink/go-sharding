@@ -125,6 +125,14 @@ func WriteNode(node ast.Node, flag format.RestoreFlags) (string, error) {
 
 // GenerateFieldQuery generates a query to just fetch the field info
 // by adding impossible where clauses as needed.
+func GenerateQuery(statement ast.StmtNode) (*ParsedQuery, error) {
+	buf := NewTrackedBuffer()
+	buf.astPrintf("%v", statement)
+	return buf.ParsedQuery(), nil
+}
+
+// GenerateFieldQuery generates a query to just fetch the field info
+// by adding impossible where clauses as needed.
 func GenerateFieldQuery(statement ast.StmtNode) (*ParsedQuery, error) {
 	c, err := ParseNodeParam(statement)
 	if err != nil {

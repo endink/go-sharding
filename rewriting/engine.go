@@ -26,17 +26,13 @@ import (
 	"github.com/scylladb/go-set/strset"
 )
 
-var _ explain.Rewriter = &Engine{}
+var DefaultRewriter explain.Rewriter = &engine{}
 
-type Engine struct {
+type engine struct {
 	bindVariableRewriterList []bindVariableRewriter
 }
 
-func NewEngine() *Engine {
-	return &Engine{}
-}
-
-func (engine *Engine) RewriteBindVariables(bindVars map[string]*types.BindVariable) (explain.RewriteBindVarsResult, error) {
+func (engine *engine) RewriteBindVariables(bindVars map[string]*types.BindVariable) (explain.RewriteBindVarsResult, error) {
 	if len(engine.bindVariableRewriterList) == 0 {
 		return explain.NoneRewriteBindVarsResult, nil
 	}
@@ -75,7 +71,7 @@ func (engine *Engine) RewriteBindVariables(bindVars map[string]*types.BindVariab
 	return explain.ResultFromScatterVars(rewroteNames.List(), scatterNames), nil
 }
 
-func (engine *Engine) RewriteTable(tableName *ast.TableName, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
+func (engine *engine) RewriteTable(tableName *ast.TableName, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
 	sd, ok, fe := explain.FindShardingTableByTable(tableName, explainContext, "")
 	if fe != nil {
 		return nil, fe
@@ -90,7 +86,7 @@ func (engine *Engine) RewriteTable(tableName *ast.TableName, explainContext expl
 	return explain.NoneRewriteFormattedResult, nil
 }
 
-func (engine *Engine) RewriteField(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
+func (engine *engine) RewriteField(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
 	sd, ok, err := explain.FindShardingTableByColumn(columnName, explainContext, false)
 	if err != nil {
 		return nil, err
@@ -105,7 +101,7 @@ func (engine *Engine) RewriteField(columnName *ast.ColumnNameExpr, explainContex
 	return explain.NoneRewriteFormattedResult, nil
 }
 
-func (engine *Engine) RewriteColumn(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
+func (engine *engine) RewriteColumn(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
 	sd, ok, err := explain.FindShardingTableByColumn(columnName, explainContext, true)
 	if err != nil {
 		return nil, err
@@ -120,7 +116,7 @@ func (engine *Engine) RewriteColumn(columnName *ast.ColumnNameExpr, explainConte
 	return explain.NoneRewriteFormattedResult, nil
 }
 
-func (engine *Engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
+func (engine *engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
 	columnNameExpr, ok := patternIn.Expr.(*ast.ColumnNameExpr)
 	if !ok {
 		return nil, errors.New("pattern in statement required ColumnNameExpr")
@@ -140,7 +136,7 @@ func (engine *Engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainConte
 	return explain.NoneRewriteFormattedResult, nil
 }
 
-func (engine *Engine) RewriteBetween(between *ast.BetweenExpr, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
+func (engine *engine) RewriteBetween(between *ast.BetweenExpr, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
 	columnNameExpr, ok := between.Expr.(*ast.ColumnNameExpr)
 	if !ok {
 		return nil, errors.New("between and statement required ColumnNameExpr")
@@ -159,7 +155,7 @@ func (engine *Engine) RewriteBetween(between *ast.BetweenExpr, explainContext ex
 	return explain.NoneRewriteFormattedResult, nil
 }
 
-func (engine *Engine) RewriteLimit(limit *ast.Limit, explainContext explain.Context) (explain.RewriteLimitResult, error) {
+func (engine *engine) RewriteLimit(limit *ast.Limit, explainContext explain.Context) (explain.RewriteLimitResult, error) {
 	lookup := explainContext.LimitLookup()
 	if lookup.HasLimit() && lookup.HasOffset() {
 		count, err := newLimit(explainContext)

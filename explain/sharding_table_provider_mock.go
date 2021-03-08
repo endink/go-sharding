@@ -21,11 +21,15 @@ package explain
 import "github.com/XiaoMi/Gaea/core"
 
 type simpleShardingProvider struct {
+	schema         string
 	shardingTables map[string]*core.ShardingTable
 }
 
-func NewShardingTableProvider(shardingTables map[string]*core.ShardingTable) ShardingTableProvider {
-	return &simpleShardingProvider{shardingTables: shardingTables}
+func NewShardingTableProvider(schema string, shardingTables map[string]*core.ShardingTable) ShardingTableProvider {
+	return &simpleShardingProvider{
+		schema:         schema,
+		shardingTables: shardingTables,
+	}
 }
 
 func MockShardingTableProvider(tables ...*ShardingTableMocked) ShardingTableProvider {
@@ -42,6 +46,10 @@ func MockShardingTableProvider(tables ...*ShardingTableMocked) ShardingTableProv
 		}
 	}
 	return mocked
+}
+
+func (m *simpleShardingProvider) Schema() string {
+	return m.schema
 }
 
 func (m *simpleShardingProvider) GetShardingTable(table string) (*core.ShardingTable, bool) {

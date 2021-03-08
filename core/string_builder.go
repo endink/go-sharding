@@ -67,6 +67,11 @@ func (w *StringBuilder) Write(value ...interface{}) {
 			continue
 		}
 
+		if a, isString := v.([]byte); isString {
+			_, _ = w.buffer.WriteString(fmt.Sprintf("%s", a))
+			continue
+		}
+
 		if b, isBuilder := v.(fmt.Stringer); isBuilder {
 			_, _ = w.buffer.WriteString(b.String())
 			continue

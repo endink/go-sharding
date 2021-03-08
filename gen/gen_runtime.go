@@ -23,6 +23,8 @@ import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/explain"
+	"github.com/XiaoMi/Gaea/parser"
+	"github.com/pingcap/parser/format"
 	"github.com/scylladb/go-set/strset"
 )
 
@@ -54,14 +56,14 @@ func NewRuntime(defaultDatabase string, shardingTableProvider explain.ShardingTa
 			shardingValues, _ := values[shardingTable.Name]
 			//根据分片列的值计算数据库分片
 			databases, dbErr := shardDatabase(shardingValues, shardingTable, defaultDatabase)
-			if dbErr == nil {
+			if dbErr != nil {
 				return nil, dbErr
 			}
 			allDatabases.Add(databases...)
 
 			//根据分片表的值计算表分片，约定分片算法返回的物理表不会重复
 			physicalTables, tbErr := shardTables(shardingValues, shardingTable)
-			if tbErr == nil {
+			if tbErr != nil {
 				return nil, tbErr
 			}
 			allTables = append(allTables, physicalTables)
@@ -77,6 +79,7 @@ func NewRuntime(defaultDatabase string, shardingTableProvider explain.ShardingTa
 		manifest := core.PermuteString(resources)
 
 		return &genRuntime{
+			restoreFlags:    parser.EscapeRestoreFlags,
 			resources:       manifest,
 			shardingTables:  shardingTableNames,
 			defaultDatabase: defaultDatabase,
@@ -134,6 +137,11 @@ type genRuntime struct {
 
 	currentIndex    int // 当前执行的索引，滑动 physicalTables 游标来切换表
 	defaultDatabase string
+	restoreFlags    format.RestoreFlags
+}
+
+func (g *genRuntime) GetRestoreFlags() format.RestoreFlags {
+	return g.restoreFlags
 }
 
 func (g *genRuntime) GetShardLength() int {
@@ -172,9 +180,9 @@ func (g *genRuntime) GetServerSchema() string {
 
 func (g *genRuntime) Next() bool {
 	l := len(g.resources)
+	g.currentIndex++
 	hasNext := l > 0 && g.currentIndex < l
 	if hasNext {
-		g.currentIndex++
 		resource := g.resources[g.currentIndex]
 		for i, s := range resource {
 			if i == 0 {
@@ -185,8 +193,6 @@ func (g *genRuntime) Next() bool {
 				g.currentTableMap[shardTable] = phyTable
 			}
 		}
-	} else {
-
 	}
 	return hasNext
 }

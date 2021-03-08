@@ -32,6 +32,7 @@ type Plan struct {
 	Permissions []core.Permission
 	explain     *explain.SqlExplain
 
+	FullQuery    *parser.ParsedQuery
 	FieldQuery   *parser.ParsedQuery
 	Query        *parser.ParsedQuery
 	mu           sync.Mutex    // Mutex to protect the fields below
