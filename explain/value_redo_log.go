@@ -81,7 +81,7 @@ func (vr *valueRedoLogs) getShardingValues(s *valueRedoContext) map[string]*core
 
 func (vr *valueRedoLogs) Redo(
 	redoCtx *valueRedoContext,
-	bindVars map[string]*types.BindVariable) (map[string]*core.ShardingValues, error) {
+	bindVars []*types.BindVariable) (map[string]*core.ShardingValues, error) {
 
 	vr.mu.RLock()
 	defer vr.mu.RUnlock()

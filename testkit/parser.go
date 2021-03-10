@@ -42,7 +42,7 @@ func ParseSelect(sql string, t testing.TB) *ast.SelectStmt {
 func ParseForTest(sql string, t testing.TB) ast.StmtNode {
 	node, err := TestParser.ParseOneStmt(sql, "", "")
 	if err != nil {
-		t.Fatalf(err.Error())
+		t.Fatalf("%s\nsql err:", sql, err.Error())
 	}
 	return node
 }

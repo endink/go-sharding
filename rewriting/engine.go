@@ -31,7 +31,7 @@ type engine struct {
 	preparerList []preparer
 }
 
-func (engine *engine) PrepareBindVariables(bindVars map[string]*types.BindVariable) error {
+func (engine *engine) PrepareBindVariables(bindVars []*types.BindVariable) error {
 	if len(engine.preparerList) > 0 {
 		for _, rw := range engine.preparerList {
 			err := rw.prepare(bindVars)

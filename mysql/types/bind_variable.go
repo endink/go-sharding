@@ -18,6 +18,11 @@
 
 package types
 
+import (
+	"bytes"
+	"fmt"
+)
+
 var NullBindVariable = &BindVariable{Type: Null}
 
 type BindVariable struct {
@@ -25,6 +30,22 @@ type BindVariable struct {
 	Value []byte
 	// values are set if type is TUPLE.
 	Values []*Value
+}
+
+func (bv *BindVariable) Equals(v interface{}) bool {
+	if bv2, ok := v.(*BindVariable); ok {
+		eq1 := bv.Type == bv2.Type && bytes.Equal(bv.Value, bv2.Value)
+		if eq1 && len(bv.Values) == len(bv2.Values) {
+			for i, tv := range bv.Values {
+				if !tv.Equals(bv2.Values[i]) {
+					return false
+				}
+				return false
+			}
+			return true
+		}
+	}
+	return false
 }
 
 func (bv *BindVariable) Clone() *BindVariable {
@@ -55,4 +76,42 @@ func (bv *BindVariable) GetGolangValue() (interface{}, error) {
 		return nil, err
 	}
 	return ToNative(val)
+}
+
+func BindVarsArrayEquals(excepted []*BindVariable, actual []*BindVariable) bool {
+	if fmt.Sprintf("%p", actual) == fmt.Sprintf("%p", excepted) {
+		return true
+	}
+
+	if len(excepted) != len(actual) {
+		return false
+	}
+	for i, v := range actual {
+		if !v.Equals(excepted[i]) {
+			return false
+		}
+	}
+	return true
+}
+
+func BindVarsMapEquals(excepted map[string]*BindVariable, actual map[string]*BindVariable) bool {
+	if len(excepted) != len(actual) {
+		return false
+	}
+	for n, v := range actual {
+		if ev, ok := excepted[n]; !ok {
+			return false
+		} else {
+			if !ev.Equals(v) {
+				return false
+			}
+		}
+	}
+
+	for n, _ := range excepted {
+		if _, ok := actual[n]; !ok {
+			return false
+		}
+	}
+	return true
 }

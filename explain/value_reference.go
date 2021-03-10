@@ -28,96 +28,105 @@ import (
 )
 
 type ValueReference interface {
-	ParamNames() []string
-	GetValue(variables map[string]*types.BindVariable) (interface{}, error)
+	ParamIndexes() []int
+	GetValue(variables []*types.BindVariable) (interface{}, error)
 	IsLiteral() bool
 }
 
 type ArgScalarRef struct {
-	argName string
+	Index   int
 	varType types.MySqlType
 }
 
-func (a ArgScalarRef) ParamNames() []string {
-	if a.argName == "" {
-		return make([]string, 0)
+func (a ArgScalarRef) ParamIndexes() []int {
+	if a.Index < 0 {
+		return make([]int, 0)
 	}
-	return []string{a.argName}
+	return []int{a.Index}
 }
 
 func (a ArgScalarRef) IsLiteral() bool {
 	return false
 }
 
-func (a ArgScalarRef) GetValue(variables map[string]*types.BindVariable) (interface{}, error) {
-	if v, ok := variables[a.argName]; ok {
-		val, err := types.BindVariableToValue(v)
-		if err != nil {
-			return nil, err
-		}
-		return types.ToNative(val)
+func (a ArgScalarRef) GetValue(variables []*types.BindVariable) (interface{}, error) {
+	err := checkArgIndex(a.Index, variables)
+	if err != nil {
+		return nil, err
 	}
-	return nil, errors.New(fmt.Sprintf("Can not find argument '%s' from bind variable list.", a.argName))
+	v := variables[a.Index]
+	val, err := types.BindVariableToValue(v)
+	if err != nil {
+		return nil, err
+	}
+	return types.ToNative(val)
+}
+
+func checkArgIndex(index int, variables []*types.BindVariable) error {
+	if index < 0 || index >= len(variables) {
+		return errors.New(fmt.Sprintf("Argument index '%d' out of range.", index))
+	}
+	return nil
 }
 
 type ArgRangeRef struct {
-	lowerArgName string
-	upperArgName string
-	closeLower   bool
-	closeUpper   bool
-	varType      types.MySqlType
+	lowerArgIndex int
+	upperArgIndex int
+	closeLower    bool
+	closeUpper    bool
+	varType       types.MySqlType
 }
 
-func NewArgRangeCloseOpen(lowerArgName, upperArgName string, valueType types.MySqlType) *ArgRangeRef {
+func NewArgRangeCloseOpen(lowerArgName, upperArgName int, valueType types.MySqlType) *ArgRangeRef {
 	return &ArgRangeRef{
-		lowerArgName: lowerArgName,
-		upperArgName: upperArgName,
-		closeLower:   true,
-		closeUpper:   false,
-		varType:      valueType,
+		lowerArgIndex: lowerArgName,
+		upperArgIndex: upperArgName,
+		closeLower:    true,
+		closeUpper:    false,
+		varType:       valueType,
 	}
 }
 
-func NewArgRangeOpenClose(lowerArgName, upperArgName string, valueType types.MySqlType) *ArgRangeRef {
+func NewArgRangeOpenClose(lowerArgName, upperArgName int, valueType types.MySqlType) *ArgRangeRef {
 	return &ArgRangeRef{
-		lowerArgName: lowerArgName,
-		upperArgName: upperArgName,
-		closeLower:   true,
-		closeUpper:   false,
-		varType:      valueType,
+		lowerArgIndex: lowerArgName,
+		upperArgIndex: upperArgName,
+		closeLower:    true,
+		closeUpper:    false,
+		varType:       valueType,
 	}
 }
 
-func NewArgRangeOpen(lowerArgName, upperArgName string, valueType types.MySqlType) *ArgRangeRef {
+func NewArgRangeOpen(lowerArgName, upperArgName int, valueType types.MySqlType) *ArgRangeRef {
 	return &ArgRangeRef{
-		lowerArgName: lowerArgName,
-		upperArgName: upperArgName,
-		closeLower:   false,
-		closeUpper:   false,
-		varType:      valueType,
+		lowerArgIndex: lowerArgName,
+		upperArgIndex: upperArgName,
+		closeLower:    false,
+		closeUpper:    false,
+		varType:       valueType,
 	}
 }
 
-func NewArgRangeClose(lowerArgName, upperArgName string, valueType types.MySqlType) *ArgRangeRef {
+func NewArgRangeClose(lowerArgName, upperArgName int, valueType types.MySqlType) *ArgRangeRef {
 	return &ArgRangeRef{
-		lowerArgName: lowerArgName,
-		upperArgName: upperArgName,
-		closeLower:   true,
-		closeUpper:   true,
-		varType:      valueType,
+		lowerArgIndex: lowerArgName,
+		upperArgIndex: upperArgName,
+		closeLower:    true,
+		closeUpper:    true,
+		varType:       valueType,
 	}
 }
 
-func (arf ArgRangeRef) ParamNames() []string {
-	if arf.lowerArgName == "" && arf.upperArgName == "" {
+func (arf ArgRangeRef) ParamIndexes() []int {
+	if arf.lowerArgIndex < 0 && arf.upperArgIndex < 0 {
 		return nil
 	}
-	names := make([]string, 0, 2)
-	if arf.lowerArgName != "" {
-		names = append(names, arf.lowerArgName)
+	names := make([]int, 0, 2)
+	if arf.lowerArgIndex < 0 {
+		names = append(names, arf.lowerArgIndex)
 	}
-	if arf.upperArgName != "" {
-		names = append(names, arf.upperArgName)
+	if arf.upperArgIndex < 0 {
+		names = append(names, arf.upperArgIndex)
 	}
 	return names
 }
@@ -126,30 +135,22 @@ func (arf ArgRangeRef) IsLiteral() bool {
 	return false
 }
 
-func (arf ArgRangeRef) GetValue(variables map[string]*types.BindVariable) (interface{}, error) {
+func (arf ArgRangeRef) GetValue(variables []*types.BindVariable) (interface{}, error) {
 	var min, max interface{}
-	var bv *types.BindVariable
-	var ok bool
 	var err error
-	if arf.upperArgName != "" {
-		if bv, ok = variables[arf.lowerArgName]; ok {
-			min, err = bv.GetGolangValue()
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, errors.New(fmt.Sprintf("Can not find argument '%s' from bind variable list.", arf.lowerArgName))
+	if arf.upperArgIndex >= 0 {
+		lv := variables[arf.lowerArgIndex]
+		min, err = lv.GetGolangValue()
+		if err != nil {
+			return nil, err
 		}
 	}
 
-	if arf.upperArgName != "" {
-		if bv, ok = variables[arf.upperArgName]; ok {
-			max, err = bv.GetGolangValue()
-			if err != nil {
-				return nil, err
-			}
-		} else {
-			return nil, errors.New(fmt.Sprintf("Can not find argument '%s' from bind variable list.", arf.upperArgName))
+	if arf.upperArgIndex >= 0 {
+		uv := variables[arf.upperArgIndex]
+		max, err = uv.GetGolangValue()
+		if err != nil {
+			return nil, err
 		}
 	}
 
@@ -160,7 +161,7 @@ type ConstRef struct {
 	value interface{}
 }
 
-func (c ConstRef) ParamNames() []string {
+func (c ConstRef) ParamIndexes() []int {
 	return nil
 }
 
@@ -172,6 +173,6 @@ func (c ConstRef) IsLiteral() bool {
 	return true
 }
 
-func (c ConstRef) GetValue(variables map[string]*types.BindVariable) (interface{}, error) {
+func (c ConstRef) GetValue(_ []*types.BindVariable) (interface{}, error) {
 	return c.value, nil
 }

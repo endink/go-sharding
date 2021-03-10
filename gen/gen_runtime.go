@@ -37,7 +37,7 @@ func NewRuntime(
 	defaultDatabase string,
 	shardingTableProvider explain.ShardingTableProvider,
 	values map[string]*core.ShardingValues,
-	bindVars map[string]*types.BindVariable) (*genRuntime, error) {
+	bindVars []*types.BindVariable) (*genRuntime, error) {
 	//获取用于循环的所有分片表逻辑表名
 
 	usedShardingTables := make([]*core.ShardingTable, 0, len(values))
@@ -93,8 +93,16 @@ func NewRuntime(
 			currentTableMap: make(map[string]string, len(usedShardingTables)),
 			bindVars:        bindVars,
 		}, nil
+	} else {
+		return &genRuntime{
+			restoreFlags:    parser.EscapeRestoreFlags,
+			shardingTables:  shardingTableNames,
+			defaultDatabase: defaultDatabase,
+			currentIndex:    -1,
+			currentTableMap: make(map[string]string, 0),
+			bindVars:        bindVars,
+		}, nil
 	}
-	return nil, fmt.Errorf("have no any sharding table used in sql")
 }
 
 func shardDatabase(shardingValues *core.ShardingValues, shardingTable *core.ShardingTable, defaultDb string) ([]string, error) {
@@ -144,35 +152,35 @@ type genRuntime struct {
 	currentIndex    int // 当前执行的索引，滑动 physicalTables 游标来切换表
 	defaultDatabase string
 	restoreFlags    format.RestoreFlags
-	bindVars        map[string]*types.BindVariable
-	removedVars     []string
+	bindVars        []*types.BindVariable
+	removedVars     []int
 }
 
-func (g *genRuntime) GetCurrentBindVariables() map[string]*types.BindVariable {
-	vars := make(map[string]*types.BindVariable, len(g.bindVars)-len(g.removedVars))
-	var index int
-	for name, v := range g.bindVars {
-		if !g.isRemovedParam(name) {
-			vars[fmt.Sprintf("p%d", index)] = v
+func (g *genRuntime) GetCurrentBindVariables() []*types.BindVariable {
+	vars := make([]*types.BindVariable, 0, len(g.bindVars)-len(g.removedVars))
+
+	for index, v := range g.bindVars {
+		if !g.isRemovedParam(index) {
+			vars = append(vars, v)
 			index++
 		}
 	}
 	return vars
 }
 
-func (g *genRuntime) isRemovedParam(argName string) bool {
-	for _, removedVar := range g.removedVars {
-		if removedVar == argName {
+func (g *genRuntime) isRemovedParam(index int) bool {
+	for _, removedIndex := range g.removedVars {
+		if index == removedIndex {
 			return true
 		}
 	}
 	return false
 }
 
-func (g *genRuntime) RemoveParameter(argName string) bool {
-	_, ok := g.bindVars[argName]
+func (g *genRuntime) RemoveParameter(index int) bool {
+	ok := index >= 0 && index < len(g.bindVars)
 	if ok {
-		g.removedVars = append(g.removedVars, argName)
+		g.removedVars = append(g.removedVars, index)
 	}
 	return ok
 }

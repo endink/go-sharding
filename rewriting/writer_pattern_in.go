@@ -45,8 +45,8 @@ type PatternInWriter struct {
 	//是否需要根据分片改写值
 	isScattered bool
 
-	colName string
-	params  []string
+	colName      string
+	paramIndexes []int
 }
 
 func (p *PatternInWriter) GetFlag() uint64 {
@@ -92,25 +92,25 @@ func NewPatternInWriter(
 	return ret, nil
 }
 
-func (p *PatternInWriter) prepare(bindVariables map[string]*myTypes.BindVariable) error {
+func (p *PatternInWriter) prepare(bindVariables []*myTypes.BindVariable) error {
 	if !p.isScattered {
 		return nil
 	}
 
 	var usedTables []string
 	valueMap := make(map[string][]ast.ValueExpr)
-	varMap := make(map[string][]string)
-	params := make([]string, 0, len(p.originValues))
+	varMap := make(map[string][]int)
+	params := make([]int, 0, len(p.originValues))
 
 	if len(p.originValues) > 0 {
 		shardingValue := core.ShardingValuesForSingleScalar(p.shardingTable.Name, p.colName)
 		for _, v := range p.originValues {
 
-			argName := ""
+			argIndex := -1
 			switch typedValue := v.(type) {
 			case *driver.ParamMarkerExpr:
-				argName = GetParamName(typedValue)
-				params = append(params, argName)
+				argIndex = typedValue.Order
+				params = append(params, argIndex)
 			}
 
 			value, err := explain.GetValueFromExpr(v)
@@ -139,13 +139,12 @@ func (p *PatternInWriter) prepare(bindVariables map[string]*myTypes.BindVariable
 				}
 				valueMap[t] = append(valueMap[t], v)
 
-				if argName != "" {
-					for _, n := range value.ParamNames() {
-						if _, found := bindVariables[n]; found {
-							varMap[t] = append(varMap[t], n)
-						} else {
-							return errors.New(fmt.Sprintf("Parameter '%s' not in bind variables list", n))
+				if argIndex >= 0 {
+					for _, n := range value.ParamIndexes() {
+						if n < 0 || n >= len(bindVariables) {
+							return errors.New(fmt.Sprintf("Parameter index '%d' out of range of bind variables list", n))
 						}
+						varMap[t] = append(varMap[t], n)
 					}
 				}
 
@@ -155,7 +154,7 @@ func (p *PatternInWriter) prepare(bindVariables map[string]*myTypes.BindVariable
 
 	p.tables = usedTables
 	p.tableValues = valueMap
-	p.params = params
+	p.paramIndexes = params
 
 	return nil
 }
@@ -192,15 +191,27 @@ func (p *PatternInWriter) Format(ctx explain.StatementContext) error {
 	if err = p.colFormatter.Format(ctx); err != nil {
 		return fmt.Errorf("an error occurred while restore PatternInExpr.Expr: %v", err)
 	}
-	if p.Not {
-		ctx.WriteKeyWord(" NOT IN ")
+
+	values := p.tableValues[table]
+	if len(values) > 1 {
+		if p.Not {
+			ctx.WriteKeyWord(" NOT IN ")
+		} else {
+			ctx.WriteKeyWord(" IN ")
+		}
 	} else {
-		ctx.WriteKeyWord(" IN ")
+		if p.Not {
+			ctx.WriteKeyWord("!=")
+		} else {
+			ctx.WriteKeyWord("=")
+		}
 	}
 
-	var usedArgs []string
+	var usedArgs []int
 
-	ctx.WritePlain("(")
+	if len(values) > 1 {
+		ctx.WritePlain("(")
+	}
 	for i, expr := range p.tableValues[table] {
 		if i != 0 {
 			ctx.WritePlain(",")
@@ -208,12 +219,14 @@ func (p *PatternInWriter) Format(ctx explain.StatementContext) error {
 		if err = expr.Restore(rstCtx); err != nil {
 			return fmt.Errorf("an error occurred while restore PatternInExpr.List[%d], err: %v", i, err)
 		}
-		if n, ok := TryGetParamName(expr); ok {
+		if n, ok := TryGetParameterIndex(expr); ok {
 			usedArgs = append(usedArgs, n)
 		}
 	}
-	ctx.WritePlain(")")
-	removed := core.Difference(p.params, usedArgs)
+	if len(values) > 1 {
+		ctx.WritePlain(")")
+	}
+	removed := core.DifferenceInt(p.paramIndexes, usedArgs)
 	for _, s := range removed {
 		ctx.GetRuntime().RemoveParameter(s)
 	}

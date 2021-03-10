@@ -57,9 +57,19 @@ func getExprNodeTypeInBinaryOperation(n ast.ExprNode) BinaryOperationFieldtype {
 	}
 }
 
-func IsSupportedValue(n *driver.ValueExpr) bool {
-	switch n.Kind() {
+func IsSupportedKind(kind byte) bool {
+	switch kind {
 	case types.KindInt64, types.KindUint64, types.KindFloat32, types.KindFloat64, types.KindString:
+		return true
+	}
+	return false
+}
+
+func IsSupportedValue(n ast.ValueExpr) bool {
+	switch v := n.(type) {
+	case *driver.ValueExpr:
+		return IsSupportedKind(v.Kind())
+	case *driver.ParamMarkerExpr:
 		return true
 	}
 	return false
@@ -115,13 +125,12 @@ func astTypeToMySqlType(astType byte) (myTypes.MySqlType, error) {
 }
 
 func getParamFromExprStrictly(n *driver.ParamMarkerExpr) (*ArgScalarRef, error) {
-	argName := fmt.Sprintf("p%d", n.Order)
 	argType, err := astTypeToMySqlType(n.Kind())
 	if err != nil {
 		return nil, err
 	}
 	return &ArgScalarRef{
-		argName: argName,
+		Index:   n.Order,
 		varType: argType,
 	}, nil
 }
@@ -170,7 +179,7 @@ func GetValueFromExpr(n ast.ValueExpr) (ValueReference, error) {
 }
 
 type ConstRangeCreateFunc func(lower interface{}, upper interface{}) (core.Range, error)
-type ParamRangeCreateFunc func(lowerArgName, upperArgName string, valueType myTypes.MySqlType) *ArgRangeRef
+type ParamRangeCreateFunc func(lowerArgIndex, upperArgIndex int, valueType myTypes.MySqlType) *ArgRangeRef
 
 func makeRangeReference(lower ValueReference, upper ValueReference, constFunc ConstRangeCreateFunc, paramFunc ParamRangeCreateFunc) (ValueReference, error) {
 	if lower == nil && upper == nil {
@@ -204,16 +213,16 @@ func makeRangeReference(lower ValueReference, upper ValueReference, constFunc Co
 	aUpper, upperIsArg := upper.(*ArgScalarRef)
 
 	if lowerIsArg || upperIsArg {
-		var l, u string
+		var l, u int
 		var t myTypes.MySqlType
 
 		if aLower != nil {
-			l = aLower.argName
+			l = aLower.Index
 			t = aLower.varType
 		}
 
 		if aUpper != nil {
-			u = aUpper.argName
+			u = aUpper.Index
 			t = aUpper.varType
 		}
 

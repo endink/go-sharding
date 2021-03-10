@@ -19,7 +19,6 @@
 package gen
 
 import (
-	"fmt"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/mysql/types"
 )
@@ -46,11 +45,40 @@ func (u Usage) String() string {
 type ScatterCommand struct {
 	DataSource string
 	SqlCommand string
-	Vars       map[string]*types.BindVariable
+	Vars       []*types.BindVariable
+}
+
+func (s *ScatterCommand) Equals(v interface{}) bool {
+	if v == nil {
+		return false
+	}
+	switch cmd := v.(type) {
+	case *ScatterCommand:
+		return s.DataSource == cmd.DataSource && s.SqlCommand == cmd.SqlCommand && types.BindVarsArrayEquals(s.Vars, cmd.Vars)
+	default:
+		return false
+	}
 }
 
 func (s *ScatterCommand) String() string {
-	return fmt.Sprint(s.DataSource, ": ", s.SqlCommand)
+	sb := core.NewStringBuilder()
+	sb.WriteLine(s.DataSource, ": ", s.SqlCommand)
+	vLen := len(s.Vars)
+	if vLen > 0 {
+		sb.Write(vLen, " vars: ")
+		for n, v := range s.Vars {
+			gv, e := v.GetGolangValue()
+			if e == nil {
+				sb.Write("p", n, "=", gv)
+			} else {
+				sb.Write("p", n, "=", v)
+			}
+			if (n + 1) < vLen {
+				sb.Write(", ")
+			}
+		}
+	}
+	return sb.String()
 }
 
 type SqlGenResult struct {

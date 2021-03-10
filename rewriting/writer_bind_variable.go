@@ -25,5 +25,5 @@ import (
 )
 
 type preparer interface {
-	prepare(bindVariables map[string]*types.BindVariable) error
+	prepare(bindVariables []*types.BindVariable) error
 }

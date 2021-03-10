@@ -184,6 +184,43 @@ func TrimAndLowerArray(array []string) []string {
 	return result
 }
 
+func DifferenceInt(slice1, slice2 []int) []int { //取要校验的和已经校验过的差集，找出需要校验的切片IP（找出slice1中  slice2中没有的）
+	m := make(map[int]int)
+	n := make([]int, 0)
+	inter := IntersectInt(slice1, slice2)
+	for _, v := range inter {
+		m[v]++
+	}
+	for _, value := range slice1 {
+		if m[value] == 0 {
+			n = append(n, value)
+		}
+	}
+
+	for _, v := range slice2 {
+		if m[v] == 0 {
+			n = append(n, v)
+		}
+	}
+	return n
+}
+
+func IntersectInt(slice1, slice2 []int) []int { // 取两个切片的交集
+	m := make(map[int]int)
+	n := make([]int, 0)
+	for _, v := range slice1 {
+		m[v]++
+	}
+	for _, v := range slice2 {
+		times, _ := m[v]
+		if times == 1 {
+			n = append(n, v)
+		}
+	}
+	return n
+
+}
+
 //求并集
 func Union(slice1, slice2 []string) []string {
 	m := make(map[string]int)

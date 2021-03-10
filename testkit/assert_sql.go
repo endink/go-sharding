@@ -28,6 +28,11 @@ import (
 	"testing"
 )
 
+func NormalizeSql(t testing.TB, sql string) string {
+	s := ParseForTest(sql, t)
+	return writeNode(t, s)
+}
+
 func AssertEqualSql(t testing.TB, sql1 string, sql2 string) bool {
 	n1 := ParseForTest(sql1, t)
 	n2 := ParseForTest(sql2, t)
@@ -39,7 +44,7 @@ func AssertEqualSql(t testing.TB, sql1 string, sql2 string) bool {
 
 func writeNode(t testing.TB, node ast.Node) string {
 	var sb = new(strings.Builder)
-	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags, sb)
+	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags|format.RestoreSpacesAroundBinaryOperation, sb)
 	err := node.Restore(ctx)
 	assert.Nil(t, err)
 	return sb.String()

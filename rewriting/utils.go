@@ -19,20 +19,14 @@
 package rewriting
 
 import (
-	"fmt"
 	"github.com/pingcap/parser/ast"
 	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
-func GetParamName(arg *driver.ParamMarkerExpr) string {
-	argName := fmt.Sprintf("p%d", arg.Order)
-	return argName
-}
-
-func TryGetParamName(v ast.ValueExpr) (string, bool) {
-	switch typedValue := v.(type) {
+func TryGetParameterIndex(v ast.ValueExpr) (int, bool) {
+	switch arg := v.(type) {
 	case *driver.ParamMarkerExpr:
-		return GetParamName(typedValue), true
+		return arg.Order, true
 	}
-	return "", false
+	return -1, false
 }

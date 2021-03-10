@@ -29,7 +29,7 @@ var NoneRewriter Rewriter = &noneRewriter{}
 type noneRewriter struct {
 }
 
-func (m *noneRewriter) PrepareBindVariables(bindVars map[string]*types.BindVariable) error {
+func (m *noneRewriter) PrepareBindVariables(_ []*types.BindVariable) error {
 	return nil
 }
 

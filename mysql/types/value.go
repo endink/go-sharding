@@ -34,6 +34,13 @@ type Value struct {
 	Value     []byte
 }
 
+func (v *Value) Equals(value interface{}) bool {
+	if vv, ok := value.(*Value); ok {
+		return v.ValueType == vv.ValueType && bytes.Equal(v.Value, vv.Value)
+	}
+	return false
+}
+
 func (v *Value) Clone() *Value {
 	if v == nil {
 		return nil

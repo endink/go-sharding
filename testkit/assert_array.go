@@ -23,6 +23,7 @@ import (
 	"github.com/XiaoMi/Gaea/core/comparison"
 	"github.com/emirpasic/gods/utils"
 	"github.com/stretchr/testify/assert"
+	"reflect"
 )
 
 type equatable interface {
@@ -45,11 +46,14 @@ func ErrorDifferentInfo(excepted interface{}, actual interface{}) string {
 	return sb.String()
 }
 
-func errorDifferent(excepted []interface{}, actual []interface{}) string {
+func errorDifferent(excepted []interface{}, actual []interface{}, msg string) string {
 	sb := newStringBuilder()
 	sb.WriteLine("array not same")
+	if len(msg) > 0 {
+		sb.WriteLine(msg)
+	}
 
-	sb.Write("excepted: ")
+	sb.WriteLine("excepted: ")
 	utils.Sort(excepted, func(a, b interface{}) int {
 		i, _ := comparison.Compare(a, b)
 		return i
@@ -57,7 +61,7 @@ func errorDifferent(excepted []interface{}, actual []interface{}) string {
 	writeArray(sb, excepted)
 	sb.WriteLine()
 
-	sb.Write("actual: ")
+	sb.WriteLine("actual: ")
 	utils.Sort(actual, func(a, b interface{}) int {
 		i, _ := comparison.Compare(a, b)
 		return i
@@ -74,7 +78,7 @@ func writeArray(sb *stringBuilder, excepted []interface{}) {
 			if i == (len(excepted) - 1) {
 				sb.Write(fmt.Sprint(e))
 			} else {
-				sb.Write(fmt.Sprint(e) + ", ")
+				sb.Write(fmt.Sprint(e) + "\n")
 			}
 		}
 	} else {
@@ -90,26 +94,46 @@ func AssertStrArrayEquals(t assert.TestingT, excepted []string, actual []string,
 	return AssertArrayEquals(t, convertStrArray(excepted), convertStrArray(actual), msgAndArgs...)
 }
 
+func AssertArrayStrictlyEquals(t assert.TestingT, excepted []interface{}, actual []interface{}, msgAndArgs ...interface{}) bool {
+	if excepted == nil && actual == nil {
+		return true
+	}
+
+	if len(excepted) != len(actual) {
+		msg := errorDifferent(excepted, actual, "different length")
+		return assert.Fail(t, msg, msgAndArgs)
+	}
+	for i, r := range excepted {
+		if eq, ok := r.(equatable); ok {
+			if !eq.Equals(actual[i]) {
+				msg := errorDifferent(excepted, actual, fmt.Sprintf("at element index: %d", i))
+				return assert.Fail(t, msg, msgAndArgs)
+			}
+		} else {
+			if !reflect.DeepEqual(eq, actual[i]) {
+				msg := errorDifferent(excepted, actual, fmt.Sprintf("at element index: %d", i))
+				return assert.Fail(t, msg, msgAndArgs)
+			}
+		}
+	}
+
+	return true
+}
+
 func AssertArrayEquals(t assert.TestingT, excepted []interface{}, actual []interface{}, msgAndArgs ...interface{}) bool {
 	if excepted == nil && actual == nil {
 		return true
 	}
 
 	if len(excepted) != len(actual) {
-		msg := errorDifferent(excepted, actual)
+		msg := errorDifferent(excepted, actual, "different length")
 		return assert.Fail(t, msg, msgAndArgs)
 	}
-	var diff bool
-	for _, r := range excepted {
+	for i, r := range excepted {
 		if !arrayContains(actual, r) {
-			diff = true
-			break
+			msg := errorDifferent(excepted, actual, fmt.Sprintf("at element index: %d", i))
+			return assert.Fail(t, msg, msgAndArgs)
 		}
-	}
-
-	if diff {
-		msg := errorDifferent(excepted, actual)
-		return assert.Fail(t, msg, msgAndArgs)
 	}
 
 	return true

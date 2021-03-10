@@ -26,11 +26,11 @@ import (
 )
 
 type Runtime interface {
-	GetCurrentBindVariables() map[string]*types.BindVariable
+	GetCurrentBindVariables() []*types.BindVariable
 	GetRestoreFlags() format.RestoreFlags
 	GetCurrent(shardingTable string) (database string, table string, err error)
 	GetCurrentTable(shardingTable string) (string, error)
 	GetCurrentDatabase() (string, error)
 	GetServerSchema() string
-	RemoveParameter(argName string) bool
+	RemoveParameter(index int) bool
 }

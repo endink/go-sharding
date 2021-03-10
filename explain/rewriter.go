@@ -41,7 +41,7 @@ type RewriteLimitResult interface {
 
 //SQL 改写器
 type Rewriter interface {
-	PrepareBindVariables(bindVars map[string]*types.BindVariable) error
+	PrepareBindVariables(bindVars []*types.BindVariable) error
 
 	RewriteTable(table *ast.TableName, explainContext Context) (RewriteFormattedResult, error)
 	RewriteField(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteFormattedResult, error)

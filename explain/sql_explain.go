@@ -90,7 +90,7 @@ func (s *SqlExplain) ExplainSelect(sel *ast.SelectStmt, rewriter Rewriter) error
 	return nil
 }
 
-func (s *SqlExplain) SetVars(bindVariables map[string]*types.BindVariable) error {
+func (s *SqlExplain) SetVars(bindVariables []*types.BindVariable) error {
 	return s.rewriter.PrepareBindVariables(bindVariables)
 }
 
@@ -107,11 +107,11 @@ func (s *SqlExplain) RestoreSql(runtime Runtime) (string, error) {
 	return sb.String(), nil
 }
 
-func (s *SqlExplain) RestoreShardingValues(bindVariables map[string]*types.BindVariable) (map[string]*core.ShardingValues, error) {
+func (s *SqlExplain) RestoreShardingValues(bindVariables []*types.BindVariable) (map[string]*core.ShardingValues, error) {
 	ctx := newValueRedoContext()
 	vars := bindVariables
 	if bindVariables == nil {
-		vars = make(map[string]*types.BindVariable, 0)
+		vars = make([]*types.BindVariable, 0)
 	}
 	return s.valueRedoLogs.Redo(ctx, vars)
 }

@@ -24,7 +24,6 @@ import (
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/opcode"
-	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
 func (s *SqlExplain) explainCondition(node ast.ExprNode, rewriter Rewriter, logic core.BinaryLogic) (ast.ExprNode, error) {
@@ -228,7 +227,7 @@ func (s *SqlExplain) explainColumnWithValue(expr *ast.BinaryOperationExpr, rewri
 		return nil, err
 	}
 	if r.IsRewrote() {
-		if v, ok := valueNode.(*driver.ValueExpr); ok {
+		if v, ok := valueNode.(ast.ValueExpr); ok {
 			if IsSupportedValue(v) && IsSupportedOp(expr.Op) {
 				value, e := GetValueFromOpValue(expr.Op, v)
 				if e != nil {
