@@ -44,7 +44,7 @@ func AssertEqualSql(t testing.TB, sql1 string, sql2 string) bool {
 
 func writeNode(t testing.TB, node ast.Node) string {
 	var sb = new(strings.Builder)
-	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags|format.RestoreSpacesAroundBinaryOperation, sb)
+	ctx := format.NewRestoreCtx(format.DefaultRestoreFlags|format.RestoreSpacesAroundBinaryOperation|format.RestoreNameLowercase, sb)
 	err := node.Restore(ctx)
 	assert.Nil(t, err)
 	return sb.String()

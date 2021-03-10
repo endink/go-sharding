@@ -21,7 +21,6 @@ package explain
 import (
 	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
 	"github.com/pingcap/parser/ast"
 )
 
@@ -93,7 +92,7 @@ func (s *SqlExplain) explainJoinSide(joinSide ast.ResultSetNode, rewriter Rewrit
 }
 
 func (s *SqlExplain) explainJoinOn(on *ast.OnCondition, rewriter Rewriter) error {
-	newExpr, err := s.explainCondition(on.Expr, rewriter, core.LogicAnd)
+	newExpr, err := s.explainCondition(on.Expr, rewriter)
 	if err != nil {
 		return err
 	}

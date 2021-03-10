@@ -34,35 +34,17 @@ func GenerateSql(defaultDataSource string, expl *explain.SqlExplain, bindVariabl
 		return nil, err
 	}
 
-	if len(values) == 0 { //没有存在任何分片表数据
-		sql, err := expl.RestoreSql(runtime)
-		if err != nil {
-			return nil, err
-		}
-
-		cmd := &ScatterCommand{
-			DataSource: defaultDataSource,
-			SqlCommand: sql,
-			Vars:       bindVariables,
-		}
-
-		return &SqlGenResult{
-			Commands: []*ScatterCommand{cmd},
-			Usage:    UsageRaw,
-		}, nil
-	} else {
-		err = expl.SetVars(bindVariables)
-		if err != nil {
-			return nil, err
-		}
-
-		var r *SqlGenResult
-		r, err = gen(expl, runtime)
-		if err != nil {
-			return nil, err
-		}
-		return r, nil
+	err = expl.SetVars(bindVariables)
+	if err != nil {
+		return nil, err
 	}
+
+	var r *SqlGenResult
+	r, err = gen(expl, runtime)
+	if err != nil {
+		return nil, err
+	}
+	return r, nil
 }
 
 func gen(sqlExplain *explain.SqlExplain, runtime *genRuntime) (*SqlGenResult, error) {
@@ -70,24 +52,23 @@ func gen(sqlExplain *explain.SqlExplain, runtime *genRuntime) (*SqlGenResult, er
 		Usage: UsageShard,
 	}
 
-	for {
-		if runtime.Next() {
-			sql, restErr := sqlExplain.RestoreSql(runtime)
-			if restErr != nil {
-				return nil, restErr
-			}
-
-			cmd := &ScatterCommand{
-				DataSource: runtime.currentDb,
-				SqlCommand: sql,
-				Vars:       runtime.GetCurrentBindVariables(),
-			}
-
-			genResult.Commands = append(genResult.Commands, cmd)
-		} else {
-			//其他数据库循环重复生成目前没有意义，留作将来扩展
-			break
+	for runtime.Next() {
+		sql, restErr := sqlExplain.RestoreSql(runtime)
+		if restErr != nil {
+			return nil, restErr
 		}
+
+		cmd := &ScatterCommand{
+			DataSource: runtime.currentDb,
+			SqlCommand: sql,
+			Vars:       runtime.GetCurrentBindVariables(),
+		}
+
+		genResult.Commands = append(genResult.Commands, cmd)
+	}
+	if len(genResult.Commands) == 0 {
+		//可能由于条件矛盾造成根本无需分片
+		genResult.Usage = UsageImpossible
 	}
 	return genResult, nil
 }

@@ -19,13 +19,14 @@
 package explain
 
 import (
+	"fmt"
 	"github.com/pingcap/errors"
 	"github.com/pingcap/parser/ast"
 )
 
 type FieldLookup interface {
-	addField(index int, field *ast.SelectField) error
-	addFieldWitName(index int, name string) error
+	addField(index int, field *ast.SelectField, isAttached bool) error
+	addFieldWitName(index int, name string, isAttached bool) error
 
 	Fields() []*FieldIndex
 	FindByName(fieldName string) int
@@ -55,7 +56,7 @@ func (a *fieldLookup) Fields() []*FieldIndex {
 	return a.fields
 }
 
-func (a *fieldLookup) addFieldWitName(index int, name string) error {
+func (a *fieldLookup) addFieldWitName(index int, name string, isAttached bool) error {
 	if name != "" {
 		if index > 255 || index < 0 {
 			return errors.New("field index out of range, at most 256 fields are allowed")
@@ -63,6 +64,7 @@ func (a *fieldLookup) addFieldWitName(index int, name string) error {
 
 		f := &FieldIndex{
 			index,
+			isAttached,
 		}
 		a.fieldNames[name] = uint8(index)
 		a.fields = append(a.fields, f)
@@ -70,14 +72,19 @@ func (a *fieldLookup) addFieldWitName(index int, name string) error {
 	return nil
 }
 
-func (a *fieldLookup) addField(index int, field *ast.SelectField) error {
+func (a *fieldLookup) addField(index int, field *ast.SelectField, isAttached bool) error {
 	var name string
 	if field.AsName.L != "" {
 		name = field.AsName.L
 	}
-	if f, isColumnExpr := field.Expr.(*ast.ColumnNameExpr); isColumnExpr {
-		name = f.Name.Name.L
+	if name == "" {
+		switch expr := field.Expr.(type) {
+		case *ast.ColumnNameExpr:
+			name = expr.Name.Name.L
+		case *ast.AggregateFuncExpr:
+			name = fmt.Sprintf("F:%s", expr.F)
+		}
 	}
 
-	return a.addFieldWitName(index, name)
+	return a.addFieldWitName(index, name, isAttached)
 }

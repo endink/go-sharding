@@ -56,6 +56,10 @@ func NewSqlExplain(stProvider ShardingTableProvider) *SqlExplain {
 	}
 }
 
+func (s *SqlExplain) Context() Context {
+	return s.ctx
+}
+
 func (s *SqlExplain) Schema() string {
 	return s.shardingTableProvider.Schema()
 }

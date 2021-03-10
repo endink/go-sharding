@@ -46,7 +46,7 @@ func (a *aggLookup) visit(index int, field *ast.SelectField) error {
 	switch agg := field.Expr.(type) {
 	case *ast.AggregateFuncExpr:
 		aggName := strings.ToLower(agg.F)
-		if ty, ok := core.ParseAggType(aggName); ok {
+		if ty, ok := core.ParseAggType(aggName); !ok {
 			return fmt.Errorf("aggregate function type is not support: %s", agg.F)
 		} else {
 			aggField := &AggField{

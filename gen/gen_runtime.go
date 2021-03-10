@@ -35,23 +35,34 @@ var ErrRuntimeResourceNotFound = errors.New("resource was not found in runtime")
 
 func NewRuntime(
 	defaultDatabase string,
-	shardingTableProvider explain.ShardingTableProvider,
+	explain *explain.SqlExplain,
 	values map[string]*core.ShardingValues,
 	bindVars []*types.BindVariable) (*genRuntime, error) {
 	//获取用于循环的所有分片表逻辑表名
 
 	usedShardingTables := make([]*core.ShardingTable, 0, len(values))
-	shardingTableNames := make([]string, 0, len(values))
+	shardingTableNames := strset.New()
 
-	for table, _ := range values {
-		sd, ok := shardingTableProvider.GetShardingTable(table)
-		if !ok {
-			return nil, fmt.Errorf("sharding table '%s' is not found", table)
+	var err error
+	tables := explain.Context().TableLookup().ShardingTables()
+	for _, table := range tables {
+		usedShardingTables, err = appendShardingTables(table, explain, shardingTableNames, usedShardingTables)
+		if err != nil {
+			return nil, err
 		}
-		usedShardingTables = append(usedShardingTables, sd)
-		shardingTableNames = append(shardingTableNames, sd.Name)
 	}
 
+	for table, _ := range values {
+		usedShardingTables, err = appendShardingTables(table, explain, shardingTableNames, usedShardingTables)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	var (
+		dbs      []string
+		manifest [][]string
+	)
 	if len(usedShardingTables) > 0 {
 
 		allTables := make([][]string, 0, len(usedShardingTables))
@@ -61,6 +72,7 @@ func NewRuntime(
 			shardingValues, _ := values[shardingTable.Name]
 			//根据分片列的值计算数据库分片
 			databases, dbErr := shardDatabase(shardingValues, shardingTable, defaultDatabase)
+
 			if dbErr != nil {
 				return nil, dbErr
 			}
@@ -75,34 +87,42 @@ func NewRuntime(
 		}
 
 		//整理一下，将数据库放在首位
-		dbs := allDatabases.List()
+		dbs = allDatabases.List()
 		resources := make([][]string, 0, len(usedShardingTables)+1)
 		resources = append(resources, dbs)
 		resources = append(resources, allTables...)
-
 		//合并数据库、表形成资源清单（笛卡尔积），得到迭代器数据，或许这里可以优化，实际可以使用上面的数据来循环了
-		manifest := core.PermuteString(resources)
+		manifest = core.PermuteString(resources)
 
-		return &genRuntime{
-			restoreFlags:    parser.EscapeRestoreFlags,
-			resources:       manifest,
-			shardingTables:  shardingTableNames,
-			defaultDatabase: defaultDatabase,
-			databases:       dbs,
-			currentIndex:    -1,
-			currentTableMap: make(map[string]string, len(usedShardingTables)),
-			bindVars:        bindVars,
-		}, nil
 	} else {
-		return &genRuntime{
-			restoreFlags:    parser.EscapeRestoreFlags,
-			shardingTables:  shardingTableNames,
-			defaultDatabase: defaultDatabase,
-			currentIndex:    -1,
-			currentTableMap: make(map[string]string, 0),
-			bindVars:        bindVars,
-		}, nil
+		dbs = []string{defaultDatabase}
+		manifest = [][]string{{defaultDatabase}}
 	}
+
+	return &genRuntime{
+		restoreFlags:    parser.EscapeRestoreFlags,
+		resources:       manifest,
+		shardingTables:  shardingTableNames.List(),
+		defaultDatabase: defaultDatabase,
+		databases:       dbs,
+		currentIndex:    -1,
+		currentTableMap: make(map[string]string, len(usedShardingTables)),
+		bindVars:        bindVars,
+	}, nil
+}
+
+func appendShardingTables(table string, shardingTableProvider explain.ShardingTableProvider, shardingTableNames *strset.Set, usedShardingTables []*core.ShardingTable) ([]*core.ShardingTable, error) {
+	sd, ok := shardingTableProvider.GetShardingTable(table)
+	if !ok {
+		return nil, fmt.Errorf("sharding table '%s' is not found", table)
+	}
+
+	if !shardingTableNames.Has(sd.Name) {
+		tables := append(usedShardingTables, sd)
+		shardingTableNames.Add(sd.Name)
+		return tables, nil
+	}
+	return usedShardingTables, nil
 }
 
 func shardDatabase(shardingValues *core.ShardingValues, shardingTable *core.ShardingTable, defaultDb string) ([]string, error) {
@@ -112,7 +132,12 @@ func shardDatabase(shardingValues *core.ShardingValues, shardingTable *core.Shar
 		return []string{defaultDb}, nil
 	} else {
 		allDatabases := shardingTable.GetDatabases()
-		if !core.RequireAllShard(shardingTable.DatabaseStrategy, shardingValues) {
+
+		sty := core.DetectShardType(shardingTable.DatabaseStrategy, shardingValues)
+		switch sty {
+		case core.ShardImpossible:
+			return make([]string, 0), nil
+		case core.ShardScatter:
 			physicalDbs, shardErr := shardingTable.DatabaseStrategy.Shard(allDatabases, shardingValues)
 			if shardErr != nil {
 				return nil, shardErr
@@ -130,7 +155,13 @@ func shardTables(shardingValues *core.ShardingValues, shardingTable *core.Shardi
 		return []string{shardingTable.Name}, nil
 	} else {
 		allTables := shardingTable.GetTables()
-		if !core.RequireAllShard(shardingTable.TableStrategy, shardingValues) {
+
+		sty := core.DetectShardType(shardingTable.TableStrategy, shardingValues)
+
+		switch sty {
+		case core.ShardImpossible:
+			return make([]string, 0), nil
+		case core.ShardScatter:
 			physicalTables, shardErr := shardingTable.TableStrategy.Shard(allTables, shardingValues)
 			if shardErr != nil {
 				return nil, shardErr
@@ -233,7 +264,7 @@ func (g *genRuntime) Next() bool {
 		for i, s := range resource {
 			if i == 0 {
 				g.currentDb = s
-			} else {
+			} else if len(resource) > 0 { //可能没有分片表
 				shardTable := g.shardingTables[i-1] //分片表从第二列开始
 				phyTable := s
 				g.currentTableMap[shardTable] = phyTable

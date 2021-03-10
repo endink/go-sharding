@@ -30,6 +30,8 @@ const (
 	UsageShard Usage = iota
 	//使用原始值
 	UsageRaw
+	//不可能达成的条件，例如条件冲突
+	UsageImpossible
 )
 
 func (u Usage) String() string {
@@ -38,6 +40,8 @@ func (u Usage) String() string {
 		return "Shard"
 	case UsageRaw:
 		return "Raw"
+	case UsageImpossible:
+		return "Impossible"
 	}
 	return "Known"
 }
@@ -62,9 +66,10 @@ func (s *ScatterCommand) Equals(v interface{}) bool {
 
 func (s *ScatterCommand) String() string {
 	sb := core.NewStringBuilder()
-	sb.WriteLine(s.DataSource, ": ", s.SqlCommand)
+	sb.Write(s.DataSource, ": ", s.SqlCommand)
 	vLen := len(s.Vars)
 	if vLen > 0 {
+		sb.WriteLine()
 		sb.Write(vLen, " vars: ")
 		for n, v := range s.Vars {
 			gv, e := v.GetGolangValue()

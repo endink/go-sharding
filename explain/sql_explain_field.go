@@ -36,7 +36,7 @@ func (s *SqlExplain) explainFields(stmt *ast.SelectStmt, rewriter Rewriter) erro
 	for i, field := range stmt.Fields.Fields {
 		err := ctx.AggLookup().visit(i, field)
 		if err == nil {
-			err = ctx.FieldLookup().addField(i, field)
+			err = ctx.FieldLookup().addField(i, field, false)
 		}
 		if err != nil {
 			return err

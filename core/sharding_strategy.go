@@ -18,6 +18,14 @@
 
 package core
 
+type ShardType int
+
+const (
+	ShardScatter ShardType = iota
+	ShardAll
+	ShardImpossible
+)
+
 type ShardingStrategy interface {
 	GetShardingColumns() []string
 
@@ -27,18 +35,25 @@ type ShardingStrategy interface {
 	Shard(sources []string, values *ShardingValues) ([]string, error)
 }
 
-func RequireAllShard(s ShardingStrategy, values *ShardingValues) bool {
-	//TODO: 是否考虑优化交集结果为空的情况，改用 values.HasScalar, values.HasRange 判断
+//decide execute sql to every shard
+func DetectShardType(s ShardingStrategy, values *ShardingValues) ShardType {
 	columns := s.GetShardingColumns()
-	colLength := len(columns)
+
+	isImpossible := func(col string) bool {
+		return (s.IsRangeValueSupported() && !values.HasEffectiveRange(col) && !values.HasRange(col)) || (s.IsScalarValueSupported() && !values.HasEffectiveScalar(col) && values.HasScalar(col))
+	}
+
+	hasEffective := func(col string) bool {
+		return (s.IsRangeValueSupported() && values.HasEffectiveRange(col)) || (s.IsScalarValueSupported() && values.HasEffectiveScalar(col))
+	}
+
 	for _, column := range columns {
-		if (s.IsRangeValueSupported() || !values.HasEffectiveRange(column)) &&
-			(s.IsScalarValueSupported() || !values.HasEffectiveScalar(column)) &&
-			(values.Logic(column) == LogicAnd || colLength == 1) {
-			continue
-		} else {
-			return true
+		if isImpossible(column) && (values.Logic(column) == LogicAnd) {
+			return ShardImpossible
+		}
+		if hasEffective(column) && (values.Logic(column) == LogicAnd) {
+			return ShardScatter
 		}
 	}
-	return false
+	return ShardAll
 }

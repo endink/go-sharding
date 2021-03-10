@@ -52,13 +52,13 @@ func (s *SqlExplain) attachByItems(stmt *ast.SelectStmt, byItems []*ast.ByItem, 
 				//附加到查询结果列
 				stmt.Fields.Fields = append(stmt.Fields.Fields, field)
 				if _, isColumnExpr := field.Expr.(*ast.ColumnNameExpr); isColumnExpr {
-					e = s.currentContext().FieldLookup().addField(index, field)
+					e = s.currentContext().FieldLookup().addField(index, field, true)
 					if e != nil {
 						return e
 					}
 				}
 
-				e = lookup.addField(index, field)
+				e = lookup.addField(index, field, true)
 				if e != nil {
 					return e
 				}

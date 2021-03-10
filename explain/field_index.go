@@ -21,7 +21,8 @@ package explain
 import "github.com/XiaoMi/Gaea/core"
 
 type FieldIndex struct {
-	Index int
+	Index      int
+	IsAttached bool
 }
 
 type AggField struct {

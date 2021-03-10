@@ -26,9 +26,7 @@ import (
 	"github.com/pingcap/parser/opcode"
 )
 
-func (s *SqlExplain) explainCondition(node ast.ExprNode, rewriter Rewriter, logic core.BinaryLogic) (ast.ExprNode, error) {
-	s.pushLogic(logic)
-	defer s.popLogic()
+func (s *SqlExplain) explainCondition(node ast.ExprNode, rewriter Rewriter) (ast.ExprNode, error) {
 	switch expr := node.(type) {
 	case *ast.BinaryOperationExpr:
 		return s.explainBinary(expr, rewriter)
@@ -38,7 +36,7 @@ func (s *SqlExplain) explainCondition(node ast.ExprNode, rewriter Rewriter, logi
 		return s.explainBetween(expr, rewriter)
 	case *ast.ParenthesesExpr:
 		s.beginValueGroup()
-		newExpr, err := s.explainCondition(expr.Expr, rewriter, logic)
+		newExpr, err := s.explainCondition(expr.Expr, rewriter)
 		if err != nil {
 			return nil, err
 		}
@@ -132,11 +130,13 @@ func (s *SqlExplain) explainBinary(expr *ast.BinaryOperationExpr, rewriter Rewri
 
 //处理逻辑运算符 or , and
 func (s *SqlExplain) explainBinaryLogic(expr *ast.BinaryOperationExpr, rewriter Rewriter, logic core.BinaryLogic) (ast.ExprNode, error) {
-	leftNode, lErr := s.explainCondition(expr.L, rewriter, logic)
+	leftNode, lErr := s.explainCondition(expr.L, rewriter) //最左边的操作数要保持当前逻辑
 	if lErr != nil {
 		return nil, fmt.Errorf("handle BinaryOperationExpr.L error: %v", lErr)
 	}
-	rightNode, rErr := s.explainCondition(expr.R, rewriter, logic)
+	s.pushLogic(logic)
+	rightNode, rErr := s.explainCondition(expr.R, rewriter)
+	s.popLogic()
 	if rErr != nil {
 		return nil, fmt.Errorf("handle BinaryOperationExpr.R error: %v", rErr)
 	}

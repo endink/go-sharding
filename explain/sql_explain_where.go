@@ -26,7 +26,9 @@ import (
 func (s *SqlExplain) explainWhere(sel *ast.SelectStmt, rewriter Rewriter) error {
 	where := sel.Where
 	if where != nil {
-		expr, err := s.explainCondition(where, rewriter, core.LogicAnd)
+		s.pushLogic(core.LogicAnd)
+		defer s.popLogic()
+		expr, err := s.explainCondition(where, rewriter)
 		if err != nil {
 			return err
 		} else if expr != nil {

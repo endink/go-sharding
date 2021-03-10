@@ -30,9 +30,18 @@ type equatable interface {
 	Equals(v interface{}) bool
 }
 
-func ErrorDifferentInfo(excepted interface{}, actual interface{}) string {
+func ErrorDifferentInfo(excepted interface{}, actual interface{}, msgAndArgs ...interface{}) string {
 	sb := newStringBuilder()
-	sb.WriteLine("item not same")
+	if len(msgAndArgs) > 0 {
+		if len(msgAndArgs) == 1 {
+			sb.WriteLine(fmt.Sprint(msgAndArgs))
+		} else {
+			msg := fmt.Sprintf(fmt.Sprint(msgAndArgs[0]), msgAndArgs[1:]...)
+			sb.WriteLine(msg)
+		}
+	} else {
+		sb.WriteLine("item not same")
+	}
 
 	sb.WriteLine("excepted: ")
 	sb.WriteLine(fmt.Sprintf("%v", excepted))
