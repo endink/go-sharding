@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/explain"
+	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/XiaoMi/Gaea/parser"
 	"github.com/pingcap/parser/format"
 	"github.com/scylladb/go-set/strset"
@@ -32,7 +33,11 @@ var _ explain.Runtime = &genRuntime{}
 
 var ErrRuntimeResourceNotFound = errors.New("resource was not found in runtime")
 
-func NewRuntime(defaultDatabase string, shardingTableProvider explain.ShardingTableProvider, values map[string]*core.ShardingValues) (*genRuntime, error) {
+func NewRuntime(
+	defaultDatabase string,
+	shardingTableProvider explain.ShardingTableProvider,
+	values map[string]*core.ShardingValues,
+	bindVars map[string]*types.BindVariable) (*genRuntime, error) {
 	//获取用于循环的所有分片表逻辑表名
 
 	usedShardingTables := make([]*core.ShardingTable, 0, len(values))
@@ -86,6 +91,7 @@ func NewRuntime(defaultDatabase string, shardingTableProvider explain.ShardingTa
 			databases:       dbs,
 			currentIndex:    -1,
 			currentTableMap: make(map[string]string, len(usedShardingTables)),
+			bindVars:        bindVars,
 		}, nil
 	}
 	return nil, fmt.Errorf("have no any sharding table used in sql")
@@ -138,6 +144,37 @@ type genRuntime struct {
 	currentIndex    int // 当前执行的索引，滑动 physicalTables 游标来切换表
 	defaultDatabase string
 	restoreFlags    format.RestoreFlags
+	bindVars        map[string]*types.BindVariable
+	removedVars     []string
+}
+
+func (g *genRuntime) GetCurrentBindVariables() map[string]*types.BindVariable {
+	vars := make(map[string]*types.BindVariable, len(g.bindVars)-len(g.removedVars))
+	var index int
+	for name, v := range g.bindVars {
+		if !g.isRemovedParam(name) {
+			vars[fmt.Sprintf("p%d", index)] = v
+			index++
+		}
+	}
+	return vars
+}
+
+func (g *genRuntime) isRemovedParam(argName string) bool {
+	for _, removedVar := range g.removedVars {
+		if removedVar == argName {
+			return true
+		}
+	}
+	return false
+}
+
+func (g *genRuntime) RemoveParameter(argName string) bool {
+	_, ok := g.bindVars[argName]
+	if ok {
+		g.removedVars = append(g.removedVars, argName)
+	}
+	return ok
 }
 
 func (g *genRuntime) GetRestoreFlags() format.RestoreFlags {
@@ -180,6 +217,7 @@ func (g *genRuntime) GetServerSchema() string {
 
 func (g *genRuntime) Next() bool {
 	l := len(g.resources)
+	g.removedVars = nil
 	g.currentIndex++
 	hasNext := l > 0 && g.currentIndex < l
 	if hasNext {

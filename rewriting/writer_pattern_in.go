@@ -46,6 +46,7 @@ type PatternInWriter struct {
 	isScattered bool
 
 	colName string
+	params  []string
 }
 
 func (p *PatternInWriter) GetFlag() uint64 {
@@ -91,7 +92,11 @@ func NewPatternInWriter(
 	return ret, nil
 }
 
-func (p *PatternInWriter) rewriteBindVars(bindVariables map[string]*myTypes.BindVariable) (explain.RewriteBindVarsResult, error) {
+func (p *PatternInWriter) prepare(bindVariables map[string]*myTypes.BindVariable) error {
+	if !p.isScattered {
+		return nil
+	}
+
 	var usedTables []string
 	valueMap := make(map[string][]ast.ValueExpr)
 	varMap := make(map[string][]string)
@@ -104,29 +109,29 @@ func (p *PatternInWriter) rewriteBindVars(bindVariables map[string]*myTypes.Bind
 			argName := ""
 			switch typedValue := v.(type) {
 			case *driver.ParamMarkerExpr:
-				argName = fmt.Sprintf("p%d", typedValue.Order)
+				argName = GetParamName(typedValue)
 				params = append(params, argName)
 			}
 
 			value, err := explain.GetValueFromExpr(v)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			if value.IsLiteral() {
 				if constVal, _ := value.GetValue(nil); constVal == nil {
-					return nil, errors.New(fmt.Sprintf("sharding column '%s' value can not be null when use 'in' expresion", p.colName))
+					return errors.New(fmt.Sprintf("sharding column '%s' value can not be null when use 'in' expresion", p.colName))
 				}
 			}
 
 			var goValue interface{}
 			goValue, err = value.GetValue(bindVariables)
 			if err != nil {
-				return nil, err
+				return err
 			}
 			shardingValue.ScalarValues[p.colName][0] = goValue
 			tables, e := p.shardingTable.TableStrategy.Shard(p.shardingTable.GetTables(), shardingValue)
 			if e != nil {
-				return nil, e
+				return e
 			}
 			for _, t := range tables {
 				if _, ok := valueMap[t]; !ok {
@@ -139,7 +144,7 @@ func (p *PatternInWriter) rewriteBindVars(bindVariables map[string]*myTypes.Bind
 						if _, found := bindVariables[n]; found {
 							varMap[t] = append(varMap[t], n)
 						} else {
-							return nil, errors.New(fmt.Sprintf("Parameter '%s' not in bind variables list", n))
+							return errors.New(fmt.Sprintf("Parameter '%s' not in bind variables list", n))
 						}
 					}
 				}
@@ -150,8 +155,9 @@ func (p *PatternInWriter) rewriteBindVars(bindVariables map[string]*myTypes.Bind
 
 	p.tables = usedTables
 	p.tableValues = valueMap
+	p.params = params
 
-	return explain.ResultFromScatterVars(params, varMap), nil
+	return nil
 }
 
 // 所有的值类型必须为*driver.ValueExpr
@@ -192,6 +198,8 @@ func (p *PatternInWriter) Format(ctx explain.StatementContext) error {
 		ctx.WriteKeyWord(" IN ")
 	}
 
+	var usedArgs []string
+
 	ctx.WritePlain("(")
 	for i, expr := range p.tableValues[table] {
 		if i != 0 {
@@ -200,9 +208,15 @@ func (p *PatternInWriter) Format(ctx explain.StatementContext) error {
 		if err = expr.Restore(rstCtx); err != nil {
 			return fmt.Errorf("an error occurred while restore PatternInExpr.List[%d], err: %v", i, err)
 		}
+		if n, ok := TryGetParamName(expr); ok {
+			usedArgs = append(usedArgs, n)
+		}
 	}
 	ctx.WritePlain(")")
-
+	removed := core.Difference(p.params, usedArgs)
+	for _, s := range removed {
+		ctx.GetRuntime().RemoveParameter(s)
+	}
 	return nil
 }
 

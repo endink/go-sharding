@@ -16,22 +16,23 @@
  *  File author: Anders Xiao
  */
 
-package explain
+package rewriting
 
 import (
-	"github.com/XiaoMi/Gaea/core"
+	"fmt"
 	"github.com/pingcap/parser/ast"
+	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 
-func (s *SqlExplain) explainWhere(sel *ast.SelectStmt, rewriter Rewriter) error {
-	where := sel.Where
-	if where != nil {
-		expr, err := s.explainCondition(where, rewriter, core.LogicAnd)
-		if err != nil {
-			return err
-		} else if expr != nil {
-			sel.Where = expr
-		}
+func GetParamName(arg *driver.ParamMarkerExpr) string {
+	argName := fmt.Sprintf("p%d", arg.Order)
+	return argName
+}
+
+func TryGetParamName(v ast.ValueExpr) (string, bool) {
+	switch typedValue := v.(type) {
+	case *driver.ParamMarkerExpr:
+		return GetParamName(typedValue), true
 	}
-	return nil
+	return "", false
 }

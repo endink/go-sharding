@@ -29,13 +29,12 @@ func GenerateSql(defaultDataSource string, expl *explain.SqlExplain, bindVariabl
 		return nil, err
 	}
 
-	runtime, err := NewRuntime(defaultDataSource, expl, values)
+	runtime, err := NewRuntime(defaultDataSource, expl, values, bindVariables)
 	if err != nil {
 		return nil, err
 	}
 
 	if len(values) == 0 { //没有存在任何分片表数据
-
 		sql, err := expl.RestoreSql(runtime)
 		if err != nil {
 			return nil, err
@@ -44,19 +43,29 @@ func GenerateSql(defaultDataSource string, expl *explain.SqlExplain, bindVariabl
 		cmd := &ScatterCommand{
 			DataSource: defaultDataSource,
 			SqlCommand: sql,
+			Vars:       bindVariables,
 		}
 
 		return &SqlGenResult{
 			Commands: []*ScatterCommand{cmd},
 			Usage:    UsageRaw,
 		}, nil
-	}
+	} else {
+		err = expl.SetVars(bindVariables)
+		if err != nil {
+			return nil, err
+		}
 
-	return gen(expl, runtime)
+		var r *SqlGenResult
+		r, err = gen(expl, runtime)
+		if err != nil {
+			return nil, err
+		}
+		return r, nil
+	}
 }
 
 func gen(sqlExplain *explain.SqlExplain, runtime *genRuntime) (*SqlGenResult, error) {
-
 	genResult := &SqlGenResult{
 		Usage: UsageShard,
 	}
@@ -71,6 +80,7 @@ func gen(sqlExplain *explain.SqlExplain, runtime *genRuntime) (*SqlGenResult, er
 			cmd := &ScatterCommand{
 				DataSource: runtime.currentDb,
 				SqlCommand: sql,
+				Vars:       runtime.GetCurrentBindVariables(),
 			}
 
 			genResult.Commands = append(genResult.Commands, cmd)

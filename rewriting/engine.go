@@ -23,52 +23,24 @@ import (
 	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/pingcap/errors"
 	"github.com/pingcap/parser/ast"
-	"github.com/scylladb/go-set/strset"
 )
 
 var DefaultRewriter explain.Rewriter = &engine{}
 
 type engine struct {
-	bindVariableRewriterList []bindVariableRewriter
+	preparerList []preparer
 }
 
-func (engine *engine) RewriteBindVariables(bindVars map[string]*types.BindVariable) (explain.RewriteBindVarsResult, error) {
-	if len(engine.bindVariableRewriterList) == 0 {
-		return explain.NoneRewriteBindVarsResult, nil
-	}
-
-	rewroteNames := strset.New()
-	scatterNameSet := make(map[string]*strset.Set)
-
-	isRewrote := false
-	for _, rw := range engine.bindVariableRewriterList {
-		r, err := rw.rewriteBindVars(bindVars)
-		if err != nil {
-			return nil, err
-		}
-		isRewrote = isRewrote || r.IsRewrote()
-		if r.IsRewrote() {
-			rewroteNames.Add(r.RewroteVariables()...)
-			for n, v := range r.ScatterVariables() {
-				set, ok := scatterNameSet[n]
-				if !ok {
-					set = strset.New()
-					scatterNameSet[n] = set
-				}
-				set.Add(v...)
+func (engine *engine) PrepareBindVariables(bindVars map[string]*types.BindVariable) error {
+	if len(engine.preparerList) > 0 {
+		for _, rw := range engine.preparerList {
+			err := rw.prepare(bindVars)
+			if err != nil {
+				return nil
 			}
 		}
 	}
-	if !isRewrote {
-		return explain.NoneRewriteBindVarsResult, nil
-	}
-
-	scatterNames := make(map[string][]string, len(scatterNameSet))
-	for name, set := range scatterNameSet {
-		scatterNames[name] = set.List()
-	}
-
-	return explain.ResultFromScatterVars(rewroteNames.List(), scatterNames), nil
+	return nil
 }
 
 func (engine *engine) RewriteTable(tableName *ast.TableName, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
@@ -127,7 +99,7 @@ func (engine *engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainConte
 	}
 	if ok {
 		if writer, e := NewPatternInWriter(patternIn, sd); e == nil {
-			engine.bindVariableRewriterList = append(engine.bindVariableRewriterList, writer)
+			engine.preparerList = append(engine.preparerList, writer)
 			return explain.ResultFromFormatter(writer, sd.Name, explain.GetColumn(columnNameExpr.Name)), nil
 		} else {
 			return nil, e

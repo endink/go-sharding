@@ -29,8 +29,8 @@ var NoneRewriter Rewriter = &noneRewriter{}
 type noneRewriter struct {
 }
 
-func (m *noneRewriter) RewriteBindVariables(bindVars map[string]*types.BindVariable) (RewriteBindVarsResult, error) {
-	return NoneRewriteBindVarsResult, nil
+func (m *noneRewriter) PrepareBindVariables(bindVars map[string]*types.BindVariable) error {
+	return nil
 }
 
 func (m *noneRewriter) containsTable(table string, explainContext Context) bool {

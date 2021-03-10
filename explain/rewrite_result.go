@@ -26,7 +26,6 @@ var _ RewriteLimitResult = &rewriteLimitResult{}
 var NoneRewriteFormattedResult = ResultFromFormatter(nil, "", "")
 var NoneRewriteLimitResult = ResultFromLimit(-1)
 var NoneRewriteResult RewriteResult = &rewriteResultBase{isRewrote: false}
-var NoneRewriteBindVarsResult RewriteBindVarsResult = &rewriteVarsResult{rewroteParams: nil}
 
 type rewriteResultBase struct {
 	isRewrote     bool
@@ -89,29 +88,4 @@ func ResultFromLimit(count int64) *rewriteLimitResult {
 		rewriteResultBase: base,
 		count:             count,
 	}
-}
-
-type rewriteVarsResult struct {
-	rewroteParams []string
-	scatterParams map[string][]string
-}
-
-func (r *rewriteVarsResult) RewroteVariables() []string {
-	return r.rewroteParams
-}
-
-func (r *rewriteVarsResult) ScatterVariables() map[string][]string {
-	return r.scatterParams
-}
-
-func (r *rewriteVarsResult) IsRewrote() bool {
-	return len(r.rewroteParams) > 0
-}
-
-func ResultFromScatterVars(rewroteVariables []string, scatterVariables map[string][]string) RewriteBindVarsResult {
-	r := &rewriteVarsResult{
-		rewroteParams: rewroteVariables,
-		scatterParams: scatterVariables,
-	}
-	return r
 }

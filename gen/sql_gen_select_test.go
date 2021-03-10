@@ -25,9 +25,11 @@ import (
 	"github.com/XiaoMi/Gaea/core/script"
 	"github.com/XiaoMi/Gaea/driver/strategy"
 	"github.com/XiaoMi/Gaea/explain"
+	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/XiaoMi/Gaea/rewriting"
 	"github.com/XiaoMi/Gaea/testkit"
 	"github.com/stretchr/testify/assert"
+	"reflect"
 	"testing"
 )
 
@@ -37,6 +39,7 @@ func TestSelectShard(t *testing.T) {
 		tbInline string
 		sql      string
 		sqls     *SqlGenResult
+		vars     map[string]*types.BindVariable
 	}{
 		{
 			tbInline: "test_${id%4}",
@@ -63,7 +66,18 @@ func TestSelectShard(t *testing.T) {
 				},
 			},
 		},
-
+		{
+			tbInline: "test_${id%4}",
+			sql:      "select id from test where id = 0 or id in (?,?,?,?)",
+			sqls: &SqlGenResult{
+				Commands: []*ScatterCommand{
+					{
+						DataSource: "db1",
+						SqlCommand: "SELECT `id` FROM `test_0` WHERE `id`=0",
+					},
+				},
+			},
+		},
 		{
 			tbInline: "test_${id%4}",
 			sql:      "select * from test where id in (0,1,2,3,4,6)",
@@ -75,19 +89,19 @@ func TestSelectShard(t *testing.T) {
 					},
 					{
 						DataSource: "db1",
-						SqlCommand: "SELECT `id` FROM `test_1` WHERE `id`=1",
+						SqlCommand: "SELECT * FROM `test_1` WHERE `id`=1",
 					},
 					{
 						DataSource: "db1",
-						SqlCommand: "SELECT `id` FROM `test_2` WHERE IN (2,6)",
+						SqlCommand: "SELECT * FROM `test_2` WHERE IN (2,6)",
 					},
 					{
 						DataSource: "db1",
-						SqlCommand: "SELECT `id` FROM `test_2` WHERE `id`=2",
+						SqlCommand: "SELECT * FROM `test_2` WHERE `id`=2",
 					},
 					{
 						DataSource: "db1",
-						SqlCommand: "SELECT `id` FROM `test_3` WHERE `id`=3",
+						SqlCommand: "SELECT * FROM `test_3` WHERE `id`=3",
 					},
 				},
 			},
@@ -103,7 +117,7 @@ func TestSelectShard(t *testing.T) {
 			err := expl.ExplainSelect(stmt, rewriting.DefaultRewriter)
 			assert.Nil(tt, err)
 
-			r, e := GenerateSql("db1", expl, nil)
+			r, e := GenerateSql("db1", expl, test.vars)
 			assert.Nil(tt, e)
 			AssertResultEquals(tt, test.sqls, r)
 		})
@@ -134,10 +148,36 @@ func AssertResultEquals(t testing.TB, r1 *SqlGenResult, r2 *SqlGenResult) {
 	}
 }
 
+func AssertBindVarsEquals(t testing.TB, excepted map[string]*types.BindVariable, actual map[string]*types.BindVariable) bool {
+	assert.Equal(t, len(excepted), len(actual), "excepted %d BindVariable, got: %d", len(excepted), len(actual))
+
+	for n, v := range actual {
+		if ev, ok := excepted[n]; !ok {
+			t.Fatalf("'%s' is not expected BindVariable", n)
+		} else {
+			if !reflect.DeepEqual(ev, v) {
+				t.Fatalf("BindVariable '%s' not equal: \n"+
+					"expected: %v\n"+
+					"actual  : %v", n, ev, actual)
+				return false
+			}
+		}
+	}
+
+	for n, _ := range excepted {
+		if _, ok := actual[n]; !ok {
+			t.Fatalf("excepted BindVariable '%s' missed", n)
+			return false
+		}
+	}
+	return true
+}
+
 func AssertScatterCommandEqual(t testing.TB, cmd1 *ScatterCommand, cmd2 *ScatterCommand) bool {
 	r1 := assert.Equal(t, cmd1.DataSource, cmd2.DataSource)
 	r2 := testkit.AssertEqualSql(t, cmd1.SqlCommand, cmd2.SqlCommand)
-	return r2 && r1
+	r3 := AssertBindVarsEquals(t, cmd1.Vars, cmd2.Vars)
+	return r2 && r1 && r3
 }
 
 func useShardingTables(tb testing.TB, tableExpression string) explain.ShardingTableProvider {

@@ -24,10 +24,21 @@ import "github.com/XiaoMi/Gaea/mysql/types"
 
 type ScatterBindVars struct {
 	IsScattered bool
-	BindVars    []*TableBindVars
+	BindVars    []*ScatterVars
 }
 
-type TableBindVars struct {
-	DbTable string
-	Vars    map[string]*types.BindVariable
+func (vars *ScatterBindVars) Get(dataSource string) (map[string]*types.BindVariable, bool) {
+	if vars.IsScattered {
+		for _, vars := range vars.BindVars {
+			if vars.DataSource == dataSource {
+				return vars.Vars, true
+			}
+		}
+	}
+	return nil, false
+}
+
+type ScatterVars struct {
+	DataSource string
+	Vars       map[string]*types.BindVariable
 }

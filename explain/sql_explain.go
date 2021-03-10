@@ -19,7 +19,6 @@
 package explain
 
 import (
-	"fmt"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/XiaoMi/Gaea/util/sync2"
@@ -91,39 +90,12 @@ func (s *SqlExplain) ExplainSelect(sel *ast.SelectStmt, rewriter Rewriter) error
 	return nil
 }
 
-func (s *SqlExplain) RestoreBindVars(bindVariables map[string]*types.BindVariable) (*ScatterBindVars, error) {
-	r, err := s.rewriter.RewriteBindVariables(bindVariables)
-	if err != nil {
-		return nil, err
-	}
-
-	if r.IsRewrote() {
-
-		for table, names := range r.ScatterVariables() {
-			vars := &TableBindVars{
-				DbTable: table,
-				Vars:    make(map[string]*types.BindVariable, len(names)),
-			}
-			i := 0
-			for _, n := range names {
-				v, ok := bindVariables[n]
-				if !ok {
-					return nil, fmt.Errorf("parameter named '%s' nout found", n)
-				}
-				vars.Vars[fmt.Sprintf("p%d", i)] = v
-				i++
-			}
-		}
-		return &ScatterBindVars{
-			IsScattered: true,
-			BindVars:    vars,
-		}
-	}
+func (s *SqlExplain) SetVars(bindVariables map[string]*types.BindVariable) error {
+	return s.rewriter.PrepareBindVariables(bindVariables)
 }
 
 func (s *SqlExplain) RestoreSql(runtime Runtime) (string, error) {
 	sb := new(strings.Builder)
-
 	rstCtx := &format.RestoreCtx{
 		Flags: runtime.GetRestoreFlags(),
 		In:    wrapWriter(sb, runtime, s.currentContext()),

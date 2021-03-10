@@ -20,12 +20,17 @@
 
 package explain
 
-import "github.com/pingcap/parser/format"
+import (
+	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/pingcap/parser/format"
+)
 
 type Runtime interface {
+	GetCurrentBindVariables() map[string]*types.BindVariable
 	GetRestoreFlags() format.RestoreFlags
 	GetCurrent(shardingTable string) (database string, table string, err error)
 	GetCurrentTable(shardingTable string) (string, error)
 	GetCurrentDatabase() (string, error)
 	GetServerSchema() string
+	RemoveParameter(argName string) bool
 }

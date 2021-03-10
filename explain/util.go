@@ -115,7 +115,7 @@ func astTypeToMySqlType(astType byte) (myTypes.MySqlType, error) {
 }
 
 func getParamFromExprStrictly(n *driver.ParamMarkerExpr) (*ArgScalarRef, error) {
-	argName := fmt.Sprintf("p%d", n.Offset)
+	argName := fmt.Sprintf("p%d", n.Order)
 	argType, err := astTypeToMySqlType(n.Kind())
 	if err != nil {
 		return nil, err

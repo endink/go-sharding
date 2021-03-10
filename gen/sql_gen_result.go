@@ -21,6 +21,7 @@ package gen
 import (
 	"fmt"
 	"github.com/XiaoMi/Gaea/core"
+	"github.com/XiaoMi/Gaea/mysql/types"
 )
 
 type Usage byte
@@ -45,6 +46,7 @@ func (u Usage) String() string {
 type ScatterCommand struct {
 	DataSource string
 	SqlCommand string
+	Vars       map[string]*types.BindVariable
 }
 
 func (s *ScatterCommand) String() string {
