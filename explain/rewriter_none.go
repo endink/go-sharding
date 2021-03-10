@@ -38,12 +38,15 @@ func (m *noneRewriter) containsTable(table string, explainContext Context) bool 
 	return ok
 }
 
-func (m *noneRewriter) findTable(columnName *ast.ColumnNameExpr, explainContext Context, explicit bool) (string, bool) {
-	sd, ok, _ := FindShardingTableByColumn(columnName, explainContext, explicit)
-	if ok {
-		return sd.Name, true
+func (m *noneRewriter) findTable(columnName *ast.ColumnNameExpr, explainContext Context, explicit bool) (string, bool, error) {
+	sd, ok, err := FindShardingTableByColumn(columnName, explainContext, explicit)
+	if err != nil {
+		return "", false, err
 	}
-	return "", false
+	if ok {
+		return sd.Name, true, nil
+	}
+	return "", false, nil
 }
 
 func (m *noneRewriter) RewriteTable(table *ast.TableName, explainContext Context) (RewriteFormattedResult, error) {
@@ -56,7 +59,11 @@ func (m *noneRewriter) RewriteTable(table *ast.TableName, explainContext Context
 
 func (m *noneRewriter) RewriteField(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteFormattedResult, error) {
 	colName := GetColumn(columnName.Name)
-	if t, ok := m.findTable(columnName, explainContext, false); ok {
+	t, ok, err := m.findTable(columnName, explainContext, false)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
 		return ResultFromNode(columnName, t, colName), nil
 	}
 	return NoneRewriteFormattedResult, nil
@@ -64,7 +71,11 @@ func (m *noneRewriter) RewriteField(columnName *ast.ColumnNameExpr, explainConte
 
 func (m *noneRewriter) RewriteColumn(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteFormattedResult, error) {
 	colName := GetColumn(columnName.Name)
-	if t, ok := m.findTable(columnName, explainContext, true); ok {
+	t, ok, err := m.findTable(columnName, explainContext, true)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
 		return ResultFromNode(columnName, t, colName), nil
 	}
 	return NoneRewriteFormattedResult, nil
@@ -76,7 +87,11 @@ func (m *noneRewriter) RewritePatterIn(patternIn *ast.PatternInExpr, explainCont
 		return nil, errors.New("pattern in statement required ColumnNameExpr")
 	}
 	colName := GetColumn(columnName.Name)
-	if t, ok := m.findTable(columnName, explainContext, true); ok {
+	t, ok, err := m.findTable(columnName, explainContext, true)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
 		return ResultFromNode(columnName, t, colName), nil
 	}
 	return NoneRewriteFormattedResult, nil
@@ -88,7 +103,11 @@ func (m *noneRewriter) RewriteBetween(between *ast.BetweenExpr, explainContext C
 		return nil, errors.New("between and statement required ColumnNameExpr")
 	}
 	colName := GetColumn(columnName.Name)
-	if t, ok := m.findTable(columnName, explainContext, true); ok {
+	t, ok, err := m.findTable(columnName, explainContext, true)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
 		return ResultFromNode(columnName, t, colName), nil
 	}
 	return NoneRewriteFormattedResult, nil

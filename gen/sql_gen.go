@@ -24,21 +24,33 @@ import (
 )
 
 func GenerateSql(defaultDataSource string, expl *explain.SqlExplain, bindVariables []*types.BindVariable) (*SqlGenResult, error) {
-	values, vErr := expl.RestoreShardingValues(bindVariables)
-	if vErr != nil {
-		return nil, vErr
+	values, err := expl.RestoreShardingValues(bindVariables)
+	if err != nil {
+		return nil, err
+	}
+
+	runtime, err := NewRuntime(defaultDataSource, expl, values, bindVariables)
+	if err != nil {
+		return nil, err
 	}
 
 	if len(values) == 0 { //没有存在任何分片表数据
-		return &SqlGenResult{
-			Usage: UsageRaw,
-		}, nil
-	} else {
-
-		runtime, err := NewRuntime(defaultDataSource, expl, values, bindVariables)
+		sql, err := expl.RestoreSql(runtime)
 		if err != nil {
 			return nil, err
 		}
+
+		cmd := &ScatterCommand{
+			DataSource: defaultDataSource,
+			SqlCommand: sql,
+			Vars:       bindVariables,
+		}
+
+		return &SqlGenResult{
+			Commands: []*ScatterCommand{cmd},
+			Usage:    UsageRaw,
+		}, nil
+	} else {
 		err = expl.SetVars(bindVariables)
 		if err != nil {
 			return nil, err

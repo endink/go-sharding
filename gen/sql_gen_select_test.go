@@ -43,12 +43,38 @@ func TestSelectShard(t *testing.T) {
 	}{
 		{
 			tbInline: "test_${id%4}",
-			sql:      "select * from test where id = 2",
+			sql:      "select * from no_shard where id = 2",
 			sqls: &SqlGenResult{
 				Commands: []*ScatterCommand{
 					{
 						DataSource: "db1",
-						SqlCommand: "SELECT * FROM `test_2` WHERE `id`=2",
+						SqlCommand: "SELECT * FROM `no_shard` WHERE `id`=2",
+					},
+				},
+				Usage: UsageRaw,
+			},
+		},
+		{
+			tbInline: "test_${id%4}",
+			sql:      "select name from no_shard where id = 2 order by id",
+			sqls: &SqlGenResult{
+				Commands: []*ScatterCommand{
+					{
+						DataSource: "db1",
+						SqlCommand: "SELECT name, id FROM `no_shard` WHERE `id`=2 order by id", //补列
+					},
+				},
+				Usage: UsageRaw,
+			},
+		},
+		{
+			tbInline: "test_${id%4}",
+			sql:      "select * from test where id = 2 order by id",
+			sqls: &SqlGenResult{
+				Commands: []*ScatterCommand{
+					{
+						DataSource: "db1",
+						SqlCommand: "SELECT *, id FROM `test_2` WHERE `id`=2 order by id",
 					},
 				},
 				Usage: UsageShard,
@@ -56,25 +82,13 @@ func TestSelectShard(t *testing.T) {
 		},
 		{
 			tbInline: "test_${id%4}",
-			sql:      "select id from test where id = 0",
-			sqls: &SqlGenResult{
-				Commands: []*ScatterCommand{
-					{
-						DataSource: "db1",
-						SqlCommand: "SELECT `id` FROM `test_0` WHERE `id`=0",
-					},
-				},
-			},
-		},
-		{
-			tbInline: "test_${id%4}",
-			sql:      "select id from test where id =?",
+			sql:      "select id from test where id =? order by name",
 			vars:     makeIntVars(0),
 			sqls: &SqlGenResult{
 				Commands: []*ScatterCommand{
 					{
 						DataSource: "db1",
-						SqlCommand: "SELECT `id` FROM `test_0` WHERE `id`=?",
+						SqlCommand: "SELECT id, name FROM `test_0` WHERE `id`=? order by name",
 						Vars:       makeIntVars(0),
 					},
 				},

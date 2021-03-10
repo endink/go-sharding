@@ -366,8 +366,7 @@ func FindShardingTableByColumn(columnName *ast.ColumnNameExpr, explainContext Co
 		}
 		return sd, true, nil
 	} else if explicit {
-		sd, err := explainContext.TableLookup().ExplicitShardingTableByColumn(c)
-		return sd, sd != nil, err
+		return explainContext.TableLookup().ExplicitShardingTableByColumn(c)
 	}
 	return nil, false, nil
 }

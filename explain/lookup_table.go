@@ -28,7 +28,7 @@ import (
 type TableLookup interface {
 	addTable(table *ast.TableSource, provider ShardingTableProvider) error
 	FindShardingTable(tableOrAlias string) (*core.ShardingTable, bool)
-	ExplicitShardingTableByColumn(column string) (*core.ShardingTable, error)
+	ExplicitShardingTableByColumn(column string) (*core.ShardingTable, bool, error)
 	HasAlias(tableName string) bool
 	FindNameByAlias(tableName string) (model.CIStr, bool)
 	ShardingTables() []string
@@ -71,20 +71,20 @@ func (lookup *tableLookup) FindShardingTable(tableOrAlias string) (*core.Shardin
 
 //该方法仅可用于查询一个表时根据列明查找分片表，多个表时应该明确使用表明查找
 //当找到一个以上的分片表时也会发生错误
-func (lookup *tableLookup) ExplicitShardingTableByColumn(column string) (*core.ShardingTable, error) {
+func (lookup *tableLookup) ExplicitShardingTableByColumn(column string) (*core.ShardingTable, bool, error) {
 	var sd *core.ShardingTable
 	var found bool
 	for _, name := range lookup.shardingTableNames {
 		hasFound := found
 		sd, found = lookup.FindShardingTable(name)
 		if hasFound && found { //找到多余一个时
-			return nil, fmt.Errorf("more than one sharding table found, unable to decided which table the '%s' column belongs to", column)
+			return nil, false, fmt.Errorf("more than one sharding table found, unable to decided which table the '%s' column belongs to", column)
 		}
 	}
 	if found {
-		return sd, nil
+		return sd, true, nil
 	} else {
-		return nil, fmt.Errorf("unable to found sharding table for '%s' column ", column)
+		return nil, false, nil
 	}
 }
 

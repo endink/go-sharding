@@ -40,7 +40,7 @@ func (s *SqlExplain) explainGroupBy(stmt *ast.SelectStmt, rewriter Rewriter) err
 func (s *SqlExplain) attachByItems(stmt *ast.SelectStmt, byItems []*ast.ByItem, lookup FieldLookup, rewriter Rewriter) error {
 	index := len(stmt.Fields.Fields)
 	for _, item := range byItems {
-		if columnExpr, ok := item.Expr.(*ast.ColumnNameExpr); ok {
+		if columnExpr, ok := item.Expr.(*ast.ColumnNameExpr); !ok {
 			return fmt.Errorf("ByItem.Expr is not a ColumnNameExpr")
 		} else {
 			fieldName := GetColumn(columnExpr.Name)

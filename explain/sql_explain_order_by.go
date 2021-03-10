@@ -29,5 +29,5 @@ func (s *SqlExplain) explainOrderBy(stmt *ast.SelectStmt, rewriter Rewriter) err
 	}
 
 	orderByLookup := s.currentContext().OrderByLookup()
-	return s.attachByItems(stmt, stmt.GroupBy.Items, orderByLookup, rewriter)
+	return s.attachByItems(stmt, stmt.OrderBy.Items, orderByLookup, rewriter)
 }
