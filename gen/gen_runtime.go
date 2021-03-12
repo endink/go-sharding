@@ -71,7 +71,7 @@ func NewRuntime(
 		for _, shardingTable := range usedShardingTables {
 			shardingValues, _ := values[shardingTable.Name]
 			//根据分片列的值计算数据库分片
-			databases, dbErr := shardDatabase(shardingValues, shardingTable, defaultDatabase)
+			databases, dbErr := shardDatabase(shardingValues, shardingTable, defaultDatabase, explain.Context().ContainsFullShardColumn())
 
 			if dbErr != nil {
 				return nil, dbErr
@@ -79,7 +79,7 @@ func NewRuntime(
 			allDatabases.Add(databases...)
 
 			//根据分片表的值计算表分片，约定分片算法返回的物理表不会重复
-			physicalTables, tbErr := shardTables(shardingValues, shardingTable)
+			physicalTables, tbErr := shardTables(shardingValues, shardingTable, explain.Context().ContainsFullShardColumn())
 			if tbErr != nil {
 				return nil, tbErr
 			}
@@ -125,7 +125,7 @@ func appendShardingTables(table string, shardingTableProvider explain.ShardingTa
 	return usedShardingTables, nil
 }
 
-func shardDatabase(shardingValues *core.ShardingValues, shardingTable *core.ShardingTable, defaultDb string) ([]string, error) {
+func shardDatabase(shardingValues *core.ShardingValues, shardingTable *core.ShardingTable, defaultDb string, hasFullShardColumn bool) ([]string, error) {
 	if shardingValues == nil || shardingValues.IsEmpty() {
 		return shardingTable.GetDatabases(), nil
 	} else if !shardingTable.IsDbShardingSupported() {
@@ -133,7 +133,7 @@ func shardDatabase(shardingValues *core.ShardingValues, shardingTable *core.Shar
 	} else {
 		allDatabases := shardingTable.GetDatabases()
 
-		sty := core.DetectShardType(shardingTable.DatabaseStrategy, shardingValues)
+		sty := core.DetectShardType(shardingTable.DatabaseStrategy, shardingValues, hasFullShardColumn)
 		switch sty {
 		case core.ShardImpossible:
 			return make([]string, 0), nil
@@ -148,7 +148,7 @@ func shardDatabase(shardingValues *core.ShardingValues, shardingTable *core.Shar
 	}
 }
 
-func shardTables(shardingValues *core.ShardingValues, shardingTable *core.ShardingTable) ([]string, error) {
+func shardTables(shardingValues *core.ShardingValues, shardingTable *core.ShardingTable, hasNotPartitionedColumn bool) ([]string, error) {
 	if shardingValues == nil || shardingValues.IsEmpty() {
 		return shardingTable.GetTables(), nil
 	} else if !shardingTable.IsTableShardingSupported() {
@@ -156,7 +156,7 @@ func shardTables(shardingValues *core.ShardingValues, shardingTable *core.Shardi
 	} else {
 		allTables := shardingTable.GetTables()
 
-		sty := core.DetectShardType(shardingTable.TableStrategy, shardingValues)
+		sty := core.DetectShardType(shardingTable.TableStrategy, shardingValues, hasNotPartitionedColumn)
 
 		switch sty {
 		case core.ShardImpossible:

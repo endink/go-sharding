@@ -87,6 +87,31 @@ func TestSelectWhere(t *testing.T) {
 
 		{
 			tbInline: "test_${id%4}",
+			sql:      "select * from test where a = 'b' or id = 2 and name = 'x'",
+			sqls: &SqlGenResult{
+				Commands: []*ScatterCommand{
+					{
+						DataSource: "db1",
+						SqlCommand: "select * from test_0 where a = 'b' or id = 2 and name = 'x'",
+					},
+					{
+						DataSource: "db1",
+						SqlCommand: "select * from test_1 where a = 'b' or id = 2 and name = 'x'",
+					},
+					{
+						DataSource: "db1",
+						SqlCommand: "select * from test_2 where a = 'b' or id = 2 and name = 'x'",
+					},
+					{
+						DataSource: "db1",
+						SqlCommand: "select * from test_3 where a = 'b' or id = 2 and name = 'x'",
+					},
+				},
+			},
+		},
+
+		{
+			tbInline: "test_${id%4}",
 			sql:      "select * from test where name = 'x' or id = 2",
 			sqls: &SqlGenResult{
 				Commands: []*ScatterCommand{
@@ -105,6 +130,32 @@ func TestSelectWhere(t *testing.T) {
 					{
 						DataSource: "db1",
 						SqlCommand: "select * from test_3 where name = 'x' or id = 2",
+					},
+				},
+			},
+		},
+
+		{
+			tbInline: "test_${id%4}",
+			sql:      "select * from test where id = 1 and (a = 'a' or id = 2)",
+			sqls: &SqlGenResult{
+				Usage: UsageShard,
+				Commands: []*ScatterCommand{
+					{
+						DataSource: "db1",
+						SqlCommand: "select * from test_0 where id = 1 and (a = 'a' or id = 2)",
+					},
+					{
+						DataSource: "db1",
+						SqlCommand: "select * from test_1 where id = 1 and (a = 'a' or id = 2)",
+					},
+					{
+						DataSource: "db1",
+						SqlCommand: "select * from test_2 where id = 1 and (a = 'a' or id = 2)",
+					},
+					{
+						DataSource: "db1",
+						SqlCommand: "select * from test_3 where id = 1 and (a = 'a' or id = 2)",
 					},
 				},
 			},

@@ -22,8 +22,16 @@ import (
 	"errors"
 	"fmt"
 	"github.com/XiaoMi/Gaea/core"
+	"github.com/XiaoMi/Gaea/parser"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/opcode"
+)
+
+type binarySide byte
+
+const (
+	binarySideLeft binarySide = iota
+	binarySideRight
 )
 
 func (s *SqlExplain) explainCondition(node ast.ExprNode, rewriter Rewriter) (ast.ExprNode, error) {
@@ -53,11 +61,23 @@ func (s *SqlExplain) explainCondition(node ast.ExprNode, rewriter Rewriter) (ast
 func (s *SqlExplain) rewriteField(rewriter Rewriter, errMsg string, expr ...ast.Node) error {
 	for _, node := range expr {
 		if node != nil {
-			v := NewFieldVisitor(rewriter, s.currentContext())
-			node.Accept(v)
-			if v.err != nil {
+			err := parser.WalkAndWrite(func(n ast.Node) (bool, ast.Node, error) {
+				field, ok := n.(*ast.ColumnNameExpr)
+				if ok {
+					result, e := rewriter.RewriteField(field, s.ctx)
+					if e != nil {
+						return false, nil, fmt.Errorf("check rewrite column name for ColumnNameExpr error: %v", e)
+					}
+					if result.IsRewrote() {
+						return true, wrapFormatter(result.GetFormatter()), nil
+					}
+					s.checkFullShardQueryColumn(n, result)
+				}
+				return true, n, nil
+			})
+			if err != nil {
 				msg := core.IfBlank(errMsg, "visitor rewrite fault !")
-				return errors.New(fmt.Sprint(msg, core.LineSeparator, fmt.Sprintf("%v", v.err)))
+				return errors.New(fmt.Sprint(msg, core.LineSeparator, fmt.Sprintf("%v", err)))
 			}
 		}
 	}
@@ -82,6 +102,7 @@ func (s *SqlExplain) explainBetween(expr *ast.BetweenExpr, rewriter Rewriter) (a
 
 		return wrapFormatter(result.GetFormatter()), nil
 	}
+	s.checkFullShardQueryColumn(expr.Expr, result)
 	return expr, nil
 }
 
@@ -99,6 +120,7 @@ func (s *SqlExplain) explainPatternIn(expr *ast.PatternInExpr, rewriter Rewriter
 		s.pushOrValueGroup(result.GetShardingTable(), result.GetColumn(), values...)
 		return wrapFormatter(result.GetFormatter()), nil
 	}
+	s.checkFullShardQueryColumn(expr.Expr, result)
 	return expr, nil
 }
 
@@ -118,10 +140,10 @@ func (s *SqlExplain) explainBinary(expr *ast.BinaryOperationExpr, rewriter Rewri
 		return s.explainBinaryMath(expr, rewriter)
 	default:
 		//其他情况尝试改写列名
-		if _, err := s.rewriteLeftColumn(expr, rewriter); err != nil {
+		if _, err := s.rewriteBinaryColumn(expr, rewriter, binarySideLeft); err != nil {
 			return nil, err
 		}
-		if _, err := s.rewriteLeftColumn(expr, rewriter); err != nil {
+		if _, err := s.rewriteBinaryColumn(expr, rewriter, binarySideRight); err != nil {
 			return nil, err
 		}
 		return expr, nil
@@ -130,11 +152,11 @@ func (s *SqlExplain) explainBinary(expr *ast.BinaryOperationExpr, rewriter Rewri
 
 //处理逻辑运算符 or , and
 func (s *SqlExplain) explainBinaryLogic(expr *ast.BinaryOperationExpr, rewriter Rewriter, logic core.BinaryLogic) (ast.ExprNode, error) {
+	s.pushLogic(logic)
 	leftNode, lErr := s.explainCondition(expr.L, rewriter) //最左边的操作数要保持当前逻辑
 	if lErr != nil {
 		return nil, fmt.Errorf("handle BinaryOperationExpr.L error: %v", lErr)
 	}
-	s.pushLogic(logic)
 	rightNode, rErr := s.explainCondition(expr.R, rewriter)
 	s.popLogic()
 	if rErr != nil {
@@ -183,32 +205,32 @@ func (s *SqlExplain) explainBinaryMath(expr *ast.BinaryOperationExpr, rewriter R
 	//}
 
 	if lType == ColumnNameExpr && rType == ColumnNameExpr {
-		_, err := s.rewriteLeftColumn(expr, rewriter)
+		_, err := s.rewriteBinaryColumn(expr, rewriter, binarySideLeft)
 		if err != nil {
 			return nil, err
 		}
-		_, err = s.rewriteRightColumn(expr, rewriter)
+		_, err = s.rewriteBinaryColumn(expr, rewriter, binarySideRight)
 		if err != nil {
 			return nil, err
 		}
 	} else {
 		if lType == ColumnNameExpr {
-			return s.explainColumnWithValue(expr, rewriter, true)
+			return s.explainColumnWithValue(expr, rewriter, binarySideLeft)
 		}
 
 		if rType == ColumnNameExpr {
-			return s.explainColumnWithValue(expr, rewriter, false)
+			return s.explainColumnWithValue(expr, rewriter, binarySideRight)
 		}
 	}
 	return expr, nil
 }
 
-func (s *SqlExplain) explainColumnWithValue(expr *ast.BinaryOperationExpr, rewriter Rewriter, columnLeft bool) (ast.ExprNode, error) {
+func (s *SqlExplain) explainColumnWithValue(expr *ast.BinaryOperationExpr, rewriter Rewriter, side binarySide) (ast.ExprNode, error) {
 	var columnNode, valueNode ast.ExprNode
 	var err error
 	var r RewriteResult
 
-	if columnLeft {
+	if side == binarySideLeft {
 		columnNode = expr.L
 		valueNode = expr.R
 	} else {
@@ -217,12 +239,7 @@ func (s *SqlExplain) explainColumnWithValue(expr *ast.BinaryOperationExpr, rewri
 	}
 
 	columnName := GetColumn(columnNode.(*ast.ColumnNameExpr).Name)
-
-	if columnLeft {
-		r, err = s.rewriteLeftColumn(expr, rewriter)
-	} else {
-		r, err = s.rewriteRightColumn(expr, rewriter)
-	}
+	r, err = s.rewriteBinaryColumn(expr, rewriter, side)
 	if err != nil {
 		return nil, err
 	}
@@ -240,24 +257,18 @@ func (s *SqlExplain) explainColumnWithValue(expr *ast.BinaryOperationExpr, rewri
 	return expr, nil
 }
 
-func (s *SqlExplain) rewriteLeftColumn(expr *ast.BinaryOperationExpr, rewriter Rewriter) (RewriteResult, error) {
-	leftCol, ok := expr.L.(*ast.ColumnNameExpr)
-	if !ok {
-		return NoneRewriteResult, nil
-	}
-	result, err := rewriter.RewriteColumn(leftCol, s.currentContext())
-	if err != nil {
-		return nil, err
-	}
-	if result != nil && result.IsRewrote() {
-		expr.L = wrapFormatter(result.GetFormatter())
-	}
-	return result, nil
-}
+func (s *SqlExplain) rewriteBinaryColumn(expr *ast.BinaryOperationExpr, rewriter Rewriter, columnSide binarySide) (RewriteResult, error) {
+	var col *ast.ColumnNameExpr
+	var isColumnName bool
 
-func (s *SqlExplain) rewriteRightColumn(expr *ast.BinaryOperationExpr, rewriter Rewriter) (RewriteResult, error) {
-	col, ok := expr.R.(*ast.ColumnNameExpr)
-	if !ok {
+	switch columnSide {
+	case binarySideLeft:
+		col, isColumnName = expr.L.(*ast.ColumnNameExpr)
+	case binarySideRight:
+		col, isColumnName = expr.R.(*ast.ColumnNameExpr)
+	}
+
+	if !isColumnName {
 		return NoneRewriteResult, nil
 	}
 	result, err := rewriter.RewriteColumn(col, s.currentContext())
@@ -265,7 +276,30 @@ func (s *SqlExplain) rewriteRightColumn(expr *ast.BinaryOperationExpr, rewriter 
 		return nil, err
 	}
 	if result != nil && result.IsRewrote() {
-		expr.R = wrapFormatter(result.GetFormatter())
+		switch columnSide {
+		case binarySideLeft:
+			expr.L = wrapFormatter(result.GetFormatter())
+		case binarySideRight:
+			expr.R = wrapFormatter(result.GetFormatter())
+		}
 	}
+	s.checkFullShardQueryColumn(col, result)
+
 	return result, nil
+}
+
+func (s *SqlExplain) checkFullShardQueryColumn(columnExpr ast.Node, columnRewriteResult RewriteResult) {
+	/*
+		检查是否需要全分片查询, 当存在非分片列，并且条件是 or 时候必须全分片查询:
+		例如分片列 id, 条件未 id = 3 or name = 'a' 时， name 造成全分片查询
+		因为 name = 'a' or id = 3 可能导致第一个逻辑是 and
+	*/
+
+	switch columnExpr.(type) {
+	case *ast.ColumnNameExpr:
+		if (columnRewriteResult == nil || !columnRewriteResult.IsRewrote()) && !s.ctx.fullShardColumn && s.currentLogic() == core.LogicOr {
+			s.ctx.fullShardColumn = true
+		}
+	}
+
 }

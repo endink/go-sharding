@@ -30,7 +30,7 @@ import (
 
 type SqlExplain struct {
 	shardingTableProvider ShardingTableProvider
-	ctx                   Context
+	ctx                   *context
 	logicStack            *arraystack.Stack
 	subQueryDepth         sync2.AtomicInt32
 	maxSubQueryDepth      int32
@@ -41,11 +41,6 @@ type SqlExplain struct {
 }
 
 func NewSqlExplain(stProvider ShardingTableProvider) *SqlExplain {
-	valueStack := arraystack.New()
-	valueStack.Push(newValueScope(core.LogicAnd))
-	redoLogs := newValueRedoLogs()
-	_ = redoLogs.append(redoBeginLogic{logic: core.LogicAnd})
-
 	return &SqlExplain{
 		shardingTableProvider: stProvider,
 		logicStack:            arraystack.New(),

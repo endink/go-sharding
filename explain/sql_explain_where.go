@@ -25,9 +25,22 @@ import (
 
 func (s *SqlExplain) explainWhere(sel *ast.SelectStmt, rewriter Rewriter) error {
 	where := sel.Where
+	logic := core.LogicAnd
+
+	//if b, ok := where.(*ast.BinaryOperationExpr); ok {
+	//	if b.Op == opcode.LogicOr {
+	//		logic = core.LogicOr
+	//	}
+	//}
+
+	_ = s.valueRedoLogs.append(redoBeginLogic{logic: logic})
+	s.logicStack.Push(logic)
+	defer func() {
+		s.logicStack.Pop()
+		_ = s.valueRedoLogs.append(new(redoEndLogic))
+	}()
+
 	if where != nil {
-		s.pushLogic(core.LogicAnd)
-		defer s.popLogic()
 		expr, err := s.explainCondition(where, rewriter)
 		if err != nil {
 			return err

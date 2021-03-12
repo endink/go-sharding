@@ -24,6 +24,8 @@ import (
 
 var Logger = logging.GetLogger("explain")
 
+var _ Context = &context{}
+
 type Context interface {
 	TableLookup() TableLookup
 	AggLookup() AggLookup
@@ -31,18 +33,21 @@ type Context interface {
 	OrderByLookup() FieldLookup
 	FieldLookup() FieldLookup
 	LimitLookup() LimitLookup
+	ContainsFullShardColumn() bool //是否包含需要全分片查询的列
 }
 
 type context struct {
-	tableLookup   TableLookup
-	aggLookup     AggLookup
-	groupByLookup FieldLookup
-	orderByLookup FieldLookup
-	fieldLookup   FieldLookup
-	limitLookup   LimitLookup
+	tableLookup      TableLookup
+	aggLookup        AggLookup
+	groupByLookup    FieldLookup
+	orderByLookup    FieldLookup
+	fieldLookup      FieldLookup
+	limitLookup      LimitLookup
+	conditionColumns FieldLookup
+	fullShardColumn  bool
 }
 
-func NewContext() Context {
+func NewContext() *context {
 	return &context{
 		tableLookup:   newTableLookup(),
 		aggLookup:     newAggLookup(),
@@ -51,6 +56,10 @@ func NewContext() Context {
 		fieldLookup:   newFieldLookup(),
 		limitLookup:   newLimitLookup(),
 	}
+}
+
+func (c *context) ContainsFullShardColumn() bool {
+	return c.fullShardColumn
 }
 
 func (c *context) LimitLookup() LimitLookup {

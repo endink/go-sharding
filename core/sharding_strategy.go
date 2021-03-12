@@ -36,10 +36,14 @@ type ShardingStrategy interface {
 }
 
 //decide execute sql to every shard
-func DetectShardType(s ShardingStrategy, values *ShardingValues) ShardType {
+func DetectShardType(s ShardingStrategy, values *ShardingValues, hasFullShardColumn bool) ShardType {
 	columns := s.GetShardingColumns()
 
 	isImpossible := func(col string) bool {
+		if hasFullShardColumn {
+			return false
+		}
+
 		return (s.IsRangeValueSupported() && !values.HasEffectiveRange(col) && !values.HasRange(col)) || (s.IsScalarValueSupported() && !values.HasEffectiveScalar(col) && values.HasScalar(col))
 	}
 
@@ -51,7 +55,7 @@ func DetectShardType(s ShardingStrategy, values *ShardingValues) ShardType {
 		if isImpossible(column) && (values.Logic(column) == LogicAnd) {
 			return ShardImpossible
 		}
-		if hasEffective(column) && (values.Logic(column) == LogicAnd) {
+		if hasEffective(column) && (values.Logic(column) == LogicAnd || !hasFullShardColumn) {
 			return ShardScatter
 		}
 	}

@@ -26,11 +26,37 @@ var _ ast.Visitor = &walkVisitor{}
 // can be used to visit all nodes of a parse tree.
 type Visit func(node ast.Node) (kontinue bool, err error)
 
+type VisitWriter func(node ast.Node) (kontinue bool, nn ast.Node, err error)
+
 // Walk calls visit on every node.
 // If visit returns true, the underlying nodes
 // are also visited. If it returns an error, walking
 // is interrupted, and the error is returned.
 func Walk(visit Visit, nodes ...ast.Node) error {
+	v := &walkVisitor{
+		visit: func(node ast.Node) (bool, ast.Node, error) {
+			k, e := visit(node)
+			return k, node, e
+		},
+	}
+	for _, node := range nodes {
+		if node == nil {
+			continue
+		}
+		v.reset()
+		node.Accept(v)
+		if v.err != nil {
+			return v.err
+		}
+	}
+	return nil
+}
+
+// Walk calls visit on every node.
+// If visit returns true, the underlying nodes
+// are also visited. If it returns an error, walking
+// is interrupted, and the error is returned.
+func WalkAndWrite(visit VisitWriter, nodes ...ast.Node) error {
 	v := &walkVisitor{
 		visit: visit,
 	}
@@ -49,7 +75,7 @@ func Walk(visit Visit, nodes ...ast.Node) error {
 
 type walkVisitor struct {
 	err   error
-	visit Visit
+	visit VisitWriter
 	skip  bool
 }
 
@@ -59,13 +85,16 @@ func (w *walkVisitor) reset() {
 }
 
 func (w *walkVisitor) Enter(n ast.Node) (node ast.Node, skipChildren bool) {
-	c, er := w.visit(n)
+	c, nd, er := w.visit(n)
 	if er != nil {
 		w.err = er
 		return n, true // we have to return true here so that post gets called
 	}
 	w.skip = !c
-	return n, w.skip
+	if nd == nil {
+		nd = n
+	}
+	return nd, w.skip
 }
 
 func (w *walkVisitor) Leave(n ast.Node) (node ast.Node, ok bool) {
