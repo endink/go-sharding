@@ -373,14 +373,9 @@ func TestSelectWhere(t *testing.T) {
 
 		{
 			tbInline: "test_${id%4}",
-			sql:      "select * from test where id = 3 and id in (3, 4)",
+			sql:      "select * from test where (id = 3 and id = 1) or (id = 3 and id = 4)",
 			sqls: &SqlGenResult{
-				Commands: []*ScatterCommand{
-					{
-						DataSource: "db1",
-						SqlCommand: "select * from test_3 where id = 3 and id = 3",
-					},
-				},
+				Usage: UsageImpossible,
 			},
 		},
 	}
@@ -439,6 +434,19 @@ func TestSelectWhereIn(t *testing.T) {
 						DataSource: "db1",
 						SqlCommand: "SELECT id FROM `test_3` WHERE id=?",
 						Vars:       makeIntVars(3),
+					},
+				},
+			},
+		},
+
+		{
+			tbInline: "test_${id%4}",
+			sql:      "select * from test where id = 3 and id in (3, 4)",
+			sqls: &SqlGenResult{
+				Commands: []*ScatterCommand{
+					{
+						DataSource: "db1",
+						SqlCommand: "select * from test_3 where id = 3 and id = 3",
 					},
 				},
 			},
