@@ -34,27 +34,103 @@ const (
 	binarySideRight
 )
 
-func (s *SqlExplain) explainCondition(node ast.ExprNode, rewriter Rewriter) (ast.ExprNode, error) {
-	switch expr := node.(type) {
+func (s *SqlExplain) explainCondition(node NodeProperty, rewriter Rewriter, logicStack *LogicPriorityStack) error {
+	switch expr := node.Get().(type) {
 	case *ast.BinaryOperationExpr:
-		return s.explainBinary(expr, rewriter)
-	case *ast.PatternInExpr:
-		return s.explainPatternIn(expr, rewriter)
-	case *ast.BetweenExpr:
-		return s.explainBetween(expr, rewriter)
-	case *ast.ParenthesesExpr:
-		s.beginValueGroup()
-		newExpr, err := s.explainCondition(expr.Expr, rewriter)
-		if err != nil {
-			return nil, err
+		if _, ok := getLogicOperation(expr); ok {
+			return s.explainBinaryLogic(expr, rewriter, logicStack)
 		}
-		expr.Expr = newExpr
-		s.endValueGroup()
-		return expr, nil
+	case *ast.ParenthesesExpr:
+		//s.beginValueGroup()
+		logicStack.PushBracketsStart()
+		p := NewNodeProperty(expr.Expr, func(n ast.ExprNode) {
+			expr.Expr = n
+		})
+		err := s.explainCondition(p, rewriter, logicStack)
+		if err != nil {
+			return err
+		}
+		//expr.Expr = newExpr
+		return logicStack.PushBracketsEnd()
+		//s.endValueGroup()
+	}
+	return logicStack.PushValue(node, func(logic core.BinaryLogic, v interface{}) error {
+		origin := v.(NodeProperty)
+		return s.explainConditionNonLogic(origin, rewriter, logic)
+	})
+}
+
+//处理逻辑运算符 or , and
+func (s *SqlExplain) explainBinaryLogic(expr *ast.BinaryOperationExpr, rewriter Rewriter, logicStack *LogicPriorityStack) error {
+	if l, leftIsLogic := getLogicOperation(expr.L); leftIsLogic {
+		if e := s.explainBinaryLogic(l, rewriter, logicStack); e != nil {
+			return e
+		}
+	} else {
+		leftProperty := NewNodeProperty(expr.L, func(n ast.ExprNode) {
+			expr.L = n
+		})
+		if e := s.explainCondition(leftProperty, rewriter, logicStack); e != nil {
+			return e
+		}
+	}
+
+	logic, ok := getLogicFromCode(expr.Op)
+	if !ok {
+		return fmt.Errorf("'%s' is not a logic operation", expr.Op.String())
+	}
+	logicStack.PushLogic(logic)
+
+	if r, rightIsLogic := getLogicOperation(expr.R); rightIsLogic {
+		return s.explainBinaryLogic(r, rewriter, logicStack)
+	} else {
+		rightProperty := NewNodeProperty(expr.R, func(n ast.ExprNode) {
+			expr.R = n
+		})
+		return s.explainCondition(rightProperty, rewriter, logicStack)
+	}
+}
+
+func (s *SqlExplain) explainConditionNonLogic(node NodeProperty, rewriter Rewriter, logic core.BinaryLogic) error {
+
+	s.pushLogic(logic)
+	defer s.popLogic()
+
+	switch expr := node.Get().(type) {
+	case *ast.BinaryOperationExpr:
+		switch expr.Op {
+		case opcode.LogicAnd, opcode.LogicOr:
+			return fmt.Errorf("unexpected logic operation occurred")
+		case opcode.EQ, opcode.GT, opcode.GE, opcode.LT, opcode.LE: //不支持不等于： opcode.NE
+			rn, e := s.explainBinaryMath(expr, rewriter)
+			if e == nil {
+				node.Set(rn)
+			}
+			return e
+		default:
+			//其他情况尝试改写列名
+			if _, err := s.rewriteBinaryColumn(expr, rewriter, binarySideLeft); err != nil {
+				return err
+			}
+			if _, err := s.rewriteBinaryColumn(expr, rewriter, binarySideRight); err != nil {
+				return err
+			}
+			return nil
+		}
+	case *ast.PatternInExpr:
+		rn, e := s.explainPatternIn(expr, rewriter)
+		if e == nil {
+			node.Set(rn)
+		}
+		return e
+	case *ast.BetweenExpr:
+		rn, e := s.explainBetween(expr, rewriter)
+		if e == nil {
+			node.Set(rn)
+		}
+		return e
 	default:
-		// 其他情况只替换表名 (但是不处理根节点是ColumnNameExpr的情况, 理论上也不会出现这种情况)
-		err := s.rewriteField(rewriter, "explain condition fault !", expr)
-		return node, err
+		return s.rewriteField(rewriter, "explain condition fault !", expr)
 	}
 }
 
@@ -121,55 +197,6 @@ func (s *SqlExplain) explainPatternIn(expr *ast.PatternInExpr, rewriter Rewriter
 		return wrapFormatter(result.GetFormatter()), nil
 	}
 	s.checkFullShardQueryColumn(expr.Expr, result)
-	return expr, nil
-}
-
-//二元运算 or and = < ...
-func (s *SqlExplain) explainBinary(expr *ast.BinaryOperationExpr, rewriter Rewriter) (ast.ExprNode, error) {
-	//_, ok := opcode.Ops[expr.Op]
-	//if !ok {
-	//	return false, nil, nil, fmt.Errorf("unknown BinaryOperationExpr.Op: %v", expr.Op)
-	//}
-
-	switch expr.Op {
-	case opcode.LogicAnd:
-		return s.explainBinaryLogic(expr, rewriter, core.LogicAnd)
-	case opcode.LogicOr:
-		return s.explainBinaryLogic(expr, rewriter, core.LogicOr)
-	case opcode.EQ, opcode.GT, opcode.GE, opcode.LT, opcode.LE: //不支持不等于： opcode.NE
-		return s.explainBinaryMath(expr, rewriter)
-	default:
-		//其他情况尝试改写列名
-		if _, err := s.rewriteBinaryColumn(expr, rewriter, binarySideLeft); err != nil {
-			return nil, err
-		}
-		if _, err := s.rewriteBinaryColumn(expr, rewriter, binarySideRight); err != nil {
-			return nil, err
-		}
-		return expr, nil
-	}
-}
-
-//处理逻辑运算符 or , and
-func (s *SqlExplain) explainBinaryLogic(expr *ast.BinaryOperationExpr, rewriter Rewriter, logic core.BinaryLogic) (ast.ExprNode, error) {
-	s.pushLogic(logic)
-	leftNode, lErr := s.explainCondition(expr.L, rewriter) //最左边的操作数要保持当前逻辑
-	if lErr != nil {
-		return nil, fmt.Errorf("handle BinaryOperationExpr.L error: %v", lErr)
-	}
-	rightNode, rErr := s.explainCondition(expr.R, rewriter)
-	s.popLogic()
-	if rErr != nil {
-		return nil, fmt.Errorf("handle BinaryOperationExpr.R error: %v", rErr)
-	}
-
-	if leftNode != nil {
-		expr.L = leftNode
-	}
-	if rightNode != nil {
-		expr.R = rightNode
-	}
-
 	return expr, nil
 }
 

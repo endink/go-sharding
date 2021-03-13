@@ -92,12 +92,10 @@ func (s *SqlExplain) explainJoinSide(joinSide ast.ResultSetNode, rewriter Rewrit
 }
 
 func (s *SqlExplain) explainJoinOn(on *ast.OnCondition, rewriter Rewriter) error {
-	newExpr, err := s.explainCondition(on.Expr, rewriter)
-	if err != nil {
-		return err
-	}
-	on.Expr = newExpr
-	return nil
+	property := NewNodeProperty(on.Expr, func(n ast.ExprNode) {
+		on.Expr = n
+	})
+	return s.rewriteCondition(property, rewriter)
 }
 
 func (s *SqlExplain) rewriteTableSource(table *ast.TableSource, rewriter Rewriter) error {

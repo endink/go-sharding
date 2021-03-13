@@ -25,7 +25,9 @@ import (
 	"github.com/pingcap/parser/ast"
 )
 
-var DefaultRewriter explain.Rewriter = &engine{}
+func NewRewriter() explain.Rewriter {
+	return &engine{}
+}
 
 type engine struct {
 	preparerList []preparer

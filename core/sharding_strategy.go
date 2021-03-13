@@ -39,6 +39,10 @@ type ShardingStrategy interface {
 func DetectShardType(s ShardingStrategy, values *ShardingValues, hasFullShardColumn bool) ShardType {
 	columns := s.GetShardingColumns()
 
+	if hasFullShardColumn {
+		return ShardAll
+	}
+
 	isImpossible := func(col string) bool {
 		if hasFullShardColumn {
 			return false
@@ -47,17 +51,10 @@ func DetectShardType(s ShardingStrategy, values *ShardingValues, hasFullShardCol
 		return (s.IsRangeValueSupported() && !values.HasEffectiveRange(col) && !values.HasRange(col)) || (s.IsScalarValueSupported() && !values.HasEffectiveScalar(col) && values.HasScalar(col))
 	}
 
-	hasEffective := func(col string) bool {
-		return (s.IsRangeValueSupported() && values.HasEffectiveRange(col)) || (s.IsScalarValueSupported() && values.HasEffectiveScalar(col))
-	}
-
 	for _, column := range columns {
-		if isImpossible(column) && (values.Logic(column) == LogicAnd) {
+		if isImpossible(column) && (values.Logic(column) == LogicAnd) && !hasFullShardColumn {
 			return ShardImpossible
 		}
-		if hasEffective(column) && (values.Logic(column) == LogicAnd || !hasFullShardColumn) {
-			return ShardScatter
-		}
 	}
-	return ShardAll
+	return ShardScatter
 }

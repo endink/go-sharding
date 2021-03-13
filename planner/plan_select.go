@@ -55,7 +55,7 @@ func planSelect(sel ast.StmtNode, tables explain.ShardingTableProvider) (*Plan, 
 			}
 		}
 		exp := explain.NewSqlExplain(tables)
-		if err = exp.ExplainSelect(stmt, rewriting.DefaultRewriter); err != nil {
+		if err = exp.ExplainSelect(stmt, rewriting.NewRewriter()); err != nil {
 			return nil, err
 		}
 		plan.explain = exp

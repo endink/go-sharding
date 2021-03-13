@@ -21,18 +21,23 @@ package explain
 import (
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/pingcap/parser/ast"
+	"github.com/pingcap/parser/opcode"
 )
 
 func (s *SqlExplain) explainWhere(sel *ast.SelectStmt, rewriter Rewriter) error {
 	where := sel.Where
+	if where != nil {
+		property := NewNodeProperty(sel.Where, func(n ast.ExprNode) {
+			sel.Where = n
+		})
+		return s.rewriteCondition(property, rewriter)
+	}
+	return nil
+}
+
+func (s *SqlExplain) rewriteCondition(where NodeProperty, rewriter Rewriter) error {
+
 	logic := core.LogicAnd
-
-	//if b, ok := where.(*ast.BinaryOperationExpr); ok {
-	//	if b.Op == opcode.LogicOr {
-	//		logic = core.LogicOr
-	//	}
-	//}
-
 	_ = s.valueRedoLogs.append(redoBeginLogic{logic: logic})
 	s.logicStack.Push(logic)
 	defer func() {
@@ -40,13 +45,31 @@ func (s *SqlExplain) explainWhere(sel *ast.SelectStmt, rewriter Rewriter) error 
 		_ = s.valueRedoLogs.append(new(redoEndLogic))
 	}()
 
-	if where != nil {
-		expr, err := s.explainCondition(where, rewriter)
-		if err != nil {
-			return err
-		} else if expr != nil {
-			sel.Where = expr
+	logicStack := newLogicPriorityStack()
+
+	err := s.explainCondition(where, rewriter, logicStack)
+	if err != nil {
+		return err
+	}
+	return logicStack.Calc()
+}
+
+func getLogicFromCode(op opcode.Op) (core.BinaryLogic, bool) {
+	switch op {
+	case opcode.LogicAnd:
+		return core.LogicAnd, true
+	case opcode.LogicOr:
+		return core.LogicOr, true
+	}
+	return core.LogicAnd, false
+}
+
+func getLogicOperation(expr ast.ExprNode) (*ast.BinaryOperationExpr, bool) {
+	if b, ok := expr.(*ast.BinaryOperationExpr); ok {
+		switch b.Op {
+		case opcode.LogicAnd, opcode.LogicOr:
+			return b, true
 		}
 	}
-	return nil
+	return nil, false
 }

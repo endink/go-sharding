@@ -106,7 +106,7 @@ and i.name in ('ccc', 'ddd')
 or o.order_id =9999 or (o.order_id = 12345 and o.order_id = 45678)
 `
 	av := assertValues{
-		valueLogic:           core.LogicOr,
+		valueLogic:           core.LogicAnd,
 		scalarCount:          3,
 		effectiveScalarCount: 1,
 	}

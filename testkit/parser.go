@@ -24,12 +24,16 @@ import (
 	"github.com/pingcap/parser/ast"
 	_ "github.com/pingcap/tidb/types/parser_driver"
 	"github.com/stretchr/testify/assert"
+	"sync"
 	"testing"
 )
 
 var TestParser = parser.New()
+var testParserMutex sync.Mutex
 
 func ParseSelect(sql string, t testing.TB) *ast.SelectStmt {
+	testParserMutex.Lock()
+	defer testParserMutex.Unlock()
 	node, err := TestParser.ParseOneStmt(sql, "", "")
 	if err != nil {
 		t.Fatalf(err.Error())
@@ -40,9 +44,11 @@ func ParseSelect(sql string, t testing.TB) *ast.SelectStmt {
 }
 
 func ParseForTest(sql string, t testing.TB) ast.StmtNode {
+	testParserMutex.Lock()
+	defer testParserMutex.Unlock()
 	node, err := TestParser.ParseOneStmt(sql, "", "")
 	if err != nil {
-		t.Fatalf("%s\nsql err:", sql, err.Error())
+		t.Fatalf("%s\nsql err:%v", sql, err.Error())
 	}
 	return node
 }

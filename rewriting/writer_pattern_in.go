@@ -193,6 +193,11 @@ func (p *PatternInWriter) Format(ctx explain.StatementContext) error {
 	}
 
 	values := p.tableValues[table]
+
+	if len(values) == 0 {
+		values = p.originValues
+	}
+
 	if len(values) > 1 {
 		if p.Not {
 			ctx.WriteKeyWord(" NOT IN ")
@@ -212,7 +217,7 @@ func (p *PatternInWriter) Format(ctx explain.StatementContext) error {
 	if len(values) > 1 {
 		ctx.WritePlain("(")
 	}
-	for i, expr := range p.tableValues[table] {
+	for i, expr := range values {
 		if i != 0 {
 			ctx.WritePlain(",")
 		}
