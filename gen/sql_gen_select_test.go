@@ -378,6 +378,31 @@ func TestSelectWhere(t *testing.T) {
 				Usage: UsageImpossible,
 			},
 		},
+
+		{
+			tbInline: "test_${id%4}",
+			sql:      "select * from test where id = 0 or id = 1 or id = 2 or id = 3 or id = 4",
+			sqls: &SqlGenResult{
+				Commands: []*ScatterCommand{
+					{
+						DataSource: "db1",
+						SqlCommand: "select * from test_0 where id = 0 or id = 1 or id = 2 or id = 3 or id = 4",
+					},
+					{
+						DataSource: "db1",
+						SqlCommand: "select * from test_1 where id = 0 or id = 1 or id = 2 or id = 3 or id = 4",
+					},
+					{
+						DataSource: "db1",
+						SqlCommand: "select * from test_2 where id = 0 or id = 1 or id = 2 or id = 3 or id = 4",
+					},
+					{
+						DataSource: "db1",
+						SqlCommand: "select * from test_3 where id = 0 or id = 1 or id = 2 or id = 3 or id = 4",
+					},
+				},
+			},
+		},
 	}
 
 	runTestCases(t, tests)
