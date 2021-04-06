@@ -45,8 +45,10 @@ type Rewriter interface {
 
 	RewriteTable(table *ast.TableName, explainContext Context) (RewriteFormattedResult, error)
 	RewriteField(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteFormattedResult, error)
-	//改写列，返回值为改写后的节点（装饰器）， 标志位 true 表示改写成功
+
 	RewriteColumn(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteFormattedResult, error)
+	RewriteColumnAssignment(assignment *ast.Assignment, explainContext Context) (RewriteFormattedResult, error)
+
 	RewritePatterIn(patternIn *ast.PatternInExpr, explainContext Context) (RewriteFormattedResult, error)
 	RewriteBetween(patternIn *ast.BetweenExpr, explainContext Context) (RewriteFormattedResult, error)
 	RewriteLimit(limit *ast.Limit, explainContext Context) (RewriteLimitResult, error)

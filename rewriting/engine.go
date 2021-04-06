@@ -19,6 +19,7 @@
 package rewriting
 
 import (
+	"fmt"
 	"github.com/XiaoMi/Gaea/explain"
 	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/pingcap/errors"
@@ -61,7 +62,7 @@ func (engine *engine) RewriteTable(tableName *ast.TableName, explainContext expl
 }
 
 func (engine *engine) RewriteField(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
-	sd, ok, err := explain.FindShardingTableByColumn(columnName, explainContext, false)
+	sd, ok, err := explain.FindShardingTableByColumn(columnName.Name, explainContext, false)
 	if err != nil {
 		return nil, err
 	}
@@ -76,7 +77,7 @@ func (engine *engine) RewriteField(columnName *ast.ColumnNameExpr, explainContex
 }
 
 func (engine *engine) RewriteColumn(columnName *ast.ColumnNameExpr, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
-	sd, ok, err := explain.FindShardingTableByColumn(columnName, explainContext, true)
+	sd, ok, err := explain.FindShardingTableByColumn(columnName.Name, explainContext, true)
 	if err != nil {
 		return nil, err
 	}
@@ -90,12 +91,31 @@ func (engine *engine) RewriteColumn(columnName *ast.ColumnNameExpr, explainConte
 	return explain.NoneRewriteFormattedResult, nil
 }
 
+func (engine engine) RewriteColumnAssignment(assignment *ast.Assignment, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
+	sd, ok, err := explain.FindShardingTableByColumn(assignment.Column, explainContext, true)
+	if err != nil {
+		return nil, err
+	}
+	if ok {
+		if sd.HasShardingColumn(assignment.Column.Name.L) {
+			return nil, fmt.Errorf("cannot update shard column '%s' (table: '%s') value", assignment.Column.Name.O, assignment.Column.Table.O)
+		}
+
+		if writer, e := NewAssignmentWriter(assignment); e == nil {
+			return explain.ResultFromFormatter(writer, sd.Name, explain.GetColumn(assignment.Column)), nil
+		} else {
+			return nil, e
+		}
+	}
+	return explain.NoneRewriteFormattedResult, nil
+}
+
 func (engine *engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
 	columnNameExpr, ok := patternIn.Expr.(*ast.ColumnNameExpr)
 	if !ok {
 		return nil, errors.New("pattern in statement required ColumnNameExpr")
 	}
-	sd, ok, err := explain.FindShardingTableByColumn(columnNameExpr, explainContext, true)
+	sd, ok, err := explain.FindShardingTableByColumn(columnNameExpr.Name, explainContext, true)
 	if err != nil {
 		return nil, err
 	}
@@ -115,7 +135,7 @@ func (engine *engine) RewriteBetween(between *ast.BetweenExpr, explainContext ex
 	if !ok {
 		return nil, errors.New("between and statement required ColumnNameExpr")
 	}
-	sd, ok, err := explain.FindShardingTableByColumn(columnNameExpr, explainContext, true)
+	sd, ok, err := explain.FindShardingTableByColumn(columnNameExpr.Name, explainContext, true)
 	if err != nil {
 		return nil, err
 	}

@@ -19,18 +19,30 @@
 package explain
 
 import (
+	"fmt"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/opcode"
 )
 
-func (s *SqlExplain) explainWhere(sel *ast.SelectStmt, rewriter Rewriter) error {
-	where := sel.Where
-	if where != nil {
-		property := NewNodeProperty(sel.Where, func(n ast.ExprNode) {
-			sel.Where = n
-		})
-		return s.rewriteCondition(property, rewriter)
+func (s *SqlExplain) explainWhere(sel ast.StmtNode, rewriter Rewriter) error {
+	switch stmt := sel.(type) {
+	case *ast.SelectStmt:
+		if stmt.Where != nil {
+			property := NewNodeProperty(stmt.Where, func(n ast.ExprNode) {
+				stmt.Where = n
+			})
+			return s.rewriteCondition(property, rewriter)
+		}
+	case *ast.UpdateStmt:
+		if stmt.Where != nil {
+			property := NewNodeProperty(stmt.Where, func(n ast.ExprNode) {
+				stmt.Where = n
+			})
+			return s.rewriteCondition(property, rewriter)
+		}
+	default:
+		return fmt.Errorf("explain where is not supported, statement type: '%T'", sel)
 	}
 	return nil
 }

@@ -53,6 +53,10 @@ func (t *ShardingTable) GetTables() []string {
 	return t.tables
 }
 
+func (t *ShardingTable) HasShardingColumn(column string) bool {
+	return t.IsDbShardingSupported() && (t.containsColumn(t.DatabaseStrategy.GetShardingColumns(), column) || t.containsColumn(t.TableStrategy.GetShardingColumns(), column))
+}
+
 func (t *ShardingTable) HasDbShardingColumn(column string) bool {
 	return t.IsDbShardingSupported() && t.containsColumn(t.DatabaseStrategy.GetShardingColumns(), column)
 }

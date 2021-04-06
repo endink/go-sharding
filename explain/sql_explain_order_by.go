@@ -19,15 +19,30 @@
 package explain
 
 import (
+	"fmt"
 	"github.com/pingcap/parser/ast"
 )
 
-func (s *SqlExplain) explainOrderBy(stmt *ast.SelectStmt, rewriter Rewriter) error {
+func (s *SqlExplain) explainOrderBy(sn ast.StmtNode, rewriter Rewriter) error {
 
-	if stmt.OrderBy == nil {
-		return nil
+	switch stmt := sn.(type) {
+	case *ast.SelectStmt:
+		if stmt.OrderBy == nil {
+			return nil
+		}
+
+		orderByLookup := s.currentContext().OrderByLookup()
+		return s.attachByItems(stmt, stmt.OrderBy.Items, orderByLookup, rewriter)
+	case *ast.UpdateStmt:
+		if stmt.Where != nil {
+			property := NewNodeProperty(stmt.Where, func(n ast.ExprNode) {
+				stmt.Where = n
+			})
+			return s.rewriteCondition(property, rewriter)
+		}
+	default:
+		return fmt.Errorf("explain where is not supported, statement type: '%T'", sel)
 	}
+	return nil
 
-	orderByLookup := s.currentContext().OrderByLookup()
-	return s.attachByItems(stmt, stmt.OrderBy.Items, orderByLookup, rewriter)
 }

@@ -24,12 +24,8 @@ import (
 	"github.com/pingcap/parser/ast"
 )
 
-func (s *SqlExplain) explainTables(sel *ast.SelectStmt, rewriter Rewriter) error {
-	if sel.From == nil {
-		return errors.New("select 'from' statement is missing")
-	}
+func (s *SqlExplain) explainTables(join *ast.Join, rewriter Rewriter) error {
 
-	join := sel.From.TableRefs
 	if join == nil {
 		return errors.New("there is an unknown syntax in the select 'from' statement")
 	}

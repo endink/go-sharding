@@ -357,10 +357,10 @@ func FindShardingTableByTable(t *ast.TableName, context Context, allowedDb strin
 	return shardingTable, ok, nil
 }
 
-func FindShardingTableByColumn(columnName *ast.ColumnNameExpr, explainContext Context, explicit bool) (*core.ShardingTable, bool, error) {
-	c := GetColumn(columnName.Name)
-	if columnName.Name.Table.O != "" {
-		sd, hasTable := explainContext.TableLookup().FindShardingTable(columnName.Name.Table.O)
+func FindShardingTableByColumn(columnName *ast.ColumnName, explainContext Context, explicit bool) (*core.ShardingTable, bool, error) {
+	c := GetColumn(columnName)
+	if columnName.Table.O != "" {
+		sd, hasTable := explainContext.TableLookup().FindShardingTable(columnName.Table.O)
 		if !hasTable || (!sd.HasTableShardingColumn(c) && !sd.HasDbShardingColumn(c)) {
 			return nil, false, nil
 		}

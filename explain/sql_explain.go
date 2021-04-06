@@ -19,6 +19,8 @@
 package explain
 
 import (
+	"errors"
+	"fmt"
 	"github.com/XiaoMi/Gaea/core"
 	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/XiaoMi/Gaea/util/sync2"
@@ -59,6 +61,94 @@ func (s *SqlExplain) Schema() string {
 	return s.shardingTableProvider.Schema()
 }
 
+func checkInsertStmt(stmt *ast.InsertStmt) error {
+	// doesn't support insert into select...
+	if stmt.Select != nil {
+		return fmt.Errorf("insert into select is not supported")
+	}
+
+	if stmt.Table.TableRefs.Right != nil {
+		return fmt.Errorf("insert statement contains more than one table")
+	}
+	_, ok := stmt.Table.TableRefs.Left.(*ast.TableSource)
+	if !ok {
+		return fmt.Errorf("target of the insert statement is not a table source")
+	}
+
+	// INSERT INTO tbl SET col=val, ...
+	if len(stmt.Setlist) != 0 {
+		p.isAssignmentMode = true
+		return nil
+	}
+
+	if len(stmt.Columns) == 0 {
+		return fmt.Errorf("insert statement does not contain any columns")
+	}
+
+	values := stmt.Lists[0]
+	if len(stmt.Columns) != len(values) {
+		return fmt.Errorf("column count doesn't match value count")
+	}
+
+	return nil
+}
+
+func (s *SqlExplain) ExplainInsert(ist *ast.InsertStmt, rewriter Rewriter) error {
+	var err error
+
+	if err = checkInsertStmt(ist); err != nil {
+		return err
+	}
+
+	s.AstNode = ist
+	s.rewriter = rewriter
+
+	if err = s.orderParams(ist); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (s *SqlExplain) ExplainUpdate(upd *ast.UpdateStmt, rewriter Rewriter) error {
+	s.AstNode = upd
+	s.rewriter = rewriter
+
+	var err error
+	if err = s.orderParams(upd); err != nil {
+		return err
+	}
+
+	if upd.TableRefs == nil || upd.TableRefs.TableRefs == nil {
+		return errors.New("update table is missing")
+	}
+
+	if err = s.explainTables(upd.TableRefs.TableRefs, rewriter); err != nil {
+		return err
+	}
+
+	l := upd.List
+
+	for _, assignment := range l {
+		_, e := rewriter.RewriteColumnAssignment(assignment, s.Context())
+		if e != nil {
+			return e
+		}
+	}
+
+	if err = s.explainWhere(upd, rewriter); err != nil {
+		return err
+	}
+
+	if upd.Order != nil && upd.Order.Items != nil {
+		if e := s.rewriteByItems(upd.Order.Items, rewriter); e != nil {
+			return e
+		}
+	}
+
+	return nil
+}
+
 func (s *SqlExplain) ExplainSelect(sel *ast.SelectStmt, rewriter Rewriter) error {
 	s.AstNode = sel
 	s.rewriter = rewriter
@@ -67,7 +157,14 @@ func (s *SqlExplain) ExplainSelect(sel *ast.SelectStmt, rewriter Rewriter) error
 	if err = s.orderParams(sel); err != nil {
 		return err
 	}
-	if err = s.explainTables(sel, rewriter); err != nil {
+
+	if sel.From == nil {
+		return errors.New("select 'from' statement is missing")
+	}
+
+	join := sel.From.TableRefs
+
+	if err = s.explainTables(join, rewriter); err != nil {
 		return err
 	}
 	if err = s.explainFields(sel, rewriter); err != nil {

@@ -37,6 +37,24 @@ func (s *SqlExplain) explainGroupBy(stmt *ast.SelectStmt, rewriter Rewriter) err
 	return s.attachByItems(stmt, stmt.GroupBy.Items, groupByLookup, rewriter)
 }
 
+func (s *SqlExplain) rewriteByItems(byItems []*ast.ByItem, rewriter Rewriter) error {
+	for _, item := range byItems {
+		if columnExpr, ok := item.Expr.(*ast.ColumnNameExpr); !ok {
+			return fmt.Errorf("ByItem.Expr is not a ColumnNameExpr")
+		} else {
+			result, err := rewriter.RewriteField(columnExpr, s.currentContext())
+			if err != nil {
+				return err
+			}
+
+			if result.IsRewrote() {
+				item.Expr = wrapFormatter(result.GetFormatter())
+			}
+		}
+	}
+	return nil
+}
+
 func (s *SqlExplain) attachByItems(stmt *ast.SelectStmt, byItems []*ast.ByItem, lookup FieldLookup, rewriter Rewriter) error {
 	index := len(stmt.Fields.Fields)
 	for _, item := range byItems {
