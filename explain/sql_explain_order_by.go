@@ -41,7 +41,7 @@ func (s *SqlExplain) explainOrderBy(sn ast.StmtNode, rewriter Rewriter) error {
 			return s.rewriteCondition(property, rewriter)
 		}
 	default:
-		return fmt.Errorf("explain where is not supported, statement type: '%T'", sel)
+		return fmt.Errorf("explain where is not supported, statement type: '%T'", sn)
 	}
 	return nil
 
