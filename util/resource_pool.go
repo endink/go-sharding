@@ -21,9 +21,9 @@ package util
 import (
 	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/telemetry"
-	"github.com/XiaoMi/Gaea/util/sync2"
-	"github.com/XiaoMi/Gaea/util/timer"
+	"github.com/endink/go-sharding/telemetry"
+	"github.com/endink/go-sharding/util/sync2"
+	"github.com/endink/go-sharding/util/timer"
 	"go.opentelemetry.io/otel/label"
 	"sync"
 	"time"

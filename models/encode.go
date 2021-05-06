@@ -16,7 +16,7 @@ package models
 
 import (
 	"encoding/json"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/logging"
 )
 
 // JSONEncode return json encoding of v

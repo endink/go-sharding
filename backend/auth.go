@@ -27,7 +27,7 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/mysql"
+	"github.com/endink/go-sharding/mysql"
 )
 
 //return data, switchplugin, err

@@ -18,6 +18,6 @@
 
 package tx
 
-import "github.com/XiaoMi/Gaea/logging"
+import "github.com/endink/go-sharding/logging"
 
 var log = logging.GetLogger("server-tx")

@@ -20,9 +20,9 @@ package database
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/mysql/fakesqldb"
-	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/mysql/fakesqldb"
+	"github.com/endink/go-sharding/mysql/types"
 	"testing"
 	"time"
 )

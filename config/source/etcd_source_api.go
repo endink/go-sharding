@@ -22,7 +22,7 @@ package source
 
 import (
 	"context"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/logging"
 	"time"
 
 	"github.com/coreos/etcd/client"

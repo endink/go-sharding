@@ -17,10 +17,10 @@ limitations under the License.
 package stats
 
 import (
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/logging"
 	"strconv"
 
-	"github.com/XiaoMi/Gaea/util/sync2"
+	"github.com/endink/go-sharding/util/sync2"
 )
 
 var counterLogger = logging.GetLogger("stats-counter")

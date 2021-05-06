@@ -31,7 +31,7 @@ import (
 	"bytes"
 	"expvar"
 	"fmt"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/logging"
 	"strconv"
 	"sync"
 	"time"

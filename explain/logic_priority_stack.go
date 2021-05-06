@@ -19,8 +19,8 @@
 package explain
 
 import (
-	"github.com/XiaoMi/Gaea/core"
 	"github.com/emirpasic/gods/stacks/arraystack"
+	"github.com/endink/go-sharding/core"
 )
 
 type brackets int

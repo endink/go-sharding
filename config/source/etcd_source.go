@@ -22,8 +22,8 @@ package source
 
 import (
 	"errors"
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/logging"
 	cnf "go.uber.org/config"
 	"strings"
 	"sync"

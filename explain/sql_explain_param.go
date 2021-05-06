@@ -21,7 +21,7 @@
 package explain
 
 import (
-	"github.com/XiaoMi/Gaea/parser"
+	"github.com/endink/go-sharding/parser"
 	"github.com/pingcap/parser/ast"
 )
 

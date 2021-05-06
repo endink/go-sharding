@@ -32,12 +32,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
+	"github.com/endink/go-sharding/core"
 	"math"
 	"strconv"
 
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/util"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/util"
 )
 
 var p = &mysql.Field{Name: []byte("?")}

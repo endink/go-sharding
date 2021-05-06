@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/XiaoMi/Gaea/models"
+	"github.com/endink/go-sharding/models"
 )
 
 func TestGetRealDatabases(t *testing.T) {

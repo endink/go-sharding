@@ -21,7 +21,7 @@ package script
 import (
 	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
+	"github.com/endink/go-sharding/core"
 	"regexp"
 	"sync"
 )

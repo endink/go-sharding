@@ -22,8 +22,8 @@ package config
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/core/provider"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/core/provider"
 	"go.uber.org/config"
 	"strings"
 )

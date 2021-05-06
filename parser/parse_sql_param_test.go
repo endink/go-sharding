@@ -21,7 +21,7 @@
 package parser
 
 import (
-	"github.com/XiaoMi/Gaea/testkit"
+	"github.com/endink/go-sharding/testkit"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

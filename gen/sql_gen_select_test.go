@@ -21,14 +21,14 @@
 package gen
 
 import (
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/core/script"
-	"github.com/XiaoMi/Gaea/driver/strategy"
-	"github.com/XiaoMi/Gaea/explain"
-	"github.com/XiaoMi/Gaea/mysql/types"
-	"github.com/XiaoMi/Gaea/rewriting"
-	"github.com/XiaoMi/Gaea/testkit"
 	"github.com/emirpasic/gods/utils"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/core/script"
+	"github.com/endink/go-sharding/driver/strategy"
+	"github.com/endink/go-sharding/explain"
+	"github.com/endink/go-sharding/mysql/types"
+	"github.com/endink/go-sharding/rewriting"
+	"github.com/endink/go-sharding/testkit"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"

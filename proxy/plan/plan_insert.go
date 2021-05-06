@@ -16,12 +16,12 @@ package plan
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/core/errors"
-	"github.com/XiaoMi/Gaea/logging"
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/proxy/router"
-	"github.com/XiaoMi/Gaea/proxy/sequence"
-	"github.com/XiaoMi/Gaea/util"
+	"github.com/endink/go-sharding/core/errors"
+	"github.com/endink/go-sharding/logging"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/proxy/router"
+	"github.com/endink/go-sharding/proxy/sequence"
+	"github.com/endink/go-sharding/util"
 	"github.com/pingcap/parser/ast"
 	driver "github.com/pingcap/tidb/types/parser_driver"
 )

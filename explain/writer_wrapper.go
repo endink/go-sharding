@@ -21,8 +21,8 @@
 package explain
 
 import (
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/util"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/util"
 	"github.com/pingcap/errors"
 	"github.com/pingcap/parser/format"
 	"io"

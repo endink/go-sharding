@@ -21,10 +21,10 @@ package explain
 import (
 	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/mysql/types"
-	"github.com/XiaoMi/Gaea/util/sync2"
 	"github.com/emirpasic/gods/stacks/arraystack"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/mysql/types"
+	"github.com/endink/go-sharding/util/sync2"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
 	"strings"

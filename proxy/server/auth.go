@@ -27,7 +27,7 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/mysql"
+	"github.com/endink/go-sharding/mysql"
 	"sync"
 )
 

@@ -16,14 +16,14 @@ package plan
 
 import (
 	"encoding/json"
-	"github.com/XiaoMi/Gaea/parser"
+	"github.com/endink/go-sharding/parser"
 	"sync/atomic"
 	"testing"
 
-	"github.com/XiaoMi/Gaea/backend"
-	"github.com/XiaoMi/Gaea/models"
-	"github.com/XiaoMi/Gaea/proxy/router"
-	"github.com/XiaoMi/Gaea/proxy/sequence"
+	"github.com/endink/go-sharding/backend"
+	"github.com/endink/go-sharding/models"
+	"github.com/endink/go-sharding/proxy/router"
+	"github.com/endink/go-sharding/proxy/sequence"
 )
 
 type SQLTestcase struct {

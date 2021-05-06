@@ -18,7 +18,7 @@ package core
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/logging"
 	"strings"
 	"sync"
 )

@@ -18,13 +18,13 @@ package database
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/core/provider"
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/mysql/types"
-	"github.com/XiaoMi/Gaea/telemetry"
-	"github.com/XiaoMi/Gaea/util"
-	"github.com/XiaoMi/Gaea/util/timer"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/core/provider"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/mysql/types"
+	"github.com/endink/go-sharding/telemetry"
+	"github.com/endink/go-sharding/util"
+	"github.com/endink/go-sharding/util/timer"
 	"sync"
 	"time"
 

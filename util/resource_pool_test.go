@@ -18,7 +18,7 @@ package util
 
 import (
 	"errors"
-	"github.com/XiaoMi/Gaea/util/sync2"
+	"github.com/endink/go-sharding/util/sync2"
 	"testing"
 	"time"
 

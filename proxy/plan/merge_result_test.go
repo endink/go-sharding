@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/XiaoMi/Gaea/mysql"
+	"github.com/endink/go-sharding/mysql"
 )
 
 func TestLimitSelectResult(t *testing.T) {

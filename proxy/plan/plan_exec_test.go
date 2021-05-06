@@ -1,10 +1,10 @@
 package plan
 
 import (
-	"github.com/XiaoMi/Gaea/parser"
+	"github.com/endink/go-sharding/parser"
 	"testing"
 
-	"github.com/XiaoMi/Gaea/util"
+	"github.com/endink/go-sharding/util"
 )
 
 func TestExecuteIn(t *testing.T) {

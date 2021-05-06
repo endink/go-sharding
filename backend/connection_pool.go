@@ -20,8 +20,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/util"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/util"
 )
 
 const (

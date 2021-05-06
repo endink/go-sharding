@@ -23,7 +23,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/logging"
 	"path/filepath"
 	"strings"
 	"time"

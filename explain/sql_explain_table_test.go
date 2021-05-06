@@ -19,8 +19,8 @@
 package explain
 
 import (
-	"github.com/XiaoMi/Gaea/core"
-	_ "github.com/XiaoMi/Gaea/driver"
+	"github.com/endink/go-sharding/core"
+	_ "github.com/endink/go-sharding/driver"
 	"testing"
 )
 

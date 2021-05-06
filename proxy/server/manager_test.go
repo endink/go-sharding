@@ -16,8 +16,8 @@ package server
 import (
 	"testing"
 
-	"github.com/XiaoMi/Gaea/models"
-	"github.com/XiaoMi/Gaea/mysql"
+	"github.com/endink/go-sharding/models"
+	"github.com/endink/go-sharding/mysql"
 )
 
 type userinfo struct {

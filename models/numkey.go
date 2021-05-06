@@ -21,7 +21,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/XiaoMi/Gaea/core/errors"
+	"github.com/endink/go-sharding/core/errors"
 )
 
 const (

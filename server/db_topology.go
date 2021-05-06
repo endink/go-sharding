@@ -19,7 +19,7 @@
 package server
 
 import (
-	"github.com/XiaoMi/Gaea/database"
+	"github.com/endink/go-sharding/database"
 )
 
 type DbTopology interface {

@@ -20,7 +20,7 @@ package core
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/core/comparison"
+	"github.com/endink/go-sharding/core/comparison"
 	"os"
 	"regexp"
 	"runtime"

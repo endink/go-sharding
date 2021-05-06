@@ -3,8 +3,8 @@ package prometheus
 import (
 	"strings"
 
+	"github.com/endink/go-sharding/stats"
 	"github.com/prometheus/client_golang/prometheus"
-	"github.com/XiaoMi/Gaea/stats"
 )
 
 type metricFuncCollector struct {

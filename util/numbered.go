@@ -20,7 +20,7 @@ package util
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/util/cache"
+	"github.com/endink/go-sharding/util/cache"
 	"sync"
 	"time"
 )

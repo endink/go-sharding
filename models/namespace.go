@@ -21,9 +21,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/util"
-	"github.com/XiaoMi/Gaea/util/crypto"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/util"
+	"github.com/endink/go-sharding/util/crypto"
 )
 
 // Namespace means namespace model stored in etcd

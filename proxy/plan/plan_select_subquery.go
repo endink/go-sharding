@@ -18,7 +18,7 @@ import (
 	"fmt"
 	"github.com/pingcap/parser/ast"
 
-	"github.com/XiaoMi/Gaea/proxy/router"
+	"github.com/endink/go-sharding/proxy/router"
 )
 
 // SubqueryColumnNameRewriteVisitor visit ColumnNameExpr in subquery, check if need decorate, and then decorate it.

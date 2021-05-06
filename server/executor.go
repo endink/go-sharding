@@ -20,11 +20,11 @@ package server
 
 import (
 	"context"
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/database"
-	"github.com/XiaoMi/Gaea/logging"
-	"github.com/XiaoMi/Gaea/mysql/types"
-	"github.com/XiaoMi/Gaea/telemetry"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/database"
+	"github.com/endink/go-sharding/logging"
+	"github.com/endink/go-sharding/mysql/types"
+	"github.com/endink/go-sharding/telemetry"
 	"go.opentelemetry.io/otel/label"
 	"sync"
 )

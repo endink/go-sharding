@@ -18,10 +18,10 @@ package database
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/mysql/types"
-	"github.com/XiaoMi/Gaea/parser"
-	"github.com/XiaoMi/Gaea/util"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/mysql/types"
+	"github.com/endink/go-sharding/parser"
+	"github.com/endink/go-sharding/util"
 	"time"
 
 	"context"

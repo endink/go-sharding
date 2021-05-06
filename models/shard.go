@@ -16,7 +16,7 @@ package models
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/core/errors"
+	"github.com/endink/go-sharding/core/errors"
 	"regexp"
 	"strconv"
 )

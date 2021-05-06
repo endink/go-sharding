@@ -20,10 +20,10 @@ package txserializer
 
 import (
 	"fmt"
-	logutil "github.com/XiaoMi/Gaea/logging"
-	"github.com/XiaoMi/Gaea/server/config"
-	"github.com/XiaoMi/Gaea/server/telemetry"
-	"github.com/XiaoMi/Gaea/util/sync2"
+	logutil "github.com/endink/go-sharding/logging"
+	"github.com/endink/go-sharding/server/config"
+	"github.com/endink/go-sharding/server/telemetry"
+	"github.com/endink/go-sharding/util/sync2"
 	"go.opentelemetry.io/otel/label"
 	"go.opentelemetry.io/otel/metric"
 	"sync"

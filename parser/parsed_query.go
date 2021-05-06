@@ -18,7 +18,7 @@ package parser
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/endink/go-sharding/mysql/types"
 	"strings"
 )
 

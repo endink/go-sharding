@@ -16,11 +16,11 @@ package service
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/config"
+	"github.com/endink/go-sharding/config"
 	"sync"
 
-	"github.com/XiaoMi/Gaea/cc/proxy"
-	"github.com/XiaoMi/Gaea/models"
+	"github.com/endink/go-sharding/cc/proxy"
+	"github.com/endink/go-sharding/models"
 )
 
 func getCoordinatorRoot(cluster string) string {

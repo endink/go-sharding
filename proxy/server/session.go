@@ -16,15 +16,15 @@ package server
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/logging"
 	"net"
 	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
 
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/util"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/util"
 )
 
 /*

@@ -16,11 +16,11 @@ package plan
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/backend"
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/proxy/router"
-	"github.com/XiaoMi/Gaea/proxy/sequence"
-	"github.com/XiaoMi/Gaea/util"
+	"github.com/endink/go-sharding/backend"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/proxy/router"
+	"github.com/endink/go-sharding/proxy/sequence"
+	"github.com/endink/go-sharding/util"
 	"github.com/pingcap/parser/ast"
 )
 

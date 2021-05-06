@@ -19,8 +19,8 @@
 package explain
 
 import (
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/testkit"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/testkit"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

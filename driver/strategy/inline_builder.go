@@ -21,8 +21,8 @@ package strategy
 import (
 	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/core/script"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/core/script"
 	"strings"
 )
 

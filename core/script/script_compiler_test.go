@@ -19,7 +19,7 @@
 package script
 
 import (
-	"github.com/XiaoMi/Gaea/core"
+	"github.com/endink/go-sharding/core"
 	"github.com/stretchr/testify/assert"
 	"strconv"
 	"strings"

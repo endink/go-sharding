@@ -16,9 +16,9 @@ package server
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/config"
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/config"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/logging"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -27,8 +27,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/XiaoMi/Gaea/models"
-	"github.com/XiaoMi/Gaea/util"
+	"github.com/endink/go-sharding/models"
+	"github.com/endink/go-sharding/util"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 )

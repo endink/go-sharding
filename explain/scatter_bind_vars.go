@@ -20,7 +20,7 @@
 
 package explain
 
-import "github.com/XiaoMi/Gaea/mysql/types"
+import "github.com/endink/go-sharding/mysql/types"
 
 type ScatterBindVars struct {
 	IsScattered bool

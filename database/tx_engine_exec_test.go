@@ -21,9 +21,9 @@ package database
 import (
 	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/mysql/fakesqldb"
-	"github.com/XiaoMi/Gaea/mysql/types"
-	"github.com/XiaoMi/Gaea/util"
+	"github.com/endink/go-sharding/mysql/fakesqldb"
+	"github.com/endink/go-sharding/mysql/types"
+	"github.com/endink/go-sharding/util"
 	"reflect"
 	"testing"
 	"time"

@@ -17,7 +17,7 @@ package plan
 import (
 	"testing"
 
-	"github.com/XiaoMi/Gaea/proxy/router"
+	"github.com/endink/go-sharding/proxy/router"
 )
 
 func TestSimpleSelectShardMycatMod(t *testing.T) {

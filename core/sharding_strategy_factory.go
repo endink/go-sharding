@@ -19,7 +19,7 @@
 package core
 
 import (
-	"github.com/XiaoMi/Gaea/core/provider"
+	"github.com/endink/go-sharding/core/provider"
 )
 
 type ShardingStrategyFactory interface {

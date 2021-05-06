@@ -40,8 +40,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/XiaoMi/Gaea/core/errors"
-	"github.com/XiaoMi/Gaea/util/hack"
+	"github.com/endink/go-sharding/core/errors"
+	"github.com/endink/go-sharding/util/hack"
 )
 
 /*由分片ID找到分片，可用文件中的函数*/

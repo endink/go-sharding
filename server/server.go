@@ -18,7 +18,7 @@
 
 package server
 
-import "github.com/XiaoMi/Gaea/config"
+import "github.com/endink/go-sharding/config"
 
 type Server struct {
 	mgr config.Manager

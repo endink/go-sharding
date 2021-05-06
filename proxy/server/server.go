@@ -15,18 +15,18 @@
 package server
 
 import (
-	"github.com/XiaoMi/Gaea/config"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/config"
+	"github.com/endink/go-sharding/logging"
 	"net"
 	"runtime"
 	"strconv"
 	"time"
 
 	"fmt"
-	"github.com/XiaoMi/Gaea/models"
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/util"
-	"github.com/XiaoMi/Gaea/util/sync2"
+	"github.com/endink/go-sharding/models"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/util"
+	"github.com/endink/go-sharding/util/sync2"
 )
 
 var (

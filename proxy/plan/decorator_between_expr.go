@@ -19,8 +19,8 @@ import (
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
 
-	"github.com/XiaoMi/Gaea/proxy/router"
-	"github.com/XiaoMi/Gaea/util"
+	"github.com/endink/go-sharding/proxy/router"
+	"github.com/endink/go-sharding/util"
 	driver "github.com/pingcap/tidb/types/parser_driver"
 )
 

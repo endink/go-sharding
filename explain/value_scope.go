@@ -19,7 +19,7 @@
 package explain
 
 import (
-	"github.com/XiaoMi/Gaea/core"
+	"github.com/endink/go-sharding/core"
 	"sync"
 )
 

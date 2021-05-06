@@ -5,7 +5,7 @@ package mocks
 import (
 	context "context"
 
-	"github.com/XiaoMi/Gaea/backend"
+	"github.com/endink/go-sharding/backend"
 
 	mock "github.com/stretchr/testify/mock"
 

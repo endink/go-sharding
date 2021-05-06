@@ -21,8 +21,8 @@ package server
 import (
 	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/database"
-	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/endink/go-sharding/database"
+	"github.com/endink/go-sharding/mysql/types"
 	"sync"
 	"time"
 )

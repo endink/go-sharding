@@ -21,12 +21,13 @@ package server
 import (
 	"context"
 	"errors"
-	"github.com/XiaoMi/Gaea/database"
-	"github.com/XiaoMi/Gaea/mysql/types"
-	"github.com/XiaoMi/Gaea/parser"
-	"github.com/XiaoMi/Gaea/server/txserializer"
-	"github.com/XiaoMi/Gaea/telemetry"
+	"github.com/endink/go-sharding/database"
+	"github.com/endink/go-sharding/mysql/types"
+	"github.com/endink/go-sharding/parser"
+	"github.com/endink/go-sharding/server/txserializer"
+	"github.com/endink/go-sharding/telemetry"
 	"go.opentelemetry.io/otel/label"
+	"time"
 )
 
 func (ec *Executor) Execute(ctx context.Context, target *database.Target, sql string, bindVariables map[string]*types.BindVariable, transactionID, reservedID int64, options *types.ExecuteOptions) (result *types.Result, err error) {

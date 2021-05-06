@@ -20,8 +20,8 @@ package core
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/core/collection"
 	"github.com/emirpasic/gods/lists/arraylist"
+	"github.com/endink/go-sharding/core/collection"
 	"sync"
 )
 

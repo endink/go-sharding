@@ -17,15 +17,15 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/logging"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/models"
-	"github.com/XiaoMi/Gaea/proxy/server"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/models"
+	"github.com/endink/go-sharding/proxy/server"
 )
 
 func main() {

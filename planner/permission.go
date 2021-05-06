@@ -20,7 +20,7 @@ package planner
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
+	"github.com/endink/go-sharding/core"
 	"github.com/pingcap/parser/ast"
 )
 

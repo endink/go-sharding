@@ -1,4 +1,4 @@
-module github.com/XiaoMi/Gaea
+module github.com/endink/go-sharding
 
 go 1.15
 

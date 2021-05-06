@@ -20,7 +20,7 @@ package core
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/core/collection"
+	"github.com/endink/go-sharding/core/collection"
 )
 
 func (b *ShardingValuesBuilder) orValueWithLock(column string, lock bool, values ...interface{}) {

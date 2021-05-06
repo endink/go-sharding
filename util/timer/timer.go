@@ -21,7 +21,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/XiaoMi/Gaea/util/sync2"
+	"github.com/endink/go-sharding/util/sync2"
 )
 
 // Out-of-band messages

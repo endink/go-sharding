@@ -20,9 +20,9 @@ import (
 	"github.com/pingcap/parser/format"
 	"strings"
 
-	"github.com/XiaoMi/Gaea/backend"
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/util"
+	"github.com/endink/go-sharding/backend"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/util"
 )
 
 // UnshardPlan is the plan for unshard statement

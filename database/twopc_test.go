@@ -18,8 +18,8 @@ package database
 
 import (
 	"encoding/json"
-	"github.com/XiaoMi/Gaea/mysql/fakesqldb"
-	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/endink/go-sharding/mysql/fakesqldb"
+	"github.com/endink/go-sharding/mysql/types"
 	"reflect"
 	"testing"
 	"time"

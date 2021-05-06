@@ -20,7 +20,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/XiaoMi/Gaea/util/sync2"
+	"github.com/endink/go-sharding/util/sync2"
 )
 
 // CounterDuration exports a time.Duration as counter.

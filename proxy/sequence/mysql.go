@@ -21,7 +21,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/XiaoMi/Gaea/backend"
+	"github.com/endink/go-sharding/backend"
 )
 
 // MySQLSequence struct of sequence number with specific sequence name

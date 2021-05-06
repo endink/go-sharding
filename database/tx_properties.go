@@ -20,7 +20,7 @@ package database
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
+	"github.com/endink/go-sharding/core"
 	"strings"
 	"time"
 )

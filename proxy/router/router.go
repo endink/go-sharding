@@ -17,7 +17,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/XiaoMi/Gaea/models"
+	"github.com/endink/go-sharding/models"
 )
 
 type Router struct {

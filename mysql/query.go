@@ -18,7 +18,7 @@ package mysql
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/endink/go-sharding/mysql/types"
 	"math"
 	"strconv"
 	"strings"

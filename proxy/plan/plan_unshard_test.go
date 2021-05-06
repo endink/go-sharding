@@ -3,7 +3,7 @@ package plan
 import (
 	"testing"
 
-	"github.com/XiaoMi/Gaea/backend"
+	"github.com/endink/go-sharding/backend"
 )
 
 func TestUnshardPlan(t *testing.T) {

@@ -21,9 +21,9 @@
 package planner
 
 import (
-	"github.com/XiaoMi/Gaea/explain"
-	"github.com/XiaoMi/Gaea/parser"
-	"github.com/XiaoMi/Gaea/rewriting"
+	"github.com/endink/go-sharding/explain"
+	"github.com/endink/go-sharding/parser"
+	"github.com/endink/go-sharding/rewriting"
 	"github.com/pingcap/parser/ast"
 )
 

@@ -20,8 +20,8 @@ package server
 
 import (
 	"context"
-	"github.com/XiaoMi/Gaea/database"
-	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/endink/go-sharding/database"
+	"github.com/endink/go-sharding/mysql/types"
 )
 
 type Gateway interface {

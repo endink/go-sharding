@@ -23,7 +23,7 @@ package core
 import (
 	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/core/comparison"
+	"github.com/endink/go-sharding/core/comparison"
 	"reflect"
 )
 

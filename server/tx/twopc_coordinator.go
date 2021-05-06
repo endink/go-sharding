@@ -20,7 +20,7 @@ package tx
 
 import (
 	"context"
-	"github.com/XiaoMi/Gaea/database"
+	"github.com/endink/go-sharding/database"
 )
 
 type coordinatorImpl struct {

@@ -21,8 +21,8 @@
 package config
 
 import (
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/logging"
 	"os"
 	"path/filepath"
 )

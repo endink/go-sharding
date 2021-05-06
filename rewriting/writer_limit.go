@@ -20,7 +20,7 @@ package rewriting
 
 import (
 	"errors"
-	"github.com/XiaoMi/Gaea/explain"
+	"github.com/endink/go-sharding/explain"
 )
 
 func newLimit(context explain.Context) (int64, error) {

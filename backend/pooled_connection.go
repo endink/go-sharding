@@ -15,7 +15,7 @@
 package backend
 
 import (
-	"github.com/XiaoMi/Gaea/mysql"
+	"github.com/endink/go-sharding/mysql"
 )
 
 // PooledConnect app use this object to exec parser

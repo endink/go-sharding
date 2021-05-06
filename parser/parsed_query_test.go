@@ -17,7 +17,7 @@ limitations under the License.
 package parser
 
 import (
-	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/endink/go-sharding/mysql/types"
 	"testing"
 
 	"github.com/stretchr/testify/assert"

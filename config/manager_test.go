@@ -21,7 +21,7 @@
 package config
 
 import (
-	_ "github.com/XiaoMi/Gaea/driver"
+	_ "github.com/endink/go-sharding/driver"
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/config"
 	"strings"

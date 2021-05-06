@@ -19,8 +19,8 @@
 package config
 
 import (
-	"github.com/XiaoMi/Gaea/config/source"
-	"github.com/XiaoMi/Gaea/core/provider"
+	"github.com/endink/go-sharding/config/source"
+	"github.com/endink/go-sharding/core/provider"
 )
 
 func init() {

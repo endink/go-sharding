@@ -20,9 +20,9 @@ package planner
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/explain"
-	"github.com/XiaoMi/Gaea/mysql/types"
-	"github.com/XiaoMi/Gaea/parser"
+	"github.com/endink/go-sharding/explain"
+	"github.com/endink/go-sharding/mysql/types"
+	"github.com/endink/go-sharding/parser"
 	"github.com/pingcap/parser/ast"
 )
 

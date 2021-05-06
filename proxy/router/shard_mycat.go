@@ -22,8 +22,8 @@ import (
 	"strings"
 
 	"github.com/emirpasic/gods/maps/treemap"
-	"github.com/XiaoMi/Gaea/util"
-	"github.com/XiaoMi/Gaea/util/hack"
+	"github.com/endink/go-sharding/util"
+	"github.com/endink/go-sharding/util/hack"
 )
 
 // MycatPartitionModShard mycat route algorithm: PartitionByMod

@@ -16,16 +16,16 @@ package plan
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/parser"
+	"github.com/endink/go-sharding/parser"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
 	"strings"
 
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/proxy/router"
-	"github.com/XiaoMi/Gaea/proxy/sequence"
-	"github.com/XiaoMi/Gaea/util"
-	"github.com/XiaoMi/Gaea/util/hack"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/proxy/router"
+	"github.com/endink/go-sharding/proxy/sequence"
+	"github.com/endink/go-sharding/util"
+	"github.com/endink/go-sharding/util/hack"
 )
 
 // type check

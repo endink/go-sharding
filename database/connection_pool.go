@@ -23,9 +23,9 @@ package database
 
 import (
 	"errors"
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/stats"
-	"github.com/XiaoMi/Gaea/util"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/stats"
+	"github.com/endink/go-sharding/util"
 	"net"
 	"sync"
 	"time"

@@ -17,7 +17,7 @@ limitations under the License.
 package database
 
 import (
-	"github.com/XiaoMi/Gaea/util"
+	"github.com/endink/go-sharding/util"
 	"github.com/stretchr/testify/require"
 	"testing"
 )

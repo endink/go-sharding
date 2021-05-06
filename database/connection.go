@@ -19,9 +19,9 @@ package database
 import (
 	"context"
 	"fmt"
-	"github.com/XiaoMi/Gaea/logging"
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/endink/go-sharding/logging"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/mysql/types"
 )
 
 var log = logging.GetLogger("database")

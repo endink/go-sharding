@@ -19,12 +19,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/logging"
 	"net"
 	"strings"
 
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/util/sync2"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/util/sync2"
 )
 
 var log = logging.GetLogger("direct-connection")

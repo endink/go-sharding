@@ -16,8 +16,8 @@ package server
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/logging"
-	parser2 "github.com/XiaoMi/Gaea/parser"
+	"github.com/endink/go-sharding/logging"
+	parser2 "github.com/endink/go-sharding/parser"
 	"github.com/pingcap/parser"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
@@ -28,12 +28,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/XiaoMi/Gaea/backend"
-	"github.com/XiaoMi/Gaea/core/errors"
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/proxy/plan"
-	"github.com/XiaoMi/Gaea/util"
-	"github.com/XiaoMi/Gaea/util/hack"
+	"github.com/endink/go-sharding/backend"
+	"github.com/endink/go-sharding/core/errors"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/proxy/plan"
+	"github.com/endink/go-sharding/util"
+	"github.com/endink/go-sharding/util/hack"
 )
 
 var exeLogger = logging.GetLogger("executor")

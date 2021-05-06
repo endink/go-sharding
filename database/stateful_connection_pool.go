@@ -18,10 +18,10 @@ package database
 
 import (
 	"context"
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/mysql/types"
-	"github.com/XiaoMi/Gaea/util"
-	"github.com/XiaoMi/Gaea/util/sync2"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/mysql/types"
+	"github.com/endink/go-sharding/util"
+	"github.com/endink/go-sharding/util/sync2"
 	"time"
 )
 

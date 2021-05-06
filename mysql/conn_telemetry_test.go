@@ -19,7 +19,7 @@
 package mysql
 
 import (
-	"github.com/XiaoMi/Gaea/util/sync2"
+	"github.com/endink/go-sharding/util/sync2"
 	"sync"
 	"time"
 )

@@ -17,7 +17,7 @@ limitations under the License.
 package sync2
 
 import (
-	"github.com/XiaoMi/Gaea/util/cache"
+	"github.com/endink/go-sharding/util/cache"
 	"sync"
 	"sync/atomic"
 )

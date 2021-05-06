@@ -25,7 +25,7 @@ import (
 	"crypto/sha1"
 	"crypto/sha256"
 	"fmt"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/logging"
 )
 
 var log = logging.GetLogger("mysql-protocol")

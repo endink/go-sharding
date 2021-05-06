@@ -16,7 +16,7 @@ package util
 
 import (
 	"errors"
-	"github.com/XiaoMi/Gaea/core"
+	"github.com/endink/go-sharding/core"
 	"github.com/pingcap/parser/format"
 	"strings"
 

@@ -20,7 +20,7 @@ package database
 
 import (
 	"context"
-	"github.com/XiaoMi/Gaea/util"
+	"github.com/endink/go-sharding/util"
 )
 
 type Coordinator interface {

@@ -21,9 +21,9 @@ package server
 import (
 	"context"
 	"fmt"
-	"github.com/XiaoMi/Gaea/core/errors"
-	"github.com/XiaoMi/Gaea/database"
-	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/endink/go-sharding/core/errors"
+	"github.com/endink/go-sharding/database"
+	"github.com/endink/go-sharding/mysql/types"
 )
 
 // Begin starts a new transaction. This is allowed only if the state is StateServing.

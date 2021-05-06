@@ -19,7 +19,7 @@
 package explain
 
 import (
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/logging"
 )
 
 var Logger = logging.GetLogger("explain")

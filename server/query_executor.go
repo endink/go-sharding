@@ -20,9 +20,9 @@ package server
 
 import (
 	"context"
-	"github.com/XiaoMi/Gaea/database"
-	"github.com/XiaoMi/Gaea/mysql/types"
-	"github.com/XiaoMi/Gaea/parser"
+	"github.com/endink/go-sharding/database"
+	"github.com/endink/go-sharding/mysql/types"
+	"github.com/endink/go-sharding/parser"
 )
 
 type QueryExecutor struct {

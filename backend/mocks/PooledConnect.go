@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	mysql "github.com/XiaoMi/Gaea/mysql"
+	mysql "github.com/endink/go-sharding/mysql"
 	mock "github.com/stretchr/testify/mock"
 )
 

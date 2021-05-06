@@ -22,9 +22,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/database"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/database"
+	"github.com/endink/go-sharding/logging"
 	"sync"
 )
 

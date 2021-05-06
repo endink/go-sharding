@@ -49,7 +49,7 @@
 | RetCode                 | int         | 返回码   | ret_code    |
 | RetMessage              | string      | 返回信息 | ret_message |
 
-Namespace结构参考：https://github.com/XiaoMi/Gaea/blob/master/docs/configuration.md
+Namespace结构参考：https://github.com/endink/go-sharding/blob/master/docs/configuration.md
 
 ## 4.modifyNamespace
 
@@ -63,7 +63,7 @@ Namespace结构参考：https://github.com/XiaoMi/Gaea/blob/master/docs/configur
 | cluster   | string    |                             | Y        |
 | namespace | Namespace | 在body中传递namespace的json | Y        |
 
-Namespace结构参考：https://github.com/XiaoMi/Gaea/blob/master/docs/configuration.md
+Namespace结构参考：https://github.com/endink/go-sharding/blob/master/docs/configuration.md
 
 - 返回参数
 

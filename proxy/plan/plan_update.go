@@ -18,9 +18,9 @@ import (
 	"fmt"
 	"github.com/pingcap/parser/ast"
 
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/proxy/router"
-	"github.com/XiaoMi/Gaea/util"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/proxy/router"
+	"github.com/endink/go-sharding/util"
 )
 
 // UpdatePlan is the plan for update statement

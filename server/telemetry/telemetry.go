@@ -18,6 +18,6 @@
 
 package telemetry
 
-import "github.com/XiaoMi/Gaea/telemetry"
+import "github.com/endink/go-sharding/telemetry"
 
 var ExecutionMeter = telemetry.GetMeter("execution")

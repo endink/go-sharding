@@ -19,7 +19,7 @@ import (
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/format"
 
-	"github.com/XiaoMi/Gaea/proxy/router"
+	"github.com/endink/go-sharding/proxy/router"
 	"github.com/pingcap/errors"
 )
 

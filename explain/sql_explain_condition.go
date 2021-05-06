@@ -21,8 +21,8 @@ package explain
 import (
 	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/parser"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/parser"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/opcode"
 )

@@ -19,8 +19,8 @@
 package gen
 
 import (
-	"github.com/XiaoMi/Gaea/explain"
-	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/endink/go-sharding/explain"
+	"github.com/endink/go-sharding/mysql/types"
 )
 
 func GenerateSql(defaultDataSource string, expl *explain.SqlExplain, bindVariables []*types.BindVariable) (*SqlGenResult, error) {

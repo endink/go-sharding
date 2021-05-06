@@ -17,9 +17,9 @@ package server
 import (
 	"bytes"
 	"fmt"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/logging"
 
-	"github.com/XiaoMi/Gaea/mysql"
+	"github.com/endink/go-sharding/mysql"
 )
 
 var connLogger = logging.GetLogger("client-conn")

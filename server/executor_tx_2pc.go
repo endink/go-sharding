@@ -20,12 +20,8 @@ package server
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/database"
-	"github.com/XiaoMi/Gaea/mysql/types"
-	"github.com/XiaoMi/Gaea/telemetry"
-	"go.opentelemetry.io/otel/label"
+	"github.com/endink/go-sharding/database"
 )
 
 func (ec *Executor) ResolveTransaction(ctx context.Context, dtid string) error {
@@ -191,28 +187,3 @@ func (ec *Executor) CreateTransaction(ctx context.Context, target *database.Targ
 		},
 	)
 }
-
-// BeginExecute combines Begin and Execute.
-func (ec *Executor) BeginExecute(ctx context.Context, target *database.Target, preQueries []string, sql string, bindVariables map[string]*types.BindVariable, reservedID int64, options *types.ExecuteOptions) (*types.Result, int64, *database.Target, error) {
-
-	// Disable hot row protection in case of reserve connection.
-	//if ec.enableHotRowProtection && reservedID == 0 {
-	//	txDone, err := ec.beginWaitForSameRangeTransactions(ctx, target, options, sql, bindVariables)
-	//	if err != nil {
-	//		return nil, 0, nil, err
-	//	}
-	//	if txDone != nil {
-	//		defer txDone()
-	//	}
-	//}
-
-	transactionID, err := ec.begin(ctx, target, preQueries, reservedID, options)
-	if err != nil {
-		return nil, 0, nil, err
-	}
-
-	result, err := ec.Execute(ctx, target, sql, bindVariables, transactionID, reservedID, options)
-	return result, transactionID, alias, err
-}
-
-// Execute executes the query and returns the result as response.

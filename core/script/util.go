@@ -20,7 +20,7 @@ package script
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
+	"github.com/endink/go-sharding/core"
 )
 
 func outJoin(prefix []string, suffix []string) []string {

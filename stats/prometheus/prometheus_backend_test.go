@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/XiaoMi/Gaea/stats"
+	"github.com/endink/go-sharding/stats"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )

@@ -24,7 +24,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/util/hack"
+	"github.com/endink/go-sharding/util/hack"
 	"strconv"
 )
 

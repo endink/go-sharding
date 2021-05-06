@@ -20,8 +20,8 @@ package testkit
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/core/comparison"
 	"github.com/emirpasic/gods/utils"
+	"github.com/endink/go-sharding/core/comparison"
 	"github.com/stretchr/testify/assert"
 	"reflect"
 )

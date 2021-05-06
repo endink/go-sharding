@@ -17,7 +17,7 @@ limitations under the License.
 package database
 
 import (
-	"github.com/XiaoMi/Gaea/mysql/fakesqldb"
+	"github.com/endink/go-sharding/mysql/fakesqldb"
 	"runtime"
 	"sync"
 	"testing"

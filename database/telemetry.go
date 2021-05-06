@@ -20,7 +20,7 @@ package database
 
 import (
 	"context"
-	"github.com/XiaoMi/Gaea/telemetry"
+	"github.com/endink/go-sharding/telemetry"
 	"go.opentelemetry.io/otel/label"
 	"go.opentelemetry.io/otel/metric"
 )

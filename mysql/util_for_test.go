@@ -19,7 +19,7 @@
 package mysql
 
 import (
-	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/endink/go-sharding/mysql/types"
 	"net"
 	"runtime"
 	"strings"

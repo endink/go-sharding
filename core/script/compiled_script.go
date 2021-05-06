@@ -2,8 +2,8 @@ package script
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
 	"github.com/d5/tengo/v2"
+	"github.com/endink/go-sharding/core"
 	"golang.org/x/tools/go/ssa/interp/testdata/src/errors"
 	"reflect"
 )

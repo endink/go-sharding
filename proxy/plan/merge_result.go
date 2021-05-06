@@ -20,9 +20,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/XiaoMi/Gaea/mysql"
-	"github.com/XiaoMi/Gaea/util/hack"
-	"github.com/XiaoMi/Gaea/util/math"
+	"github.com/endink/go-sharding/mysql"
+	"github.com/endink/go-sharding/util/hack"
+	"github.com/endink/go-sharding/util/math"
 )
 
 // ResultRow is one Row in Result

@@ -16,7 +16,7 @@ package cc
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/cc/proxy"
+	"github.com/endink/go-sharding/cc/proxy"
 	"net"
 	"net/http"
 	"strings"
@@ -24,8 +24,8 @@ import (
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 
-	"github.com/XiaoMi/Gaea/cc/service"
-	"github.com/XiaoMi/Gaea/models"
+	"github.com/endink/go-sharding/cc/service"
+	"github.com/endink/go-sharding/models"
 )
 
 // Server admin server

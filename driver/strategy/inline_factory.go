@@ -19,7 +19,7 @@
 package strategy
 
 import (
-	"github.com/XiaoMi/Gaea/core"
+	"github.com/endink/go-sharding/core"
 )
 
 const InlineFactoryName = "inline"

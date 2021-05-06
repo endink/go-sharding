@@ -20,7 +20,7 @@ package rewriting
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/explain"
+	"github.com/endink/go-sharding/explain"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/types"
 )

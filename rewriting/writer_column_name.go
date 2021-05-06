@@ -19,7 +19,7 @@
 package rewriting
 
 import (
-	"github.com/XiaoMi/Gaea/explain"
+	"github.com/endink/go-sharding/explain"
 	"github.com/pingcap/parser/ast"
 )
 

@@ -17,16 +17,16 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/XiaoMi/Gaea/cc/proxy"
+	"github.com/endink/go-sharding/cc/proxy"
 	"os"
 	"os/signal"
 	"sync"
 	"syscall"
 
-	"github.com/XiaoMi/Gaea/cc"
-	"github.com/XiaoMi/Gaea/core"
+	"github.com/endink/go-sharding/cc"
+	"github.com/endink/go-sharding/core"
 
-	"github.com/XiaoMi/Gaea/models"
+	"github.com/endink/go-sharding/models"
 )
 
 var ccConfigFile = flag.String("c", "./etc/gaea_cc.ini", "gaea cc配置")

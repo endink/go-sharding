@@ -18,7 +18,7 @@
 
 package explain
 
-import "github.com/XiaoMi/Gaea/core"
+import "github.com/endink/go-sharding/core"
 
 type FieldIndex struct {
 	Index      int

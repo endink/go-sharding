@@ -15,7 +15,7 @@
 package models
 
 import (
-	"github.com/XiaoMi/Gaea/config"
+	"github.com/endink/go-sharding/config"
 	"testing"
 )
 

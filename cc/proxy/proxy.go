@@ -16,10 +16,10 @@ package proxy
 
 import (
 	"fmt"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/logging"
 	"time"
 
-	"github.com/XiaoMi/Gaea/models"
+	"github.com/endink/go-sharding/models"
 )
 
 var ControllerLogger = logging.GetLogger("sharding-proxy-controller")

@@ -21,7 +21,7 @@
 package rewriting
 
 import (
-	"github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/endink/go-sharding/mysql/types"
 )
 
 type preparer interface {

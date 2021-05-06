@@ -21,9 +21,9 @@ package rewriting
 import (
 	"errors"
 	"fmt"
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/explain"
-	myTypes "github.com/XiaoMi/Gaea/mysql/types"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/explain"
+	myTypes "github.com/endink/go-sharding/mysql/types"
 	"github.com/pingcap/parser/ast"
 	"github.com/pingcap/parser/types"
 	driver "github.com/pingcap/tidb/types/parser_driver"

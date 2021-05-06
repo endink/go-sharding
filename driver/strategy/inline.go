@@ -19,8 +19,8 @@
 package strategy
 
 import (
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/core/script"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/core/script"
 )
 
 var _ core.ShardingStrategy = &Inline{}

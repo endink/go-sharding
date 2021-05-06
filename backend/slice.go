@@ -30,15 +30,15 @@ package backend
 
 import (
 	"context"
-	"github.com/XiaoMi/Gaea/core"
-	"github.com/XiaoMi/Gaea/logging"
+	"github.com/endink/go-sharding/core"
+	"github.com/endink/go-sharding/logging"
 	"strconv"
 	"strings"
 	"sync"
 
-	"github.com/XiaoMi/Gaea/core/errors"
-	"github.com/XiaoMi/Gaea/models"
-	"github.com/XiaoMi/Gaea/mysql"
+	"github.com/endink/go-sharding/core/errors"
+	"github.com/endink/go-sharding/models"
+	"github.com/endink/go-sharding/mysql"
 )
 
 const (

@@ -3,7 +3,7 @@
 
 ## 简介
 数据库分库分表中间件，尽可能兼容 [ShardingSphere](https://github.com/apache/shardingsphere) 的 golang 实现，
-基于小米 [Gaea](https://github.com/XiaoMi/Gaea) 魔改，但是路由算法支持 ShardingSphere 的 inline 表达式风格，而不是 Mycat/kingshard 这类晦涩而又不灵活的配置，移除多租户功能（配置太复杂了，部署多套即可）
+基于小米 [Gaea](https://github.com/endink/go-sharding) 魔改，但是路由算法支持 ShardingSphere 的 inline 表达式风格，而不是 Mycat/kingshard 这类晦涩而又不灵活的配置，移除多租户功能（配置太复杂了，部署多套即可）
 
 ## 为什么造这个轮子
 
