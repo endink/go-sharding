@@ -550,7 +550,9 @@ func TestTxEngineFailReserve(t *testing.T) {
 
 	nonExistingID := int64(42)
 	_, err = te.Reserve(ctx, options, nonExistingID, nil)
-	require.EqualError(t, err, "TxEngine.Reserve: transaction 42: not found")
+	require.NotNil(t, err)
+	require.True(t, strings.HasPrefix(err.Error(), "TxEngine.Reserve:"))
+	require.True(t, strings.HasSuffix(err.Error(), "transaction 42: not found"))
 
 	txID, _, err := te.Begin(ctx, nil, 0, options)
 	require.NoError(t, err)

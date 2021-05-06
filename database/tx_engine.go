@@ -225,7 +225,7 @@ func (te *TxEngine) Begin(ctx context.Context, preQueries []string, reservedID i
 	}
 	defer conn.UnlockUpdateTime()
 	newResId = conn.ReservedID()
-	return reservedID, beginSQL, err
+	return newResId, beginSQL, err
 }
 
 // Commit commits the specified transaction and renews connection id if one exists.

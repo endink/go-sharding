@@ -20,6 +20,7 @@ import (
 	"context"
 	"github.com/endink/go-sharding/mysql/fakesqldb"
 	"github.com/endink/go-sharding/mysql/types"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -170,7 +171,8 @@ func TestExecWithDbconnClosed(t *testing.T) {
 	conn.Close()
 
 	_, err = conn.Exec(ctx, "", 0, false)
-	require.EqualError(t, err, "connection was aborted")
+	require.NotNil(t, err)
+	require.True(t, strings.HasSuffix(err.Error(), "connection was aborted"))
 }
 
 func TestExecWithDbconnClosedHavingTx(t *testing.T) {
@@ -184,7 +186,8 @@ func TestExecWithDbconnClosedHavingTx(t *testing.T) {
 	conn.Close()
 
 	_, err = conn.Exec(ctx, "", 0, false)
-	require.EqualError(t, err, "transaction was aborted: foobar")
+	require.NotNil(t, err)
+	require.True(t, strings.HasSuffix(err.Error(), "transaction was aborted: foobar"))
 }
 
 func TestFailOnConnectionRegistering(t *testing.T) {
