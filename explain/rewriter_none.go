@@ -81,18 +81,6 @@ func (m *noneRewriter) RewriteColumn(columnName *ast.ColumnNameExpr, explainCont
 	return NoneRewriteFormattedResult, nil
 }
 
-func (m *noneRewriter) RewriteColumnAssignment(assignment *ast.Assignment, explainContext Context) (RewriteFormattedResult, error) {
-	colName := GetColumn(assignment.Column)
-	t, ok, err := m.findTable(assignment.Column, explainContext, true)
-	if err != nil {
-		return nil, err
-	}
-	if ok {
-		return ResultFromNode(assignment, t, colName), nil
-	}
-	return NoneRewriteFormattedResult, nil
-}
-
 func (m *noneRewriter) RewritePatterIn(patternIn *ast.PatternInExpr, explainContext Context) (RewriteFormattedResult, error) {
 	columnName, ok := patternIn.Expr.(*ast.ColumnNameExpr)
 	if !ok {

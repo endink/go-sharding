@@ -52,6 +52,7 @@ func (s *Stats) RecordUnresolved(ctx context.Context, errorType string, count in
 }
 
 var DbMeter = telemetry.GetMeter("database")
+
 var DbStats = &Stats{
 	QueryTime:            DbMeter.NewMultiDurationValueRecorder("queries", "MySQL query timings"),
 	DbConnectLatency:     DbMeter.NewDurationValueRecorder("connect_latency", "Database connect succeed time"),

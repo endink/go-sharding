@@ -10,7 +10,6 @@ require (
 	github.com/gin-gonic/gin v1.5.0
 	github.com/go-ini/ini v1.42.0
 	github.com/golang/mock v1.3.1
-	github.com/golang/protobuf v1.3.4 // indirect
 	github.com/google/go-cmp v0.5.4
 	github.com/google/uuid v1.1.1
 	github.com/pingcap/check v0.0.0-20200212061837-5e12011dc712

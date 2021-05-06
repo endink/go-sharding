@@ -19,7 +19,6 @@
 package rewriting
 
 import (
-	"fmt"
 	"github.com/XiaoMi/Gaea/explain"
 	"github.com/XiaoMi/Gaea/mysql/types"
 	"github.com/pingcap/errors"
@@ -84,25 +83,6 @@ func (engine *engine) RewriteColumn(columnName *ast.ColumnNameExpr, explainConte
 	if ok {
 		if writer, e := NewColumnNameWriter(columnName, sd.Name); e == nil {
 			return explain.ResultFromFormatter(writer, sd.Name, explain.GetColumn(columnName.Name)), nil
-		} else {
-			return nil, e
-		}
-	}
-	return explain.NoneRewriteFormattedResult, nil
-}
-
-func (engine engine) RewriteColumnAssignment(assignment *ast.Assignment, explainContext explain.Context) (explain.RewriteFormattedResult, error) {
-	sd, ok, err := explain.FindShardingTableByColumn(assignment.Column, explainContext, true)
-	if err != nil {
-		return nil, err
-	}
-	if ok {
-		if sd.HasShardingColumn(assignment.Column.Name.L) {
-			return nil, fmt.Errorf("cannot update shard column '%s' (table: '%s') value", assignment.Column.Name.O, assignment.Column.Table.O)
-		}
-
-		if writer, e := NewAssignmentWriter(assignment); e == nil {
-			return explain.ResultFromFormatter(writer, sd.Name, explain.GetColumn(assignment.Column)), nil
 		} else {
 			return nil, e
 		}

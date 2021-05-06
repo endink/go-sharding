@@ -61,42 +61,48 @@ func (s *SqlExplain) Schema() string {
 	return s.shardingTableProvider.Schema()
 }
 
-func checkInsertStmt(stmt *ast.InsertStmt) error {
+func checkInsertStmt(stmt *ast.InsertStmt) (insertMode, error) {
 	// doesn't support insert into select...
 	if stmt.Select != nil {
-		return fmt.Errorf("insert into select is not supported")
+		return insertUnknown, fmt.Errorf("insert into select is not supported")
 	}
 
 	if stmt.Table.TableRefs.Right != nil {
-		return fmt.Errorf("insert statement contains more than one table")
+		return insertUnknown, fmt.Errorf("insert statement contains more than one table")
 	}
 	_, ok := stmt.Table.TableRefs.Left.(*ast.TableSource)
 	if !ok {
-		return fmt.Errorf("target of the insert statement is not a table source")
+		return insertUnknown, fmt.Errorf("target of the insert statement is not a table source")
 	}
 
 	// INSERT INTO tbl SET col=val, ...
-	if len(stmt.Setlist) != 0 {
-		p.isAssignmentMode = true
-		return nil
+	if len(stmt.Setlist) == 0 {
+		return insertSingle, nil
 	}
 
 	if len(stmt.Columns) == 0 {
-		return fmt.Errorf("insert statement does not contain any columns")
+		return insertBatch, fmt.Errorf("insert statement does not contain any columns")
 	}
 
 	values := stmt.Lists[0]
 	if len(stmt.Columns) != len(values) {
-		return fmt.Errorf("column count doesn't match value count")
+		return insertBatch, fmt.Errorf("column count doesn't match value count")
 	}
 
-	return nil
+	return insertBatch, nil
+}
+
+func removeSchemaAndTableInfoInColumnName(column *ast.ColumnName) {
+	column.Schema.O = ""
+	column.Schema.L = ""
+	column.Table.O = ""
+	column.Table.L = ""
 }
 
 func (s *SqlExplain) ExplainInsert(ist *ast.InsertStmt, rewriter Rewriter) error {
 	var err error
-
-	if err = checkInsertStmt(ist); err != nil {
+	var mode insertMode
+	if mode, err = checkInsertStmt(ist); err != nil {
 		return err
 	}
 
@@ -105,6 +111,32 @@ func (s *SqlExplain) ExplainInsert(ist *ast.InsertStmt, rewriter Rewriter) error
 
 	if err = s.orderParams(ist); err != nil {
 		return err
+	}
+
+	if err = s.explainTables(ist.Table.TableRefs, rewriter); err != nil {
+		return err
+	}
+
+	switch mode {
+	case insertSingle:
+		for i, assignment := range ist.Setlist {
+			col := assignment.Column
+			removeSchemaAndTableInfoInColumnName(col)
+			columnName := col.Name.L
+			rule := p.tableRules[p.table]
+			if columnName == rule.GetShardingColumn() {
+				p.shardingColumnIndex = i
+			}
+		}
+	case insertBatch:
+		for i, col := range ist.Columns {
+			removeSchemaAndTableInfoInColumnName(col)
+			columnName := col.Name.L
+			rule := p.tableRules[p.table]
+			if columnName == rule.GetShardingColumn() {
+				p.shardingColumnIndex = i
+			}
+		}
 	}
 
 	return nil
@@ -127,12 +159,17 @@ func (s *SqlExplain) ExplainUpdate(upd *ast.UpdateStmt, rewriter Rewriter) error
 		return err
 	}
 
-	l := upd.List
-
-	for _, assignment := range l {
-		_, e := rewriter.RewriteColumnAssignment(assignment, s.Context())
+	for _, assignment := range upd.List {
+		sd, ok, e := FindShardingTableByColumn(assignment.Column, s.Context(), true)
 		if e != nil {
 			return e
+		}
+		if ok {
+			if sd.HasShardingColumn(assignment.Column.Name.L) {
+				return fmt.Errorf("cannot update shard column '%s' (table: '%s') value", assignment.Column.Name.O, assignment.Column.Table.O)
+			}
+
+			removeSchemaAndTableInfoInColumnName(assignment.Column)
 		}
 	}
 

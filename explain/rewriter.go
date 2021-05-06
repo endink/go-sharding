@@ -28,9 +28,14 @@ type RewriteResult interface {
 	GetShardingTable() string
 }
 
-type RewriteFormattedResult interface {
+type RewriteColumnResult interface {
 	GetColumn() string
-	RewriteResult
+	IsRewrote() bool
+	GetShardingTable() string
+}
+
+type RewriteFormattedResult interface {
+	RewriteColumnResult
 	GetFormatter() StatementFormatter
 }
 
@@ -47,7 +52,6 @@ type Rewriter interface {
 	RewriteField(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteFormattedResult, error)
 
 	RewriteColumn(columnName *ast.ColumnNameExpr, explainContext Context) (RewriteFormattedResult, error)
-	RewriteColumnAssignment(assignment *ast.Assignment, explainContext Context) (RewriteFormattedResult, error)
 
 	RewritePatterIn(patternIn *ast.PatternInExpr, explainContext Context) (RewriteFormattedResult, error)
 	RewriteBetween(patternIn *ast.BetweenExpr, explainContext Context) (RewriteFormattedResult, error)

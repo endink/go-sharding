@@ -28,7 +28,7 @@ import (
 	"github.com/XiaoMi/Gaea/logging"
 	"github.com/XiaoMi/Gaea/mysql"
 	"github.com/XiaoMi/Gaea/mysql/types"
-	metric2 "github.com/XiaoMi/Gaea/server/metric"
+	svrTelemetry "github.com/XiaoMi/Gaea/server/telemetry"
 	"github.com/XiaoMi/Gaea/telemetry"
 	"github.com/XiaoMi/Gaea/util"
 	"go.opentelemetry.io/otel/label"
@@ -81,9 +81,10 @@ func NewScatterConn(statsName string, txConn *TxConn, gw Gateway) *ScatterConn {
 	if statsName != "" {
 		tabletCallErrorCountStatsName = statsName + "ErrorCount"
 	}
+
 	return &ScatterConn{
-		timings:              metric2.ExecutionMeter.NewMultiDurationValueRecorder(telemetry.BuildMetricName(statsName), "Scatter connection timings"),
-		tabletCallErrorCount: metric2.ExecutionMeter.NewInt64Counter(telemetry.BuildMetricName(tabletCallErrorCountStatsName), "Error count from tablet calls in scatter connections"),
+		timings:              svrTelemetry.ExecutionMeter.NewMultiDurationValueRecorder(telemetry.BuildMetricName(statsName), "Scatter connection timings"),
+		tabletCallErrorCount: svrTelemetry.ExecutionMeter.NewInt64Counter(telemetry.BuildMetricName(tabletCallErrorCountStatsName), "Error count from tablet calls in scatter connections"),
 		txConn:               txConn,
 		gateway:              gw,
 		maxMemoryRows:        1000,

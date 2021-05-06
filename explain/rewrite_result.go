@@ -25,7 +25,10 @@ var _ RewriteLimitResult = &rewriteLimitResult{}
 
 var NoneRewriteFormattedResult = ResultFromFormatter(nil, "", "")
 var NoneRewriteLimitResult = ResultFromLimit(-1)
-var NoneRewriteResult RewriteResult = &rewriteResultBase{isRewrote: false}
+var RewriteResultNo RewriteResult = &rewriteResultBase{isRewrote: false}
+var RewriteResultYes RewriteResult = &rewriteResultBase{isRewrote: true}
+
+var NoneRewriteColumnResult RewriteColumnResult = NoneRewriteFormattedResult
 
 type rewriteResultBase struct {
 	isRewrote     bool
@@ -66,6 +69,17 @@ func (r *rewriteLimitResult) GetLimit() int64 {
 func ResultFromNode(node ast.Node, shardingTable string, column string) RewriteFormattedResult {
 	formatter := &nodeFormatter{node}
 	return ResultFromFormatter(formatter, shardingTable, column)
+}
+
+func NewRewriteColumnResult(shardingTable string, column string) RewriteColumnResult {
+	base := &rewriteResultBase{
+		isRewrote:     shardingTable != "" && column != "",
+		shardingTable: shardingTable,
+	}
+	return &rewriteFormattedResult{
+		rewriteResultBase: base,
+		column:            column,
+	}
 }
 
 func ResultFromFormatter(formatter StatementFormatter, shardingTable string, column string) RewriteFormattedResult {

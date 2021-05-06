@@ -296,7 +296,7 @@ func (s *SqlExplain) rewriteBinaryColumn(expr *ast.BinaryOperationExpr, rewriter
 	}
 
 	if !isColumnName {
-		return NoneRewriteResult, nil
+		return RewriteResultNo, nil
 	}
 	result, err := rewriter.RewriteColumn(col, s.currentContext())
 	if err != nil {
