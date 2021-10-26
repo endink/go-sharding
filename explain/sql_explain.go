@@ -76,7 +76,7 @@ func checkInsertStmt(stmt *ast.InsertStmt) (insertMode, error) {
 	}
 
 	// INSERT INTO tbl SET col=val, ...
-	if len(stmt.Setlist) == 0 {
+	if len(stmt.Setlist) > 0 {
 		return insertSingle, nil
 	}
 
@@ -99,6 +99,8 @@ func removeSchemaAndTableInfoInColumnName(column *ast.ColumnName) {
 	column.Table.L = ""
 }
 
+
+
 func (s *SqlExplain) ExplainInsert(ist *ast.InsertStmt, rewriter Rewriter) error {
 	var err error
 	var mode insertMode
@@ -117,30 +119,47 @@ func (s *SqlExplain) ExplainInsert(ist *ast.InsertStmt, rewriter Rewriter) error
 		return err
 	}
 
+	shardingColIndex := -1
+	var shardingCol *ast.ColumnName
 	switch mode {
 	case insertSingle:
 		for i, assignment := range ist.Setlist {
 			col := assignment.Column
 			removeSchemaAndTableInfoInColumnName(col)
-			columnName := col.Name.L
-			rule := p.tableRules[p.table]
-			if columnName == rule.GetShardingColumn() {
-				p.shardingColumnIndex = i
+			sd, ok, e := FindShardingTableByColumn(col, s.Context(), true)
+			if e != nil {
+				return e
+			}
+			if ok && sd.HasShardingColumn(assignment.Column.Name.L) {
+				shardingColIndex = i
+				shardingCol= assignment.Column
 			}
 		}
 	case insertBatch:
 		for i, col := range ist.Columns {
 			removeSchemaAndTableInfoInColumnName(col)
 			columnName := col.Name.L
-			rule := p.tableRules[p.table]
-			if columnName == rule.GetShardingColumn() {
-				p.shardingColumnIndex = i
+
+			sd, ok, e := FindShardingTableByColumn(col, s.Context(), true)
+			if e != nil {
+				return e
 			}
+			if ok && sd.HasShardingColumn(columnName) {
+				shardingColIndex = i
+				shardingCol= col
+			}
+		}
+	}
+	if shardingColIndex >= 0 {
+		err := s.explainInsertValues(ist, mode, shardingColIndex, shardingCol)
+		if err != nil {
+			return err
 		}
 	}
 
 	return nil
 }
+
 
 func (s *SqlExplain) ExplainUpdate(upd *ast.UpdateStmt, rewriter Rewriter) error {
 	s.AstNode = upd

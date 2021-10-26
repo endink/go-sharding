@@ -43,6 +43,18 @@ func ParseSelect(sql string, t testing.TB) *ast.SelectStmt {
 	return sel
 }
 
+func ParseInsert(sql string, t testing.TB) *ast.InsertStmt {
+	testParserMutex.Lock()
+	defer testParserMutex.Unlock()
+	node, err := TestParser.ParseOneStmt(sql, "", "")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	sel, ok := node.(*ast.InsertStmt)
+	assert.True(t, ok, fmt.Sprint("provided content is not select sql text", "\n", "SQL:", "\n", sql))
+	return sel
+}
+
 func ParseForTest(sql string, t testing.TB) ast.StmtNode {
 	testParserMutex.Lock()
 	defer testParserMutex.Unlock()

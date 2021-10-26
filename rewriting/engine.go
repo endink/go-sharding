@@ -19,6 +19,7 @@
 package rewriting
 
 import (
+	"github.com/endink/go-sharding/core"
 	"github.com/endink/go-sharding/explain"
 	"github.com/endink/go-sharding/mysql/types"
 	"github.com/pingcap/errors"
@@ -32,6 +33,8 @@ func NewRewriter() explain.Rewriter {
 type engine struct {
 	preparerList []preparer
 }
+
+
 
 func (engine *engine) PrepareBindVariables(bindVars []*types.BindVariable) error {
 	if len(engine.preparerList) > 0 {
@@ -108,6 +111,46 @@ func (engine *engine) RewritePatterIn(patternIn *ast.PatternInExpr, explainConte
 		}
 	}
 	return explain.NoneRewriteFormattedResult, nil
+}
+
+func removeSchemaAndTableInfoInColumnName(column *ast.ColumnName) {
+	column.Schema.O = ""
+	column.Schema.L = ""
+	column.Table.O = ""
+	column.Table.L = ""
+}
+
+func (engine *engine) RewriteInsertValues(
+	insertStmt *ast.InsertStmt,
+	explainContext explain.Context) (explain.RewriteFormattedResult, error) {
+
+	shardingColIndex := -1
+	var shardingCol *ast.ColumnName
+	var shardingTable *core.ShardingTable
+	for i, col := range insertStmt.Columns {
+		removeSchemaAndTableInfoInColumnName(col)
+		columnName := col.Name.L
+
+		sd, ok, e := explain.FindShardingTableByColumn(col, explainContext, true)
+		if e != nil {
+			return nil, e
+		}
+		if ok && sd.HasShardingColumn(columnName) {
+			shardingTable = sd
+			shardingColIndex = i
+			shardingCol= col
+		}
+	}
+
+	if shardingColIndex < 0 {
+		return explain.NoneRewriteFormattedResult, nil
+	}
+	writer, err:= NewInsertValuesWriter(insertStmt, shardingCol.Name.O, shardingColIndex, insertStmt.Lists, shardingTable)
+	if err != nil {
+		return nil, err
+	}
+	engine.preparerList = append(engine.preparerList, writer)
+	return explain.ResultFromFormatter(writer, shardingTable.Name, shardingCol.Name.O), nil
 }
 
 func (engine *engine) RewriteBetween(between *ast.BetweenExpr, explainContext explain.Context) (explain.RewriteFormattedResult, error) {

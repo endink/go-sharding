@@ -29,6 +29,10 @@ var NoneRewriter Rewriter = &noneRewriter{}
 type noneRewriter struct {
 }
 
+func (m *noneRewriter) RewriteInsertValues(insertStmt *ast.InsertStmt, explainContext Context) (RewriteFormattedResult, error) {
+	return NoneRewriteFormattedResult, nil
+}
+
 func (m *noneRewriter) PrepareBindVariables(_ []*types.BindVariable) error {
 	return nil
 }

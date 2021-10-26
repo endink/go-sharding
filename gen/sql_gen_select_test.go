@@ -697,6 +697,7 @@ func TestSelectGroupBy(t *testing.T) {
 	runTestCases(t, tests)
 }
 
+
 func runTestCases(t *testing.T, tests []shardCommandTestCase) {
 	for _, test := range tests {
 		t.Run(test.sql, func(tt *testing.T) {

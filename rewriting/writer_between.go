@@ -33,8 +33,6 @@ type BetweenWriter struct {
 	*ast.BetweenExpr // origin
 	column           *ColumnNameWriter
 
-	tables []string
-
 	runtime explain.Runtime
 }
 

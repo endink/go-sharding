@@ -38,7 +38,8 @@ func parseExplainTables(t *testing.T, sql string, shardingTables ...*ShardingTab
 	assert.NotNil(t, stmt)
 
 	explain := MockSqlExplain(shardingTables...)
-	err := explain.explainTables(stmt, NoneRewriter)
+	join:=stmt.From.TableRefs
+	err := explain.explainTables(join, NoneRewriter)
 	assert.Nil(t, err)
 
 	values, err := explain.valueRedoLogs.Redo(newValueRedoContext(), nil)
@@ -100,13 +101,14 @@ func assertShardingColumnValuesAndCounter(t *testing.T, column string, values *c
 
 func assertTableAlias(t *testing.T, sql string, mockedShardingTables []*ShardingTableMocked, exceptedAlias ...string) {
 
-	//sql = "SELECT A.ID as AID, B.ID AS AID from student A,student B,student C"
+	sql = "SELECT A.ID as AID, B.ID AS AID from student A,student B,student C"
 	stmt := testkit.ParseSelect(sql, t)
 	assert.NotNil(t, stmt)
 
 	explain := MockSqlExplain(mockedShardingTables...)
 
-	err := explain.explainTables(stmt, NoneRewriter)
+	join := stmt.From.TableRefs
+	err := explain.explainTables(join, NoneRewriter)
 	assert.Nil(t, err)
 
 	lookup := explain.currentContext().TableLookup()
@@ -124,8 +126,8 @@ func assertTableLookup(t *testing.T, sql string, mockedShardingTables []*Shardin
 	assert.NotNil(t, stmt)
 
 	explain := MockSqlExplain(mockedShardingTables...)
-
-	err := explain.explainTables(stmt, NoneRewriter)
+	join := stmt.From.TableRefs
+	err := explain.explainTables(join, NoneRewriter)
 	assert.Nil(t, err)
 
 	shardingTables := explain.currentContext().TableLookup().ShardingTables()

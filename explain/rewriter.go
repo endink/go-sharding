@@ -56,4 +56,10 @@ type Rewriter interface {
 	RewritePatterIn(patternIn *ast.PatternInExpr, explainContext Context) (RewriteFormattedResult, error)
 	RewriteBetween(patternIn *ast.BetweenExpr, explainContext Context) (RewriteFormattedResult, error)
 	RewriteLimit(limit *ast.Limit, explainContext Context) (RewriteLimitResult, error)
+
+	RewriteInsertValues(
+		insertStmt *ast.InsertStmt,
+		explainContext Context) (RewriteFormattedResult, error)
+
+	//RewriteAssignment(assign []*ast.Assignment) (RewriteResult, error)
 }

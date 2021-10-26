@@ -272,6 +272,7 @@ func GetValueFromPatternIn(n *ast.PatternInExpr, allowNull bool) ([]ValueReferen
 	return values, nil
 }
 
+
 func CaseValueOrParamExpr(node ast.ExprNode) (ast.ValueExpr, bool) {
 	switch node.(type) {
 	case *driver.ValueExpr, *driver.ParamMarkerExpr:

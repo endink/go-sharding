@@ -69,8 +69,8 @@ func (lookup *tableLookup) FindShardingTable(tableOrAlias string) (*core.Shardin
 	return sd, found
 }
 
-//该方法仅可用于查询一个表时根据列明查找分片表，多个表时应该明确使用表明查找
-//当找到一个以上的分片表时也会发生错误
+//ExplicitShardingTableByColumn 仅可用于查询一个表时根据列明查找分片表，多个表时应该明确使用表名查找 ,当找到一个以上的分片表时也会发生错误
+
 func (lookup *tableLookup) ExplicitShardingTableByColumn(column string) (*core.ShardingTable, bool, error) {
 	var found bool
 	var sd *core.ShardingTable
