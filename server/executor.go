@@ -22,8 +22,10 @@ import (
 	"context"
 	"github.com/endink/go-sharding/core"
 	"github.com/endink/go-sharding/database"
+	"github.com/endink/go-sharding/explain"
 	"github.com/endink/go-sharding/logging"
 	"github.com/endink/go-sharding/mysql/types"
+	"github.com/endink/go-sharding/server/txserializer"
 	"github.com/endink/go-sharding/telemetry"
 	"go.opentelemetry.io/otel/label"
 	"sync"
@@ -33,6 +35,8 @@ type Executor struct {
 	topology               DbTopology
 	proxyDbName            string
 	enableHotRowProtection bool
+	stp                    explain.ShardingTableProvider
+	txSerializer           *txserializer.TxSerializer
 }
 
 type executionContext struct {

@@ -31,6 +31,7 @@ type Plan struct {
 	Original    string // Original is the original query.
 	Permissions []core.Permission
 	explain     *explain.SqlExplain
+	TableName   string
 
 	FullQuery    *parser.ParsedQuery
 	FieldQuery   *parser.ParsedQuery
@@ -41,4 +42,6 @@ type Plan struct {
 	ShardQueries uint64        // Total number of shard queries
 	Rows         uint64        // Total number of rows
 	Errors       uint64        // Total number of errors
+
+	Where        *parser.ParsedQuery
 }

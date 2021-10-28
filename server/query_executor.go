@@ -23,6 +23,7 @@ import (
 	"github.com/endink/go-sharding/database"
 	"github.com/endink/go-sharding/mysql/types"
 	"github.com/endink/go-sharding/parser"
+	"github.com/endink/go-sharding/planner"
 )
 
 type QueryExecutor struct {
@@ -34,6 +35,7 @@ type QueryExecutor struct {
 	ctx            context.Context
 	executor       *Executor
 	target         *database.Target
+	plan           *planner.Plan
 }
 
 func (qre *QueryExecutor) Execute() (*types.Result, error) {

@@ -21,17 +21,20 @@ package txserializer
 import (
 	"context"
 	"fmt"
+	"github.com/endink/go-sharding/explain"
 	"github.com/endink/go-sharding/logging"
 	"github.com/endink/go-sharding/mysql/types"
+	"github.com/endink/go-sharding/parser"
+	"github.com/endink/go-sharding/planner"
 	"time"
 )
 
 var logComputeRowSerializerKey = logging.NewThrottledLogger("ComputeRowSerializerKey", logging.DefaultLogger, 1*time.Minute)
 
-func ComputeTxSerializerKey(ctx context.Context, sql string, bindVariables map[string]*types.BindVariable) (string, string) {
+func ComputeTxSerializerKey(ctx context.Context, sql string, stp explain.ShardingTableProvider, bindVariables map[string]*types.BindVariable) (string, string) {
 	// Strip trailing comments so we don't pollute the query cache.
-	sql, _ = sqlparser.SplitMarginComments(sql)
-	plan, err := tsv.qe.GetPlan(ctx, logStats, sql, false /* skipQueryPlanCache */, false /* isReservedConn */)
+	sql, _ = parser.SplitMarginComments(sql)
+	plan, err := planner.GetPlan(sql, false /* isReservedConn */, stp)
 	if err != nil {
 		logComputeRowSerializerKey.Errorf("failed to get plan for query: %v err: %v", sql, err)
 		return "", ""
@@ -39,19 +42,19 @@ func ComputeTxSerializerKey(ctx context.Context, sql string, bindVariables map[s
 
 	switch plan.PlanID {
 	// Serialize only UPDATE or DELETE queries.
-	case planbuilder.PlanUpdate, planbuilder.PlanUpdateLimit,
-		planbuilder.PlanDelete, planbuilder.PlanDeleteLimit:
+	case planner.PlanUpdate, planner.PlanUpdateLimit,
+		planner.PlanDelete, planner.PlanDeleteLimit:
 	default:
 		return "", ""
 	}
 
-	tableName := plan.TableName()
-	if tableName.IsEmpty() || plan.WhereClause == nil {
+	tableName := plan.TableName
+	if tableName == "" || plan.Where == nil {
 		// Do not serialize any queries without table name or where clause
 		return "", ""
 	}
 
-	where, err := plan.WhereClause.GenerateQuery(bindVariables, nil)
+	where, err := plan.Where.GenerateQuery(bindVariables, nil)
 	if err != nil {
 		logComputeRowSerializerKey.Errorf("failed to substitute bind vars in where clause: %v query: %v bind vars: %v", err, sql, bindVariables)
 		return "", ""
@@ -59,5 +62,5 @@ func ComputeTxSerializerKey(ctx context.Context, sql string, bindVariables map[s
 
 	// Example: table1 where id = 1 and sub_id = 2
 	key := fmt.Sprintf("%s%s", tableName, where)
-	return key, tableName.String()
+	return key, tableName
 }

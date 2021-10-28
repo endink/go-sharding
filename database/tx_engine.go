@@ -82,7 +82,7 @@ func NewTxEngine(conn *mysql.ConnParams, config DbConfig) *TxEngine {
 	return NewTxEngineWithCoord(conn, config, coord)
 }
 
-// NewTxEngine creates a new TxEngine.
+// NewTxEngineWithCoord creates a new TxEngine.
 func NewTxEngineWithCoord(conn *mysql.ConnParams, config DbConfig, coordinator Coordinator) *TxEngine {
 	te := &TxEngine{
 		connParam:           conn,

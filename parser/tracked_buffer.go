@@ -43,7 +43,7 @@ func NewTrackedBuffer() *TrackedBuffer {
 	return NewTrackedBufferWithFlag(EscapeRestoreFlags)
 }
 
-// NewTrackedBuffer creates a new TrackedBuffer.
+// NewTrackedBufferWithFlag creates a new TrackedBuffer.
 func NewTrackedBufferWithFlag(flag pf.RestoreFlags) *TrackedBuffer {
 	return &TrackedBuffer{
 		Builder: new(strings.Builder),

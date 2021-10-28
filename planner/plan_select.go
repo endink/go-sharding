@@ -27,7 +27,7 @@ import (
 	"github.com/pingcap/parser/ast"
 )
 
-func planSelect(sel ast.StmtNode, tables explain.ShardingTableProvider) (*Plan, error) {
+func planSelect(sel *ast.SelectStmt, tables explain.ShardingTableProvider) (*Plan, error) {
 	query, err := parser.GenerateLimitQuery(sel, 1000)
 	if err != nil {
 		return nil, err
@@ -38,28 +38,25 @@ func planSelect(sel ast.StmtNode, tables explain.ShardingTableProvider) (*Plan, 
 	}
 	plan := &Plan{
 		PlanID:     PlanSelect,
-		Query:      query,
+		FullQuery:      query,
 		FieldQuery: fieldQuery,
 	}
 
-	switch stmt := sel.(type) {
-	case *ast.SelectStmt:
-		if stmt.LockTp == ast.SelectLockForUpdate || stmt.LockTp == ast.SelectLockForUpdateNoWait {
-			plan.PlanID = PlanSelectLock
-		}
-		if stmt.Where != nil {
-			comp, ok := stmt.Where.(*ast.BinaryOperationExpr)
-			if ok && parser.IsImpossibleExpr(comp) {
-				plan.PlanID = PlanSelectImpossible
-				return plan, nil
-			}
-		}
-		exp := explain.NewSqlExplain(tables)
-		if err = exp.ExplainSelect(stmt, rewriting.NewRewriter()); err != nil {
-			return nil, err
-		}
-		plan.explain = exp
+	if sel.LockTp == ast.SelectLockForUpdate || sel.LockTp == ast.SelectLockForUpdateNoWait {
+		plan.PlanID = PlanSelectLock
 	}
+	if sel.Where != nil {
+		comp, ok := sel.Where.(*ast.BinaryOperationExpr)
+		if ok && parser.IsImpossibleExpr(comp) {
+			plan.PlanID = PlanSelectImpossible
+			return plan, nil
+		}
+	}
+	exp := explain.NewSqlExplain(tables)
+	if err = exp.ExplainSelect(sel, rewriting.NewRewriter()); err != nil {
+		return nil, err
+	}
+	plan.explain = exp
 
 	return plan, nil
 }

@@ -99,6 +99,9 @@ func (s *SqlExplain) rewriteTableSource(table *ast.TableSource, rewriter Rewrite
 	switch name := table.Source.(type) {
 	case *ast.TableName:
 		if s.subQueryDepth.Get() == 0 {
+			if s.tableName == "" {
+				s.tableName = table.AsName.O
+			}
 			err := lookup.addTable(table, s.shardingTableProvider)
 			if err != nil {
 				return err

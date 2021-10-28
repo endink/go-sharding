@@ -41,6 +41,13 @@ func (s *SqlExplain) explainWhere(sel ast.StmtNode, rewriter Rewriter) error {
 			})
 			return s.rewriteCondition(property, rewriter)
 		}
+	case *ast.DeleteStmt:
+		if stmt.Where != nil {
+			property := NewNodeProperty(stmt.Where, func(n ast.ExprNode) {
+				stmt.Where = n
+			})
+			return s.rewriteCondition(property, rewriter)
+		}
 	default:
 		return fmt.Errorf("explain where is not supported, statement type: '%T'", sel)
 	}

@@ -43,6 +43,30 @@ func ParseSelect(sql string, t testing.TB) *ast.SelectStmt {
 	return sel
 }
 
+func ParseUpdate(sql string, t testing.TB) *ast.UpdateStmt {
+	testParserMutex.Lock()
+	defer testParserMutex.Unlock()
+	node, err := TestParser.ParseOneStmt(sql, "", "")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	sel, ok := node.(*ast.UpdateStmt)
+	assert.True(t, ok, fmt.Sprint("provided content is not update sql text", "\n", "SQL:", "\n", sql))
+	return sel
+}
+
+func ParseDelete(sql string, t testing.TB) *ast.DeleteStmt {
+	testParserMutex.Lock()
+	defer testParserMutex.Unlock()
+	node, err := TestParser.ParseOneStmt(sql, "", "")
+	if err != nil {
+		t.Fatalf(err.Error())
+	}
+	sel, ok := node.(*ast.DeleteStmt)
+	assert.True(t, ok, fmt.Sprint("provided content is not delete sql text", "\n", "SQL:", "\n", sql))
+	return sel
+}
+
 func ParseInsert(sql string, t testing.TB) *ast.InsertStmt {
 	testParserMutex.Lock()
 	defer testParserMutex.Unlock()
@@ -51,7 +75,7 @@ func ParseInsert(sql string, t testing.TB) *ast.InsertStmt {
 		t.Fatalf(err.Error())
 	}
 	sel, ok := node.(*ast.InsertStmt)
-	assert.True(t, ok, fmt.Sprint("provided content is not select sql text", "\n", "SQL:", "\n", sql))
+	assert.True(t, ok, fmt.Sprint("provided content is not insert sql text", "\n", "SQL:", "\n", sql))
 	return sel
 }
 

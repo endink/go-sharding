@@ -24,13 +24,21 @@ import (
 	"github.com/endink/go-sharding/database"
 	"github.com/endink/go-sharding/mysql/types"
 	"github.com/endink/go-sharding/parser"
+	"github.com/endink/go-sharding/planner"
 	"github.com/endink/go-sharding/server/txserializer"
 	"github.com/endink/go-sharding/telemetry"
 	"go.opentelemetry.io/otel/label"
 	"time"
 )
 
-func (ec *Executor) Execute(ctx context.Context, target *database.Target, sql string, bindVariables map[string]*types.BindVariable, transactionID, reservedID int64, options *types.ExecuteOptions) (result *types.Result, err error) {
+func (ec *Executor) Execute(
+	ctx context.Context,
+	target *database.Target,
+	sql string,
+	bindVariables map[string]*types.BindVariable,
+	transactionID,
+	reservedID int64,
+	options *types.ExecuteOptions) (result *types.Result, err error) {
 	ctx, span := telemetry.GlobalTracer.Start(ctx, "Executor.Execute")
 	span.SetAttributes(label.String("sql", sql))
 	defer span.End()
@@ -48,7 +56,7 @@ func (ec *Executor) Execute(ctx context.Context, target *database.Target, sql st
 				bindVariables = make(map[string]*types.BindVariable)
 			}
 			query, comments := parser.SplitMarginComments(sql)
-			plan, err := ec.qe.GetPlan(ctx, logStats, query, skipQueryPlanCache(options), reservedID != 0)
+			plan, err := planner.GetPlan(query, reservedID != 0, ec.stp)
 			if err != nil {
 				return err
 			}
@@ -132,17 +140,17 @@ func (ec *Executor) beginWaitForSameRangeTransactions(ctx context.Context, targe
 		"", "waitForSameRangeTransactions", nil,
 		target, options,
 		func(e executionContext) error {
-			k, table := ec.computeTxSerializerKey(ctx, sql, bindVariables)
+			k, table := txserializer.ComputeTxSerializerKey(ctx, sql, ec.stp, bindVariables)
 			if k == "" {
 				// Query is not subject to tx serialization/hot row protection.
 				return nil
 			}
 
 			startTime := time.Now()
-			done, waited, waitErr := ec.qe.txSerializer.Wait(ctx, k, table)
+			done, waited, waitErr := ec.txSerializer.Wait(ctx, k, table)
 			txDone = done
 			if waited {
-				ec.stats.WaitTimings.Record("TxSerializer", startTime)
+				database.DbStats.ResourceWaitTime.RecordLatency(ctx,"TxSerializer", startTime)
 			}
 
 			return waitErr

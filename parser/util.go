@@ -42,7 +42,7 @@ func IsLockingFunc(node *ast.FuncCallExpr) bool {
 	return found
 }
 
-// checkForPoolingUnsafeConstructs returns an error if the SQL expression contains
+// CheckForPoolingUnsafeConstructs returns an error if the SQL expression contains
 // a call to GET_LOCK(), which is unsafe with server-side connection pooling.
 func CheckForPoolingUnsafeConstructs(expr ast.StmtNode) error {
 
@@ -123,9 +123,9 @@ func WriteNode(node ast.Node, flag format.RestoreFlags) (string, error) {
 	}
 }
 
-// GenerateFieldQuery generates a query to just fetch the field info
+// GenerateQuery generates a query to just fetch the field info
 // by adding impossible where clauses as needed.
-func GenerateQuery(statement ast.StmtNode) (*ParsedQuery, error) {
+func GenerateQuery(statement ast.Node) (*ParsedQuery, error) {
 	buf := NewTrackedBuffer()
 	buf.astPrintf("%v", statement)
 	return buf.ParsedQuery(), nil
@@ -146,7 +146,7 @@ func GenerateFieldQuery(statement ast.StmtNode) (*ParsedQuery, error) {
 	return buf.ParsedQuery(), nil
 }
 
-// IsImpossible returns true if the comparison in the expression can never evaluate to true.
+// IsImpossibleExpr returns true if the comparison in the expression can never evaluate to true.
 // Note that this is not currently exhaustive to ALL impossible comparisons.
 func IsImpossibleExpr(node *ast.BinaryOperationExpr) bool {
 	var left, right *driver.ValueExpr

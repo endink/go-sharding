@@ -21,7 +21,6 @@ package planner
 import (
 	"fmt"
 	"github.com/endink/go-sharding/explain"
-	"github.com/endink/go-sharding/mysql/types"
 	"github.com/endink/go-sharding/parser"
 	"github.com/pingcap/parser/ast"
 )
@@ -35,7 +34,7 @@ func CanNormalize(stmt ast.StmtNode) bool {
 	return false
 }
 
-func getPlan(sql string, comments parser.MarginComments, bindVars map[string]*types.BindVariable) (*Plan, error) {
+func GetPlan(sql string, isReservedConn bool, stp explain.ShardingTableProvider) (*Plan, error) {
 	stmt, err := parser.ParseSQL(sql)
 	if err != nil {
 		return nil, err
@@ -43,6 +42,12 @@ func getPlan(sql string, comments parser.MarginComments, bindVars map[string]*ty
 
 	query := sql
 	statement := stmt
+
+	plan, err := buildPlan(query, statement, stp, isReservedConn)
+	if err != nil {
+		return nil, err
+	}
+	return plan, nil
 }
 
 // Build builds a plan based on the schema.
@@ -50,8 +55,7 @@ func buildPlan(
 	sql string,
 	statement ast.StmtNode,
 	tables explain.ShardingTableProvider,
-	isReservedConn bool,
-	dbName string) (plan *Plan, err error) {
+	isReservedConn bool) (plan *Plan, err error) {
 
 	if !isReservedConn {
 		err = parser.CheckForPoolingUnsafeConstructs(statement)
@@ -65,13 +69,20 @@ func buildPlan(
 	case *ast.SelectStmt:
 		plan, err = planSelect(stmt, tables)
 	case *ast.InsertStmt:
-		plan, err = analyzeInsert(stmt, tables)
+		plan, err = planInsert(stmt, tables)
 	case *ast.UpdateStmt:
-		plan, err = analyzeUpdate(stmt, tables)
+		plan, err = planUpdate(stmt, tables)
 	case *ast.DeleteStmt:
-		plan, err = analyzeDelete(stmt, tables)
+		plan, err = planDelete(stmt, tables)
 	case *ast.SetStmt:
-		plan, err = analyzeSet(stmt), nil
+		q, e:= parser.GenerateQuery(stmt)
+		if e != nil {
+			return nil, e
+		}
+		return &Plan{
+			PlanID:    PlanSet,
+			FullQuery: q,
+		}, nil
 	//case *ast.DDLNode.DDLStatement:
 	//	// DDLs and some other statements below don't get fully parsed.
 	//	// We have to use the original query at the time of execution.
@@ -82,8 +93,8 @@ func buildPlan(
 	//		fullQuery = GenerateFullQuery(stmt)
 	//	}
 	//	plan = &Plan{PlanID: PlanDDL, FullQuery: fullQuery}
-	case *ast.ShowStmt:
-		plan, err = analyzeShow(stmt, dbName)
+	//case *ast.ShowStmt:
+	//	plan, err = analyzeShow(stmt, dbName)
 	case *ast.ExplainStmt:
 		plan, err = &Plan{PlanID: PlanOtherRead}, nil
 	case *ast.AdminStmt:

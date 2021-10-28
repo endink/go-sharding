@@ -40,6 +40,7 @@ type SqlExplain struct {
 	valueRedoLogs         *valueRedoLogs
 	AstNode               ast.Node
 	rewriter              Rewriter
+	tableName            string
 }
 
 func NewSqlExplain(stProvider ShardingTableProvider) *SqlExplain {
@@ -59,6 +60,10 @@ func (s *SqlExplain) Context() Context {
 
 func (s *SqlExplain) Schema() string {
 	return s.shardingTableProvider.Schema()
+}
+
+func (s *SqlExplain) TableName() string {
+	return s.tableName
 }
 
 func checkInsertStmt(stmt *ast.InsertStmt) (insertMode, error) {
@@ -99,8 +104,6 @@ func removeSchemaAndTableInfoInColumnName(column *ast.ColumnName) {
 	column.Table.L = ""
 }
 
-
-
 func (s *SqlExplain) ExplainInsert(ist *ast.InsertStmt, rewriter Rewriter) error {
 	var err error
 	var mode insertMode
@@ -132,7 +135,7 @@ func (s *SqlExplain) ExplainInsert(ist *ast.InsertStmt, rewriter Rewriter) error
 			}
 			if ok && sd.HasShardingColumn(assignment.Column.Name.L) {
 				shardingColIndex = i
-				shardingCol= assignment.Column
+				shardingCol = assignment.Column
 			}
 		}
 	case insertBatch:
@@ -146,7 +149,7 @@ func (s *SqlExplain) ExplainInsert(ist *ast.InsertStmt, rewriter Rewriter) error
 			}
 			if ok && sd.HasShardingColumn(columnName) {
 				shardingColIndex = i
-				shardingCol= col
+				shardingCol = col
 			}
 		}
 	}
@@ -159,7 +162,6 @@ func (s *SqlExplain) ExplainInsert(ist *ast.InsertStmt, rewriter Rewriter) error
 
 	return nil
 }
-
 
 func (s *SqlExplain) ExplainUpdate(upd *ast.UpdateStmt, rewriter Rewriter) error {
 	s.AstNode = upd
@@ -198,6 +200,36 @@ func (s *SqlExplain) ExplainUpdate(upd *ast.UpdateStmt, rewriter Rewriter) error
 
 	if upd.Order != nil && upd.Order.Items != nil {
 		if e := s.rewriteByItems(upd.Order.Items, rewriter); e != nil {
+			return e
+		}
+	}
+
+	return nil
+}
+
+func (s *SqlExplain) ExplainDelete(del *ast.DeleteStmt, rewriter Rewriter) error {
+	s.AstNode = del
+	s.rewriter = rewriter
+
+	var err error
+	if err = s.orderParams(del); err != nil {
+		return err
+	}
+
+	if del.TableRefs == nil || del.TableRefs.TableRefs == nil {
+		return errors.New("delete table is missing")
+	}
+
+	if err = s.explainTables(del.TableRefs.TableRefs, rewriter); err != nil {
+		return err
+	}
+
+	if err = s.explainWhere(del, rewriter); err != nil {
+		return err
+	}
+
+	if del.Order != nil && del.Order.Items != nil {
+		if e := s.rewriteByItems(del.Order.Items, rewriter); e != nil {
 			return e
 		}
 	}

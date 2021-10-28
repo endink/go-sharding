@@ -21,12 +21,12 @@ package server
 type TransactionMode int32
 
 const (
-	// UNSPECIFIED uses the transaction mode set by the VTGate flag 'transaction_mode'.
+	// TransactionModeUnspecified UNSPECIFIED uses the transaction mode set by the VTGate flag 'transaction_mode'.
 	TransactionModeUnspecified TransactionMode = iota
-	// SINGLE disallows distributed transactions.
+	// TransactionModeSingle SINGLE disallows distributed transactions.
 	TransactionModeSingle
-	// MULTI allows distributed transactions with best effort commit.
+	// TransactionModeMulti MULTI allows distributed transactions with best effort commit.
 	TransactionModeMulti
-	// TWOPC is for distributed transactions with atomic commits.
+	// TransactionModeTwoPC TWOPC is for distributed transactions with atomic commits.
 	TransactionModeTwoPC
 )

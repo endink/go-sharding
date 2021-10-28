@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-func TestBatchInsert(t *testing.T){
+func TestInsert(t *testing.T){
 	tests := []shardCommandTestCase{
 		{
 			tbInline: "test_${id%4}",
@@ -54,7 +54,19 @@ func TestBatchInsert(t *testing.T){
 				Commands: []*ScatterCommand{
 					{
 						DataSource: "db1",
-						SqlCommand: "insert into test_0 set id=1, name=2, value='333'", //补列
+						SqlCommand: "insert into test_0 set id=8, name=2, value='333'", //补列
+					},
+				},
+			},
+		},
+		{
+			tbInline: "test_${id%4}",
+			sql:      "insert into test2 set id=8, name=2, value='333'",
+			sqls: &SqlGenResult{
+				Commands: []*ScatterCommand{
+					{
+						DataSource: "db1",
+						SqlCommand: "insert into test2 set id=8, name=2, value='333'", //补列
 					},
 				},
 			},
